@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador IBFC - Informática SEC/BA</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e67e22;
+            --success: #27ae60;
+            --error: #c0392b;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 50px; }
+
+        /* Header & Nav */
+        header { background-color: var(--primary); color: white; padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.9rem; opacity: 0.8; }
+
+        nav { display: flex; justify-content: center; background: #fff; padding: 0.5rem; gap: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        nav button {
+            background: none; border: none; padding: 10px 20px; cursor: pointer; font-weight: 600; color: var(--primary); border-bottom: 3px solid transparent; transition: 0.3s;
+        }
+        nav button.active { border-bottom-color: var(--secondary); color: var(--secondary); }
+
+        /* Containers */
+        .container { max-width: 800px; margin: 20px auto; padding: 0 15px; display: none; }
+        .container.active { display: block; }
+
+        /* Quiz Styles */
+        .card { background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .badge { background: var(--secondary); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .question-text { font-size: 1.1rem; margin-bottom: 20px; line-height: 1.6; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .option { 
+            padding: 15px; border: 2px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center;
+        }
+        .option:hover:not(.disabled) { background-color: #f8f9fa; border-color: var(--secondary); }
+        .option.selected { border-color: var(--secondary); background-color: #ebf5fb; }
+        .option.correct { border-color: var(--success); background-color: #d4efdf; }
+        .option.wrong { border-color: var(--error); background-color: #fadbd8; }
+        .option input { margin-right: 10px; }
+
+        .actions { margin-top: 20px; display: flex; justify-content: space-between; }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        .btn-confirm { background-color: var(--success); }
+        .btn-next { background-color: var(--secondary); display: none; }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        /* Feedback Section */
+        .feedback { margin-top: 20px; padding: 15px; border-radius: 6px; display: none; border-left: 5px solid; }
+        .feedback.success { background-color: #d4efdf; border-color: var(--success); }
+        .feedback.error { background-color: #fadbd8; border-color: var(--error); }
+        .feedback h4 { margin-bottom: 5px; }
+
+        /* Dashboard Styles */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+        
+        .swot-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .swot-box { padding: 15px; border-radius: 6px; }
+        .swot-strong { background-color: #d4efdf; border: 1px solid var(--success); }
+        .swot-weak { background-color: #fadbd8; border: 1px solid var(--error); }
+        .swot-list { list-style: none; margin-top: 10px; text-align: left; }
+        .swot-list li { margin-bottom: 5px; font-size: 0.9rem; }
+
+        /* Data Persistence */
+        textarea { width: 100%; height: 100px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; }
+        .data-actions { display: flex; gap: 10px; }
+        .btn-action { background-color: var(--primary); flex: 1; }
+
+        @media (max-width: 600px) {
+            .stats-grid, .swot-container { grid-template-columns: 1fr; }
+            .actions { flex-direction: column; gap: 10px; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Simulador IBFC - Informática</h1>
+    <div class="subtitle">Foco: Pastas, Arquivos e Navegação (SEC/BA)</div>
+</header>
+
+<nav>
+    <button onclick="switchTab('quiz')" id="tab-quiz" class="active">Simulado</button>
+    <button onclick="switchTab('dashboard')" id="tab-dashboard">Dashboard</button>
+    <button onclick="switchTab('data')" id="tab-data">Dados (Salvar)</button>
+</nav>
+
+<!-- QUIZ SECTION -->
+<div id="view-quiz" class="container active">
+    <div class="card">
+        <div class="question-header">
+            <span class="badge" id="q-topic">Tópico</span>
+            <span style="font-size: 0.9rem; color: #7f8c8d;">Questão <span id="q-current">1</span> de 30</span>
+        </div>
+        <div class="question-text" id="q-text">
+            Carregando questão...
+        </div>
+        <div class="options" id="q-options">
+            <!-- Options injected via JS -->
+        </div>
+
+        <div class="feedback" id="feedback-area">
+            <h4 id="feedback-title"></h4>
+            <p id="feedback-msg"></p>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-confirm" id="btn-confirm" onclick="confirmAnswer()">Confirmar Resposta</button>
+            <button class="btn btn-next" id="btn-next" onclick="nextQuestion()">Próxima Questão</button>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD SECTION -->
+<div id="view-dashboard" class="container">
+    <div class="card">
+        <h3>Desempenho da Sessão Atual</h3>
+        <div style="height: 250px; display: flex; justify-content: center;">
+            <canvas id="chartSession"></canvas>
+        </div>
+    </div>
+
+    <div class="swot-container">
+        <div class="swot-box swot-strong">
+            <h4>💪 Pontos Fortes (>80%)</h4>
+            <ul class="swot-list" id="list-strong">
+                <li>Sem dados suficientes</li>
+            </ul>
+        </div>
+        <div class="swot-box swot-weak">
+            <h4>⚠️ Pontos de Atenção (<60%)</h4>
+            <ul class="swot-list" id="list-weak">
+                <li>Sem dados suficientes</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <h3>Histórico Geral Acumulado</h3>
+        <div style="height: 200px;">
+            <canvas id="chartHistory"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- DATA SECTION -->
+<div id="view-data" class="container">
+    <div class="card">
+        <h3>Salvar e Carregar Progresso</h3>
+        <p style="margin-bottom: 15px; font-size: 0.9rem; color: #666;">
+            Como este chat pode reiniciar, copie o código abaixo e guarde-o em um bloco de notas. Na próxima vez, cole-o aqui para restaurar suas estatísticas e evitar questões repetidas.
+        </p>
+        
+        <textarea id="data-area" placeholder="Cole seu código JSON aqui para importar..."></textarea>
+        
+        <div class="data-actions">
+            <button class="btn btn-action" onclick="exportData()">Gerar Código (Exportar)</button>
+            <button class="btn btn-action" style="background-color: var(--accent);" onclick="importData()">Carregar Código (Importar)</button>
+        </div>
+        <p id="data-msg" style="margin-top: 10px; font-weight: bold;"></p>
+    </div>
+</div>
+
+<script>
+    // --- 1. Database de Questões (Simulando IBFC) ---
+    const questionBank = [
+        {
+            id: 1,
+            topic: "Windows - Atalhos",
+            text: "No Microsoft Windows 10, em sua configuração padrão, qual atalho de teclado é utilizado para renomear um arquivo ou pasta selecionada?",
+            options: ["F2", "F5", "Ctrl + R", "Alt + N", "F4"],
+            correct: 0,
+            explanation: "O atalho <b>F2</b> é universal no Windows para renomear itens. F5 atualiza, Ctrl+R (em navegadores) recarrega, e Alt+F4 fecha janelas."
+        },
+        {
+            id: 2,
+            topic: "Navegadores",
+            text: "Ao utilizar o navegador Google Chrome, o usuário deseja abrir uma nova janela anônima para que o histórico de navegação não seja salvo. Qual combinação de teclas deve ser utilizada?",
+            options: ["Ctrl + N", "Ctrl + Shift + N", "Ctrl + Shift + P", "Alt + F4", "Ctrl + T"],
+            correct: 1,
+            explanation: "No Chrome e Edge, usa-se <b>Ctrl + Shift + N</b>. No Firefox, o atalho para navegação privativa é Ctrl + Shift + P."
+        },
+        {
+            id: 3,
+            topic: "Arquivos - Nomenclatura",
+            text: "Qual dos seguintes caracteres é EXPLICITAMENTE proibido de ser utilizado no nome de um arquivo ou pasta no sistema operacional Windows?",
+            options: ["- (hífen)", "_ (underline)", "? (interrogação)", ". (ponto)", "@ (arroba)"],
+            correct: 2,
+            explanation: "Os caracteres proibidos no Windows são: <b>/ \\ : * ? \" < > |</b>."
+        },
+        {
+            id: 4,
+            topic: "Windows - Explorador",
+            text: "No Explorador de Arquivos do Windows 10, a guia 'Exibir' permite alterar a forma como os arquivos são mostrados. Qual opção NÃO é um modo de exibição padrão?",
+            options: ["Ícones Grandes", "Detalhes", "Lista", "Mosaico Triangular", "Conteúdo"],
+            correct: 3,
+            explanation: "Mosaico Triangular não existe. Os modos são: Ícones (Extra grandes, grandes, médios, pequenos), Lista, Detalhes, Blocos e Conteúdo."
+        },
+        {
+            id: 5,
+            topic: "Navegadores",
+            text: "Um símbolo de um 'cadeado' ao lado da URL na barra de endereços de um navegador indica que:",
+            options: ["O site é 100% à prova de hackers.", "A conexão entre o navegador e o servidor é criptografada (HTTPS).", "O site pertence a um órgão governamental.", "O computador do usuário está infectado.", "O site está bloqueado para acesso."],
+            correct: 1,
+            explanation: "O cadeado indica o uso do protocolo <b>HTTPS</b> (SSL/TLS), garantindo que a comunicação entre o usuário e o servidor está criptografada."
+        },
+        {
+            id: 6,
+            topic: "Arquivos - Extensões",
+            text: "Qual das seguintes extensões de arquivo é nativamente associada a arquivos compactados/comprimidos?",
+            options: [".pdf", ".zip", ".txt", ".bmp", ".xlsx"],
+            correct: 1,
+            explanation: "<b>.zip</b> é a extensão padrão para arquivos compactados. .pdf é documento, .txt texto puro, .bmp imagem bitmap e .xlsx planilha Excel."
+        },
+        {
+            id: 7,
+            topic: "Windows - Lixeira",
+            text: "Quando um arquivo é excluído de um Pen Drive (memória flash USB) conectado a um computador com Windows, o que acontece com o arquivo?",
+            options: ["Vai para a Lixeira do Windows.", "Fica oculto na pasta raiz.", "É excluído permanentemente, sem passar pela Lixeira.", "É movido para a pasta TEMP.", "É enviado para a nuvem."],
+            correct: 2,
+            explanation: "Arquivos excluídos de unidades removíveis (como Pen Drives) e locais de rede <b>não vão para a Lixeira</b>; são excluídos permanentemente."
+        },
+        {
+            id: 8,
+            topic: "Windows - Atalhos",
+            text: "Para alternar rapidamente entre as janelas abertas no Windows, utiliza-se o atalho:",
+            options: ["Alt + Tab", "Ctrl + Tab", "Shift + Tab", "Win + D", "Alt + Space"],
+            correct: 0,
+            explanation: "<b>Alt + Tab</b> alterna entre janelas. Ctrl + Tab alterna entre abas (em navegadores). Win + D mostra a área de trabalho."
+        },
+        {
+            id: 9,
+            topic: "Navegadores",
+            text: "O que é 'Cookie' no contexto de navegação na internet?",
+            options: ["Um vírus que rouba senhas.", "Um pequeno arquivo de texto salvo pelo site no computador do usuário para lembrar preferências.", "Um programa antivírus.", "Um atalho para a área de trabalho.", "Um erro de carregamento de página."],
+            correct: 1,
+            explanation: "Cookies são pequenos arquivos de texto que armazenam informações sobre a navegação, como login, preferências e carrinho de compras."
+        },
+        {
+            id: 10,
+            topic: "Windows - Explorador",
+            text: "No Windows Explorer, qual tecla de atalho seleciona TODOS os arquivos da pasta atual?",
+            options: ["Ctrl + T", "Ctrl + A", "Shift + A", "Alt + T", "Ctrl + S"],
+            correct: 1,
+            explanation: "<b>Ctrl + A</b> (All) seleciona tudo. Nota: Em versões do Word em português, pode ser Ctrl + T (Tudo), mas no Windows Explorer padrão é Ctrl + A."
+        },
+        {
+            id: 11,
+            topic: "Arquivos - Caminho",
+            text: "Em um caminho de arquivo como 'C:\\Usuários\\Docs\\texto.txt', o termo 'C:' refere-se a:",
+            options: ["A pasta raiz.", "A unidade de disco (Drive).", "A extensão do arquivo.", "O servidor de rede.", "O nome do arquivo."],
+            correct: 1,
+            explanation: "A letra seguida de dois pontos (Ex: C:, D:) identifica a <b>Unidade de Disco</b> lógica."
+        },
+        {
+            id: 12,
+            topic: "Navegadores",
+            text: "Qual recurso do navegador permite salvar o endereço de uma página web para acesso futuro rápido?",
+            options: ["Histórico", "Download", "Favoritos (ou Bookmarks)", "Cache", "Cookies"],
+            correct: 2,
+            explanation: "Os <b>Favoritos</b> permitem salvar e organizar URLs. O atalho para adicionar é geralmente Ctrl + D."
+        },
+        {
+            id: 13,
+            topic: "Windows - Atalhos",
+            text: "Para 'recortar' um arquivo selecionado, preparando-o para ser movido, utiliza-se:",
+            options: ["Ctrl + C", "Ctrl + V", "Ctrl + X", "Ctrl + Z", "Ctrl + Y"],
+            correct: 2,
+            explanation: "<b>Ctrl + X</b> recorta (move). Ctrl + C copia. Ctrl + V cola."
+        },
+        {
+            id: 14,
+            topic: "Cloud/Conceitos",
+            text: "O conceito de armazenar e acessar dados e programas através da internet, em vez do disco rígido do computador, é chamado de:",
+            options: ["Intranet", "Computação em Nuvem (Cloud Computing)", "Ethernet", "Backup Local", "Firewall"],
+            correct: 1,
+            explanation: "Cloud Computing (Computação em Nuvem) refere-se ao uso de recursos (armazenamento, processamento) via internet (Ex: Google Drive, OneDrive)."
+        },
+        {
+            id: 15,
+            topic: "Windows - Explorador",
+            text: "No Windows 10, o 'Acesso Rápido' no Explorador de Arquivos serve para:",
+            options: ["Aumentar a velocidade do processador.", "Fixar pastas usadas frequentemente e mostrar arquivos recentes.", "Acessar a internet mais rápido.", "Desfragmentar o disco.", "Limpar vírus."],
+            correct: 1,
+            explanation: "O <b>Acesso Rápido</b> substituiu os 'Favoritos' de versões antigas, mostrando pastas fixadas e arquivos usados recentemente."
+        },
+        {
+            id: 16,
+            topic: "Arquivos - Extensões",
+            text: "Qual das extensões abaixo refere-se a um arquivo executável no Windows?",
+            options: [".exe", ".txt", ".jpg", ".mp3", ".html"],
+            correct: 0,
+            explanation: "<b>.exe</b> é a extensão padrão para programas executáveis no Windows."
+        },
+        {
+            id: 17,
+            topic: "Navegadores",
+            text: "Para recarregar a página atual ignorando o conteúdo em cache (carregamento forçado) na maioria dos navegadores, usa-se:",
+            options: ["F5", "Ctrl + F5", "Alt + F5", "Esc", "Ctrl + P"],
+            correct: 1,
+            explanation: "F5 apenas recarrega. <b>Ctrl + F5</b> força o recarregamento limpando o cache daquela página específica."
+        },
+        {
+            id: 18,
+            topic: "Windows - Sistema",
+            text: "Qual atalho bloqueia o computador imediatamente, exigindo senha para entrar novamente?",
+            options: ["Ctrl + Alt + Del", "Alt + F4", "Tecla Windows + L", "Tecla Windows + D", "Ctrl + Esc"],
+            correct: 2,
+            explanation: "<b>Win + L</b> (Lock) bloqueia a estação de trabalho imediatamente."
+        },
+        {
+            id: 19,
+            topic: "Arquivos - Tamanho",
+            text: "Qual é a ordem correta de grandeza de armazenamento (do menor para o maior)?",
+            options: ["MB < KB < GB < TB", "KB < MB < GB < TB", "TB < GB < MB < KB", "GB < MB < KB < TB", "KB < GB < MB < TB"],
+            correct: 1,
+            explanation: "A ordem é: Kilobyte (KB) < Megabyte (MB) < Gigabyte (GB) < Terabyte (TB)."
+        },
+        {
+            id: 20,
+            topic: "Navegadores",
+            text: "O que acontece ao pressionar Ctrl + J no Google Chrome?",
+            options: ["Abre o Histórico.", "Abre a guia de Downloads.", "Imprime a página.", "Salva a página.", "Fecha o navegador."],
+            correct: 1,
+            explanation: "<b>Ctrl + J</b> abre a lista de Downloads realizados."
+        },
+        {
+            id: 21,
+            topic: "Windows - Área de Transferência",
+            text: "No Windows 10, ao pressionar 'Tecla Windows + V', o usuário acessa:",
+            options: ["O Explorador de Arquivos.", "As Configurações.", "O Histórico da Área de Transferência.", "O Menu Iniciar.", "A Central de Ações."],
+            correct: 2,
+            explanation: "<b>Win + V</b> abre o Histórico da Área de Transferência (se ativado), permitindo colar itens copiados anteriormente."
+        },
+        {
+            id: 22,
+            topic: "Arquivos - Seleção",
+            text: "Para selecionar arquivos 'não contíguos' (salteados) em uma pasta, deve-se clicar nos arquivos mantendo pressionada a tecla:",
+            options: ["Shift", "Ctrl", "Alt", "Tab", "Espaço"],
+            correct: 1,
+            explanation: "<b>Ctrl</b> + Clique seleciona itens individuais. Shift + Clique seleciona um intervalo contínuo."
+        },
+        {
+            id: 23,
+            topic: "Navegadores",
+            text: "Qual a função do atalho Ctrl + Shift + T em navegadores modernos?",
+            options: ["Abre uma nova aba.", "Fecha a aba atual.", "Reabre a última aba fechada.", "Abre o gerenciador de tarefas.", "Limpa o histórico."],
+            correct: 2,
+            explanation: "<b>Ctrl + Shift + T</b> é o 'salva-vidas' que reabre a última aba que foi fechada acidentalmente."
+        },
+        {
+            id: 24,
+            topic: "Windows - Propriedades",
+            text: "Para acessar rapidamente as 'Propriedades' de um arquivo ou pasta selecionada, pode-se usar o atalho:",
+            options: ["Alt + Enter", "Ctrl + P", "Shift + Enter", "Alt + Esc", "Ctrl + I"],
+            correct: 0,
+            explanation: "<b>Alt + Enter</b> abre a caixa de diálogo de Propriedades do item selecionado."
+        },
+        {
+            id: 25,
+            topic: "Cloud/Conceitos",
+            text: "OneDrive é o serviço de armazenamento em nuvem nativo de qual empresa?",
+            options: ["Google", "Apple", "Microsoft", "Amazon", "Dropbox"],
+            correct: 2,
+            explanation: "OneDrive pertence à <b>Microsoft</b> e vem integrado nativamente no Windows 10/11."
+        },
+        {
+            id: 26,
+            topic: "Arquivos - PDF",
+            text: "A principal característica do formato PDF (Portable Document Format) é:",
+            options: ["Ser facilmente editável no Bloco de Notas.", "Preservar a formatação do documento independentemente do dispositivo ou software.", "Ser um arquivo de vídeo.", "Ser exclusivo do Linux.", "Não permitir impressão."],
+            correct: 1,
+            explanation: "O PDF foi criado para garantir que o layout, fontes e imagens sejam exibidos da mesma forma em qualquer sistema."
+        },
+        {
+            id: 27,
+            topic: "Windows - Pastas",
+            text: "O que acontece se você arrastar um arquivo de uma pasta para outra na MESMA unidade de disco (Ex: de C:/Docs para C:/Fotos)?",
+            options: ["O arquivo é copiado.", "O arquivo é movido.", "Um atalho é criado.", "O arquivo é excluído.", "Nada acontece."],
+            correct: 1,
+            explanation: "Na mesma unidade: <b>Mover</b>. Entre unidades diferentes (Ex: C: para D:): Copiar."
+        },
+        {
+            id: 28,
+            topic: "Navegadores",
+            text: "A parte da URL 'http://www.exemplo.com.br' que identifica o domínio é:",
+            options: ["http", "www", "exemplo.com.br", ".br", "://"],
+            correct: 2,
+            explanation: "<b>exemplo.com.br</b> é o domínio. http é o protocolo, www é o subdomínio."
+        },
+        {
+            id: 29,
+            topic: "Windows - Pesquisa",
+            text: "Para localizar arquivos no Windows Explorer usando caracteres curinga, qual símbolo substitui uma cadeia de caracteres?",
+            options: ["?", "*", "#", "&", "$"],
+            correct: 1,
+            explanation: "O asterisco (<b>*</b>) substitui vários caracteres (Ex: *.doc). A interrogação (?) substitui apenas um caractere."
+        },
+        {
+            id: 30,
+            topic: "Segurança",
+            text: "A prática de enviar e-mails falsos se passando por instituições legítimas para roubar dados chama-se:",
+            options: ["Phishing", "Worm", "Trojan", "Spyware", "Ransomware"],
+            correct: 0,
+            explanation: "<b>Phishing</b> (pescaria) é a técnica de engenharia social para enganar usuários e obter dados sensíveis."
+        },
+        {
+            id: 31,
+            topic: "Windows - Atalhos",
+            text: "No sistema operacional Windows 10, qual combinação de teclas é utilizada para abrir diretamente o Explorador de Arquivos (Windows Explorer)?",
+            options: ["Tecla Windows + E", "Tecla Windows + R", "Tecla Windows + D", "Ctrl + E", "Alt + E"],
+            correct: 0,
+            explanation: "O atalho <b>Tecla Windows + E</b> abre o Explorador de Arquivos. A letra 'E' vem de Explorer."
+        },
+        {
+            id: 32,
+            topic: "Navegadores",
+            text: "No navegador Microsoft Edge, o modo de navegação que não salva o histórico, cookies e dados de sites é oficialmente chamado de:",
+            options: ["Navegação Anônima", "Modo InPrivate", "Navegação Oculta", "Modo Fantasma", "Acesso Restrito"],
+            correct: 1,
+            explanation: "A IBFC gosta de nomenclaturas exatas. No Google Chrome é 'Anônima', mas no Edge da Microsoft o recurso chama-se <b>InPrivate</b>."
+        },
+        {
+            id: 33,
+            topic: "Windows - Lixeira",
+            text: "Para excluir um arquivo selecionado permanentemente no Windows, sem que ele seja enviado para a Lixeira, o usuário deve pressionar:",
+            options: ["Ctrl + Delete", "Alt + Delete", "Shift + Delete", "Tecla Windows + Delete", "Tab + Delete"],
+            correct: 2,
+            explanation: "A combinação <b>Shift + Delete</b> apaga o arquivo definitivamente, ignorando a Lixeira."
+        },
+        {
+            id: 34,
+            topic: "Internet - Conceitos",
+            text: "A respeito dos conceitos de redes, uma rede corporativa fechada, que utiliza os mesmos protocolos da Internet, mas com acesso restrito aos funcionários de uma organização, é definida como:",
+            options: ["Extranet", "Internet", "Ethernet", "Intranet", "VPN Local"],
+            correct: 3,
+            explanation: "<b>Intranet</b> é uma rede privada, de acesso restrito (interna), baseada nos mesmos protocolos (TCP/IP) da Internet."
+        },
+        {
+            id: 35,
+            topic: "Navegadores",
+            text: "Qual atalho de teclado é padrão para abrir o 'Histórico de Navegação' nos principais navegadores (Chrome, Edge, Firefox)?",
+            options: ["Ctrl + H", "Ctrl + J", "Ctrl + T", "Ctrl + N", "Alt + H"],
+            correct: 0,
+            explanation: "<b>Ctrl + H</b> (History) abre o Histórico. Ctrl + J abre os Downloads e Ctrl + T abre uma Nova Guia."
+        },
+        {
+            id: 36,
+            topic: "Navegadores",
+            text: "Um usuário deseja limpar o cache e os dados de navegação armazenados em seu navegador Google Chrome. Qual atalho aciona diretamente a tela de 'Limpar dados de navegação'?",
+            options: ["Ctrl + Shift + Del", "Ctrl + Alt + Del", "Shift + F5", "Alt + Backspace", "Ctrl + L"],
+            correct: 0,
+            explanation: "O atalho <b>Ctrl + Shift + Del</b> é padrão na maioria dos navegadores para abrir a janela de exclusão de rastros de navegação."
+        },
+        {
+            id: 37,
+            topic: "Windows - Propriedades",
+            text: "No Windows 10, os arquivos possuem 'Atributos' que definem seu comportamento no sistema. Dois dos atributos de arquivo mais comuns são:",
+            options: ["Compactado e Criptografado", "Somente Leitura e Oculto", "Executável e Zipado", "Sistema e Temporário", "Visível e Editável"],
+            correct: 1,
+            explanation: "Os atributos clássicos visíveis nas propriedades de qualquer arquivo são <b>Somente Leitura</b> (impede edições) e <b>Oculto</b> (esconde o arquivo no modo de exibição padrão)."
+        },
+        {
+            id: 38,
+            topic: "Windows - Atalhos",
+            text: "Para acessar rapidamente o painel de 'Configurações' do Windows 10, utiliza-se a combinação:",
+            options: ["Tecla Windows + C", "Tecla Windows + S", "Tecla Windows + I", "Ctrl + Alt + C", "F10"],
+            correct: 2,
+            explanation: "<b>Tecla Windows + I</b> abre as Configurações modernas do Windows 10 e 11."
+        },
+        {
+            id: 39,
+            topic: "Windows - Atalhos",
+            text: "Qual atalho de teclado abre a caixa de diálogo 'Executar' no Windows, permitindo digitar o nome de um programa, pasta ou recurso da internet para abri-lo?",
+            options: ["Tecla Windows + R", "Tecla Windows + E", "Ctrl + R", "Alt + R", "Tecla Windows + X"],
+            correct: 0,
+            explanation: "<b>Tecla Windows + R</b> (Run) abre a ferramenta Executar."
+        },
+        {
+            id: 40,
+            topic: "Arquivos - Extensões",
+            text: "Qual das alternativas abaixo apresenta EXCLUSIVAMENTE extensões de arquivos de imagem?",
+            options: [".png, .bmp, .gif", ".jpg, .pdf, .txt", ".docx, .xlsx, .pptx", ".mp3, .wav, .mp4", ".exe, .bat, .msi"],
+            correct: 0,
+            explanation: "<b>.png, .bmp e .gif</b> (além de .jpg/jpeg) são arquivos de imagem."
+        },
+        {
+            id: 41,
+            topic: "Internet - Conceitos",
+            text: "Assinale a alternativa que distingue corretamente um Navegador Web (Browser) de um Motor de Busca (Buscador):",
+            options: ["Chrome é um buscador, enquanto o Google é um navegador.", "Firefox é um motor de busca de código aberto.", "Edge é o motor de busca padrão do Windows.", "Google Chrome é um navegador; Bing é um motor de busca.", "Safari é um motor de busca exclusivo da Apple."],
+            correct: 3,
+            explanation: "Navegador (Browser) é o software (Chrome, Edge, Firefox). Motor de busca é o site/serviço usado para pesquisar na web (Google, Bing, Yahoo)."
+        },
+        {
+            id: 42,
+            topic: "Internet - Pesquisa",
+            text: "Ao realizar uma pesquisa no site do Google, qual operador deve ser utilizado para buscar uma frase ou termo EXATO, na ordem em que foi digitado?",
+            options: ["Asterisco (*)", "Sinal de menos (-)", "Aspas duplas (\"\")", "Parênteses ()", "Sinal de adição (+)"],
+            correct: 2,
+            explanation: "O uso de <b>Aspas duplas</b> obriga o Google a procurar resultados que contenham exatamente a frase digitada."
+        },
+        {
+            id: 43,
+            topic: "Windows - Explorador",
+            text: "No layout padrão do Explorador de Arquivos do Windows, como se chama o painel localizado à esquerda que exibe uma estrutura em árvore de pastas, unidades e acessos rápidos?",
+            options: ["Painel de Detalhes", "Faixa de Opções", "Painel de Visualização", "Barra de Endereço", "Painel de Navegação"],
+            correct: 4,
+            explanation: "O <b>Painel de Navegação</b> é a barra lateral esquerda onde você navega pelas pastas do sistema."
+        },
+        {
+            id: 44,
+            topic: "Windows - Sistema",
+            text: "Se um programa travar no Windows 10 e parar de responder, qual atalho abre DIRETAMENTE o 'Gerenciador de Tarefas' para forçar o encerramento do aplicativo?",
+            options: ["Ctrl + Alt + Del", "Ctrl + Shift + Esc", "Alt + F4", "Tecla Windows + T", "Ctrl + Esc"],
+            correct: 1,
+            explanation: "Embora Ctrl+Alt+Del permita acessar o menu, <b>Ctrl + Shift + Esc</b> abre o Gerenciador de Tarefas DIRETAMENTE."
+        },
+        {
+            id: 45,
+            topic: "Arquivos - Nomenclatura",
+            text: "Em relação ao sistema de arquivos NTFS nativo do Windows, assinale a afirmação correta sobre a nomenclatura de arquivos:",
+            options: ["É possível ter na mesma pasta os arquivos 'relatorio.txt' e 'RELATORIO.TXT'.", "O tamanho máximo do nome de um arquivo é de 8 caracteres.", "O sistema não faz distinção entre letras maiúsculas e minúsculas (não é case-sensitive).", "Não é permitido usar espaços nos nomes dos arquivos.", "As extensões de arquivos devem ter obrigatoriamente 3 letras."],
+            correct: 2,
+            explanation: "O Windows <b>não diferencia maiúsculas de minúsculas</b> em nomes de arquivo na mesma pasta. Portanto, relatorio.txt e RELATORIO.TXT seriam vistos como o mesmo arquivo."
+        },
+        {
+            id: 46,
+            topic: "Internet - Conceitos",
+            text: "Qual protocolo é responsável por garantir a transferência das páginas de internet do servidor para o seu navegador de forma que elas possam ser visualizadas?",
+            options: ["FTP", "SMTP", "HTTP", "POP3", "IP"],
+            correct: 2,
+            explanation: "<b>HTTP</b> (Hypertext Transfer Protocol) é o protocolo base da World Wide Web. O FTP é para transferência de arquivos, e SMTP/POP3 para e-mails."
+        },
+        {
+            id: 47,
+            topic: "Internet - Domínios",
+            text: "Ao acessar um site com a terminação '.gov.br', o usuário tem a garantia de que está acessando:",
+            options: ["Uma empresa comercial no Brasil.", "Uma organização não governamental sem fins lucrativos.", "Uma instituição de ensino federal.", "Uma entidade governamental brasileira.", "Um provedor de serviços de internet."],
+            correct: 3,
+            explanation: "A terminação <b>.gov</b> indica entidades Governamentais, e <b>.br</b> indica o código do país (Brasil)."
+        },
+        {
+            id: 48,
+            topic: "Arquivos - Tamanho",
+            text: "A unidade fundamental de processamento e armazenamento na informática é o bit. Sabendo disso, 1 Byte é equivalente a:",
+            options: ["8 bits", "10 bits", "16 bits", "1024 bits", "1 bit"],
+            correct: 0,
+            explanation: "Por definição, <b>1 Byte equivale a 8 bits</b>."
+        },
+        {
+            id: 49,
+            topic: "Windows - Lixeira",
+            text: "Quando um arquivo é enviado para a Lixeira do disco rígido e o usuário clica com o botão direito sobre ele e escolhe 'Restaurar', o que acontece?",
+            options: ["O arquivo é movido para a Área de Trabalho.", "O arquivo retorna à sua pasta de origem exata de onde foi deletado.", "O arquivo é copiado para a pasta Meus Documentos.", "O arquivo é permanentemente excluído.", "O usuário deve escolher manualmente onde quer salvar o arquivo."],
+            correct: 1,
+            explanation: "O comando Restaurar devolve o arquivo para o <b>exato local original</b> de onde ele foi apagado."
+        },
+        {
+            id: 50,
+            topic: "Navegadores",
+            text: "Durante a navegação no Google Chrome, qual atalho o usuário pode pressionar para abrir rapidamente uma 'Nova Guia' (aba)?",
+            options: ["Ctrl + N", "Ctrl + T", "Ctrl + G", "Ctrl + A", "Alt + T"],
+            correct: 1,
+            explanation: "<b>Ctrl + T</b> (Tab) abre uma nova guia. Ctrl + N (New) abre uma nova JANELA do navegador."
+        },
+        {
+            id: 51,
+            topic: "Navegadores",
+            text: "O usuário deseja fechar APENAS a guia de navegador atual, mantendo as outras guias abertas. O atalho correto para esta ação é:",
+            options: ["Alt + F4", "Ctrl + W", "Ctrl + Q", "Esc", "Ctrl + Shift + W"],
+            correct: 1,
+            explanation: "<b>Ctrl + W</b> ou <b>Ctrl + F4</b> fecha a guia/aba atual."
+        },
+        {
+            id: 52,
+            topic: "Windows - Área de Transferência",
+            text: "Qual é a função da tecla 'Print Screen' (ou PrtScn) no Windows, em sua configuração mais básica?",
+            options: ["Imprimir imediatamente a tela na impressora padrão.", "Salvar automaticamente uma imagem na pasta 'Imagens'.", "Copiar a imagem da tela inteira para a Área de Transferência.", "Capturar apenas a janela ativa atual.", "Abrir a ferramenta de captura do Windows."],
+            correct: 2,
+            explanation: "Por padrão, o Print Screen <b>copia a tela para a Área de Transferência</b> (para colar no Paint, Word, etc.)."
+        },
+        {
+            id: 53,
+            topic: "Arquivos - Extensões",
+            text: "Um arquivo enviado por e-mail possui a extensão '.xlsx'. Para visualizar e editar esse arquivo nativamente, o usuário deve ter instalado um software de:",
+            options: ["Edição de vídeo.", "Apresentação de slides.", "Processamento de texto.", "Planilha Eletrônica.", "Navegação na internet."],
+            correct: 3,
+            explanation: "A extensão <b>.xlsx</b> pertence ao Microsoft Excel, que é um programa de <b>Planilha Eletrônica</b>."
+        },
+        {
+            id: 54,
+            topic: "Cloud/Conceitos",
+            text: "A principal característica de um serviço de armazenamento em nuvem, como o Google Drive e o OneDrive instalados no computador, é a 'Sincronização'. Isso significa que:",
+            options: ["Os arquivos no computador são apagados após irem para a nuvem.", "As alterações feitas em um arquivo local são refletidas automaticamente na cópia armazenada na nuvem.", "O computador fica mais rápido por não usar o disco rígido.", "A conexão com a internet é interrompida durante o backup.", "Vírus locais não podem ser enviados para a nuvem."],
+            correct: 1,
+            explanation: "<b>Sincronização</b> é manter os dados espelhados e atualizados mutuamente entre o dispositivo local e o servidor na nuvem."
+        },
+        {
+            id: 55,
+            topic: "Windows - Sistema",
+            text: "No Windows 10, a barra localizada tipicamente na parte inferior da tela, que contém o botão Iniciar e os ícones de programas abertos, chama-se:",
+            options: ["Barra de Ferramentas", "Barra de Endereço", "Barra de Status", "Barra de Tarefas", "Barra de Navegação"],
+            correct: 3,
+            explanation: "A faixa principal inferior do Windows é a <b>Barra de Tarefas</b> (Taskbar)."
+        },
+        {
+            id: 56,
+            topic: "Navegadores",
+            text: "No contexto da Internet, a sigla URL refere-se a:",
+            options: ["Uma linguagem de programação para criar sites.", "O endereço exclusivo que identifica um recurso (como um site ou imagem) na internet.", "Um protocolo de transferência de arquivos pesados.", "Um vírus de computador transmitido por navegadores.", "A velocidade de conexão com a rede mundial."],
+            correct: 1,
+            explanation: "URL (Uniform Resource Locator) é o popular <b>'link' ou endereço web</b>, usado para localizar recursos na internet."
+        },
+        {
+            id: 57,
+            topic: "Navegadores",
+            text: "Para adicionar a página atual à barra de Favoritos do Google Chrome, o usuário pode usar o mouse clicando na estrela na barra de endereços, ou usar o atalho de teclado:",
+            options: ["Ctrl + S", "Ctrl + B", "Ctrl + F", "Ctrl + D", "Ctrl + E"],
+            correct: 3,
+            explanation: "O atalho para favoritar (Bookmark) a página atual é <b>Ctrl + D</b>."
+        },
+        {
+            id: 58,
+            topic: "Navegadores",
+            text: "A tecla de atalho F5, quando pressionada durante o uso de um navegador de internet, tem a finalidade padrão de:",
+            options: ["Abrir o menu de configurações.", "Entrar no modo de tela cheia.", "Atualizar (recarregar) a página atual.", "Fechar o navegador imediatamente.", "Iniciar um novo download."],
+            correct: 2,
+            explanation: "A tecla <b>F5</b> recarrega a página atual (Refresh). Para tela cheia, usa-se o F11."
+        },
+        {
+            id: 59,
+            topic: "Windows - Pastas",
+            text: "O conceito de hierarquia de arquivos no Windows permite organizar dados. Uma pasta armazenada DENTRO de outra pasta é tecnicamente chamada de:",
+            options: ["Diretório Raiz", "Subpasta", "Arquivo ZIP", "Atalho Oculto", "Unidade Lógica"],
+            correct: 1,
+            explanation: "Pastas contidas dentro de outras pastas formam uma estrutura de árvore e são chamadas de <b>subpastas</b> (ou subdiretórios)."
+        },
+        {
+            id: 60,
+            topic: "Cloud/Conceitos",
+            text: "Assinale a alternativa que indica uma vantagem direta do uso de Computação em Nuvem (Cloud Computing) na modalidade de armazenamento (ex: Dropbox):",
+            options: ["Depender exclusivamente de disquetes físicos.", "Necessidade obrigatória de estar na mesma rede Wi-Fi para transferir dados via cabo.", "Possibilidade de acessar seus arquivos de qualquer dispositivo, desde que haja conexão com a internet.", "Impossibilidade de compartilhar arquivos com outras pessoas.", "Garantia absoluta de que a internet local nunca irá cair."],
+            correct: 2,
+            explanation: "A maior vantagem da nuvem é a <b>disponibilidade ubíqua</b>: acessar seus dados de qualquer dispositivo conectado à internet."
+        }
+    ];
+
+    // --- 2. Estado da Aplicação ---
+    let state = {
+        currentQuestionIndex: 0,
+        score: 0,
+        answers: [], // { questionId, correct: bool, topic: string }
+        history: [], // Array de sessões passadas
+        shuffledQuestions: []
+    };
+
+    // --- 3. Lógica do Quiz ---
+    function init() {
+        // Tenta carregar do LocalStorage primeiro (Auto-save)
+        const saved = localStorage.getItem('ibfc_sim_data');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                state.history = parsed.history || [];
+            } catch (e) { console.error("Erro ao carregar auto-save", e); }
+        }
+        startSession();
+        updateCharts();
+    }
+
+    function startSession() {
+        // Embaralha as questões para cada sessão
+        state.shuffledQuestions = [...questionBank].sort(() => Math.random() - 0.5);
+        state.currentQuestionIndex = 0;
+        state.score = 0;
+        state.answers = [];
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = state.shuffledQuestions[state.currentQuestionIndex];
+        document.getElementById('q-topic').textContent = q.topic;
+        document.getElementById('q-current').textContent = state.currentQuestionIndex + 1;
+        document.getElementById('q-text').textContent = q.text;
+
+        const optionsContainer = document.getElementById('q-options');
+        optionsContainer.innerHTML = '';
+
+        q.options.forEach((opt, index) => {
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.onclick = () => selectOption(index);
+            div.id = `opt-${index}`;
+            div.innerHTML = `
+                <div style="font-weight:bold; margin-right:10px; color:var(--primary)">${String.fromCharCode(65+index)})</div>
+                <div>${opt}</div>
+            `;
+            optionsContainer.appendChild(div);
+        });
+
+        // Reset UI
+        document.getElementById('feedback-area').style.display = 'none';
+        document.getElementById('btn-confirm').style.display = 'block';
+        document.getElementById('btn-confirm').disabled = true;
+        document.getElementById('btn-next').style.display = 'none';
+        
+        window.selectedOption = null;
+    }
+
+    function selectOption(index) {
+        if (document.getElementById('btn-confirm').style.display === 'none') return; // Já respondeu
+
+        // Remove seleção anterior
+        document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+        
+        // Adiciona nova seleção
+        document.getElementById(`opt-${index}`).classList.add('selected');
+        window.selectedOption = index;
+        document.getElementById('btn-confirm').disabled = false;
+    }
+
+    function confirmAnswer() {
+        if (window.selectedOption === null) return;
+
+        const q = state.shuffledQuestions[state.currentQuestionIndex];
+        const isCorrect = window.selectedOption === q.correct;
+
+        // Visual
+        const options = document.querySelectorAll('.option');
+        options[q.correct].classList.add('correct');
+        if (!isCorrect) {
+            options[window.selectedOption].classList.add('wrong');
+        }
+        options.forEach(op => op.classList.add('disabled')); // Bloqueia cliques
+
+        // Feedback
+        const fbArea = document.getElementById('feedback-area');
+        const fbTitle = document.getElementById('feedback-title');
+        const fbMsg = document.getElementById('feedback-msg');
+        
+        fbArea.style.display = 'block';
+        fbArea.className = `feedback ${isCorrect ? 'success' : 'error'}`;
+        fbTitle.textContent = isCorrect ? '✅ Resposta Correta!' : '❌ Resposta Incorreta!';
+        fbMsg.innerHTML = `<b>Gabarito: Letra ${String.fromCharCode(65+q.correct)}</b><br><br>${q.explanation}`;
+
+        // Atualiza Estado
+        state.answers.push({
+            questionId: q.id,
+            isCorrect: isCorrect,
+            topic: q.topic
+        });
+        if (isCorrect) state.score++;
+
+        // Botões
+        document.getElementById('btn-confirm').style.display = 'none';
+        document.getElementById('btn-next').style.display = 'block';
+
+        // Atualiza gráfico em tempo real
+        updateSessionChart();
+    }
+
+    function nextQuestion() {
+        if (state.currentQuestionIndex < 29) { // Limite de 30 questões
+            state.currentQuestionIndex++;
+            renderQuestion();
+        } else {
+            finishSession();
+        }
+    }
+
+    function finishSession() {
+        alert(`Simulado Finalizado! Você acertou ${state.score} de 30.`);
+        
+        // Salva no histórico
+        const sessionData = {
+            date: new Date().toISOString(),
+            score: state.score,
+            total: 30,
+            details: state.answers
+        };
+        state.history.push(sessionData);
+        
+        // Salva LocalStorage
+        localStorage.setItem('ibfc_sim_data', JSON.stringify({ history: state.history }));
+
+        // Atualiza Dashboard Global
+        updateCharts();
+
+        // Vai para Dashboard
+        switchTab('dashboard');
+        
+        // Prepara nova sessão
+        startSession(); // Reinicia lógica interna mas não renderiza até user voltar pra aba
+    }
+
+    // --- 4. Navegação ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(`view-${tabId}`).classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+
+        if(tabId === 'dashboard') {
+            updateCharts();
+        }
+    }
+
+    // --- 5. Gráficos e Métricas (Chart.js) ---
+    let sessionChart = null;
+    let historyChart = null;
+
+    // --- CORREÇÃO: Função updateCharts adicionada ---
+    function updateCharts() {
+        updateSessionChart();
+        updateHistoryChart();
+        updateSWOT();
+    }
+
+    function updateSessionChart() {
+        const ctx = document.getElementById('chartSession').getContext('2d');
+        const currentCorrect = state.answers.filter(a => a.isCorrect).length;
+        const currentWrong = state.answers.length - currentCorrect;
+        const remaining = 30 - state.answers.length;
+
+        if (sessionChart) sessionChart.destroy();
+
+        sessionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Acertos', 'Erros', 'Restantes'],
+                datasets: [{
+                    data: [currentCorrect, currentWrong, remaining],
+                    backgroundColor: ['#27ae60', '#c0392b', '#bdc3c7']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function updateHistoryChart() {
+        const ctx = document.getElementById('chartHistory').getContext('2d');
+        
+        // Pega as últimas 10 sessões
+        const sessions = state.history.slice(-10); 
+        const labels = sessions.map((_, i) => `Simulado ${state.history.length - sessions.length + i + 1}`);
+        const data = sessions.map(s => (s.score / s.total) * 100);
+
+        if (historyChart) historyChart.destroy();
+
+        historyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Aproveitamento (%)',
+                    data: data,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+    }
+
+    function updateSWOT() {
+        // Agrega todos os dados do histórico
+        const topicStats = {};
+
+        state.history.forEach(session => {
+            session.details.forEach(ans => {
+                if (!topicStats[ans.topic]) topicStats[ans.topic] = { correct: 0, total: 0 };
+                topicStats[ans.topic].total++;
+                if (ans.isCorrect) topicStats[ans.topic].correct++;
+            });
+        });
+
+        const strongList = document.getElementById('list-strong');
+        const weakList = document.getElementById('list-weak');
+        strongList.innerHTML = '';
+        weakList.innerHTML = '';
+
+        let hasData = false;
+
+        for (const [topic, stats] of Object.entries(topicStats)) {
+            hasData = true;
+            const percentage = (stats.correct / stats.total) * 100;
+            const li = document.createElement('li');
+            li.innerHTML = `<b>${topic}:</b> ${percentage.toFixed(1)}% (${stats.correct}/${stats.total})`;
+
+            if (percentage >= 80) {
+                strongList.appendChild(li);
+            } else if (percentage < 60) {
+                weakList.appendChild(li);
+            }
+        }
+
+        if (!hasData) {
+            strongList.innerHTML = '<li>Complete um simulado para gerar dados.</li>';
+            weakList.innerHTML = '<li>Complete um simulado para gerar dados.</li>';
+        }
+    }
+
+    // --- 6. Persistência (Import/Export) ---
+    function exportData() {
+        const dataStr = JSON.stringify({ history: state.history });
+        const dataArea = document.getElementById('data-area');
+        dataArea.value = dataStr;
+        
+        // Copiar para clipboard
+        dataArea.select();
+        document.execCommand('copy');
+        
+        document.getElementById('data-msg').textContent = "Código copiado para a área de transferência! Salve em um local seguro.";
+        document.getElementById('data-msg').style.color = "var(--success)";
+    }
+
+    function importData() {
+        const dataStr = document.getElementById('data-area').value;
+        try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.history && Array.isArray(parsed.history)) {
+                state.history = parsed.history;
+                localStorage.setItem('ibfc_sim_data', JSON.stringify({ history: state.history }));
+                
+                document.getElementById('data-msg').textContent = "Dados carregados com sucesso! Verifique o Dashboard.";
+                document.getElementById('data-msg').style.color = "var(--success)";
+                updateCharts();
+            } else {
+                throw new Error("Formato inválido");
+            }
+        } catch (e) {
+            document.getElementById('data-msg').textContent = "Erro ao ler código. Verifique se o formato está correto.";
+            document.getElementById('data-msg').style.color = "var(--error)";
+        }
+    }
+
+    // Inicializa
+    init();
+
+</script>
+
+</body>
+</html>

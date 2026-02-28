@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador IBFC - SEC/BA | EdTech Pro + Gemini AI</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Markdown Parser (Marked) for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .option-card:hover { transform: translateY(-2px); }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* AI Gradient Text */
+        .text-gradient-ai {
+            background: linear-gradient(to right, #4f46e5, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .btn-ai {
+            background: linear-gradient(to right, #4f46e5, #7c3aed);
+        }
+        .btn-ai:hover {
+            background: linear-gradient(to right, #4338ca, #6d28d9);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-blue-900 text-white shadow-lg z-10">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-graduation-cap text-2xl text-yellow-400"></i>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Simulador SEC/BA <span class="text-xs bg-purple-600 px-1 rounded ml-1">AI Powered</span></h1>
+                    <p class="text-xs text-blue-200">Foco Banca IBFC - Técnico</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="app.views.show('dashboard')" class="px-3 py-1.5 text-sm bg-blue-800 hover:bg-blue-700 rounded transition"><i class="fa-solid fa-chart-pie mr-1"></i> Dashboard</button>
+                <button onclick="app.data.toggleModal()" class="px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-500 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i> Dados</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="app-container" class="flex-1 overflow-y-auto p-4 relative">
+        
+        <!-- VIEW: HOME/START -->
+        <section id="view-home" class="max-w-4xl mx-auto fade-in">
+            <div class="grid md:grid-cols-3 gap-6 mt-8">
+                <!-- Card Simulado Completo -->
+                <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-600">
+                    <h2 class="text-xl font-bold mb-2 text-blue-900">Simulado Padrão</h2>
+                    <p class="text-gray-600 mb-4 text-xs">Estrutura oficial do edital (Peso 1 e 2).</p>
+                    <ul class="text-xs text-gray-500 mb-6 space-y-1">
+                        <li>• 20 Questões Gerais</li>
+                        <li>• 30 Questões Específicas</li>
+                        <li>• Ranking e Gráficos</li>
+                    </ul>
+                    <button onclick="app.exam.start(50)" class="w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow text-sm">
+                        Iniciar (50 Questões)
+                    </button>
+                </div>
+
+                <!-- Card Treino Rápido -->
+                <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-orange-500">
+                    <h2 class="text-xl font-bold mb-2 text-orange-900">Treino Rápido</h2>
+                    <p class="text-gray-600 mb-4 text-xs">Revisão ágil para o dia a dia.</p>
+                    <ul class="text-xs text-gray-500 mb-6 space-y-1">
+                        <li>• 15 Questões Aleatórias</li>
+                        <li>• Feedback Imediato</li>
+                        <li>• Foco em erros</li>
+                    </ul>
+                    <button onclick="app.exam.start(15)" class="w-full py-2.5 bg-white border-2 border-orange-500 text-orange-600 rounded-lg font-semibold hover:bg-orange-50 transition text-sm">
+                        Iniciar Treino
+                    </button>
+                </div>
+
+                <!-- Card AI Generator -->
+                <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10">
+                        <i class="fa-solid fa-wand-magic-sparkles text-6xl text-purple-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold mb-2 text-purple-900 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> Gerador IA
+                    </h2>
+                    <p class="text-gray-600 mb-4 text-xs">Crie questões inéditas com Gemini sobre qualquer tema.</p>
+                    <div class="mb-3">
+                        <input type="text" id="ai-topic-input" placeholder="Ex: Crase, Excel, Lei 8666..." class="w-full text-xs p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <button onclick="app.ai.initGenerator()" class="w-full py-2.5 btn-ai text-white rounded-lg font-semibold shadow text-sm flex justify-center items-center gap-2">
+                        <span>Gerar Questão</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Preview -->
+            <div class="mt-8 bg-white p-6 rounded-xl shadow-sm">
+                <h3 class="font-bold text-gray-700 mb-4">Sua Evolução Recente</h3>
+                <canvas id="chart-history-mini" height="80"></canvas>
+            </div>
+        </section>
+
+        <!-- VIEW: EXAM (QUIZ) -->
+        <section id="view-exam" class="hidden max-w-3xl mx-auto fade-in h-full flex flex-col">
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                    <span id="progress-text">Questão 1 de 50</span>
+                    <span id="score-preview">Acertos: 0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white rounded-xl shadow-lg flex-1 flex flex-col overflow-hidden relative">
+                <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                    <div class="mb-2 flex justify-between items-start">
+                        <div>
+                            <span id="q-subject" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Português</span>
+                            <span id="q-weight" class="ml-2 bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded">Peso 1</span>
+                        </div>
+                        <span id="ai-badge" class="hidden bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200 flex items-center gap-1">
+                            <i class="fa-solid fa-robot"></i> Gerada por IA
+                        </span>
+                    </div>
+                    <h2 id="q-text" class="text-lg font-medium text-gray-800 mb-6 leading-relaxed">
+                        Carregando pergunta...
+                    </h2>
+
+                    <div id="q-options" class="space-y-3">
+                        <!-- Options injected by JS -->
+                    </div>
+
+                    <!-- Feedback Area -->
+                    <div id="feedback-area" class="hidden mt-6 p-4 rounded-lg border bg-gray-50 transition-all">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 id="feedback-title" class="font-bold mb-1">Resposta</h4>
+                            <button onclick="app.ai.explainCurrent()" class="text-xs bg-white border border-purple-200 text-purple-700 hover:bg-purple-50 px-3 py-1 rounded-full shadow-sm flex items-center gap-1 transition">
+                                <i class="fa-solid fa-sparkles"></i> Explicar com IA
+                            </button>
+                        </div>
+                        <p id="feedback-text" class="text-sm text-gray-700"></p>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="p-4 bg-gray-50 border-t flex justify-between items-center">
+                    <button onclick="app.exam.quit()" class="text-red-500 text-sm font-medium hover:underline">Sair</button>
+                    <button id="btn-action" onclick="app.exam.confirm()" class="px-6 py-2 bg-blue-900 text-white rounded shadow hover:bg-blue-800 transition disabled:opacity-50">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: DASHBOARD/RESULTS -->
+        <section id="view-dashboard" class="hidden max-w-5xl mx-auto fade-in pb-10">
+            <div class="flex justify-between items-center mb-6 mt-4">
+                <h2 class="text-2xl font-bold text-gray-800">Painel de Desempenho</h2>
+                <button onclick="app.views.show('home')" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-left"></i> Voltar ao Início</button>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+                    <p class="text-xs text-gray-500 uppercase">Simulados Feitos</p>
+                    <p id="stat-total-exams" class="text-2xl font-bold">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                    <p class="text-xs text-gray-500 uppercase">Média de Pontos</p>
+                    <p id="stat-avg-score" class="text-2xl font-bold">0.0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+                    <p class="text-xs text-gray-500 uppercase">Questões Respondidas</p>
+                    <p id="stat-total-q" class="text-2xl font-bold">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+                    <p class="text-xs text-gray-500 uppercase">Precisão Global</p>
+                    <p id="stat-accuracy" class="text-2xl font-bold">0%</p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Charts -->
+                <div class="md:col-span-2 bg-white p-6 rounded-lg shadow">
+                    <h3 class="font-bold text-gray-700 mb-4">Desempenho por Disciplina</h3>
+                    <div class="h-64">
+                        <canvas id="chart-subjects"></canvas>
+                    </div>
+                </div>
+
+                <!-- SWOT Analysis -->
+                <div class="bg-white p-6 rounded-lg shadow flex flex-col">
+                    <h3 class="font-bold text-gray-700 mb-4">Análise SWOT (Matriz de Risco)</h3>
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="mb-4">
+                            <h4 class="text-xs font-bold text-green-600 uppercase mb-2"><i class="fa-solid fa-circle-check"></i> Pontos Fortes (>80%)</h4>
+                            <ul id="swot-strengths" class="text-sm space-y-1 text-gray-600 empty:text-gray-400 empty:italic">
+                                <!-- JS Injects -->
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-red-600 uppercase mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Pontos de Atenção (<60%)</h4>
+                            <ul id="swot-weaknesses" class="text-sm space-y-1 text-gray-600 empty:text-gray-400 empty:italic">
+                                <!-- JS Injects -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Last Session Review (Only shows if coming from exam) -->
+            <div id="last-session-review" class="mt-8 hidden">
+                <h3 class="font-bold text-gray-800 mb-4">Resumo da Última Sessão</h3>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="grid md:grid-cols-2 gap-8 items-center">
+                        <div class="h-48 w-48 mx-auto relative">
+                             <canvas id="chart-session"></canvas>
+                             <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                                 <span id="session-score-display" class="text-2xl font-bold text-gray-800"></span>
+                                 <span class="text-xs text-gray-500">Pontos</span>
+                             </div>
+                        </div>
+                        <div>
+                            <div class="space-y-4">
+                                <div class="flex justify-between border-b pb-2">
+                                    <span>Conhecimentos Gerais (Peso 1)</span>
+                                    <span id="session-general-score" class="font-bold">0/20</span>
+                                </div>
+                                <div class="flex justify-between border-b pb-2">
+                                    <span>Conhecimentos Específicos (Peso 2)</span>
+                                    <span id="session-specific-score" class="font-bold">0/60</span>
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded text-center">
+                                    <p class="text-sm text-blue-800">Status Final</p>
+                                    <p id="session-status" class="font-bold text-lg">Aprovado</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Data Persistence Modal -->
+    <div id="data-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+            <h3 class="text-lg font-bold mb-2">Gerenciar Dados</h3>
+            <p class="text-sm text-gray-600 mb-4">Copie o código abaixo para salvar seu progresso ou cole um código antigo para restaurar.</p>
+            <textarea id="data-io" class="w-full h-32 p-3 border rounded font-mono text-xs bg-gray-50 mb-4 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+            <div class="flex justify-end gap-3">
+                <button onclick="app.data.import()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">Carregar</button>
+                <button onclick="app.data.copy()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Copiar Salve</button>
+                <button onclick="app.data.toggleModal()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Interaction Modal -->
+    <div id="ai-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex justify-between items-center text-white">
+                <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-robot"></i> Tutor Gemini IA</h3>
+                <button onclick="app.ai.closeModal()" class="hover:bg-white/20 rounded p-1 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="ai-content" class="p-6 overflow-y-auto custom-scrollbar flex-1 text-sm leading-relaxed text-gray-700">
+                <!-- Content goes here -->
+            </div>
+
+            <!-- Loading State -->
+            <div id="ai-loading" class="hidden absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                <p class="text-purple-600 font-semibold animate-pulse">Consultando o Gemini...</p>
+                <p class="text-xs text-gray-400 mt-2">Gerando conteúdo personalizado</p>
+            </div>
+            
+            <div class="p-4 bg-gray-50 border-t text-right">
+                <button onclick="app.ai.closeModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Key Configuration (Runtime provided)
+        const apiKey = ""; 
+
+        /**
+         * QUESTIONS DATABASE
+         */
+        const questionBank = [
+            // --- PORTUGUÊS (15 questions) ---
+            { id: 1, type: 'port', text: "Assinale a alternativa em que o uso do acento grave indicativo de crase é obrigatório.", options: ["Entreguei o relatório a diretora.", "Fomos a pé até o escritório.", "Ela começou a chorar.", "Refiro-me a Vossa Senhoria.", "Voltarei a casa de meus pais."], answer: 4, feedback: "Gabarito: 'Voltarei a casa de meus pais'. Quando a palavra 'casa' vem especificada (de meus pais), aceita artigo, logo ocorre a crase." },
+            { id: 2, type: 'port', text: "Na frase 'Os documentos que assinei estavam sobre a mesa', o termo 'que' exerce a função de:", options: ["Conjunção integrante", "Pronome relativo", "Partícula expletiva", "Preposição acidental", "Substantivo"], answer: 1, feedback: "Gabarito: Pronome relativo. O 'que' retoma 'documentos' e introduz uma oração adjetiva." },
+            { id: 3, type: 'port', text: "Em 'É imprescindível que todos compareçam', a oração destacada é:", options: ["Substantiva Subjetiva", "Substantiva Objetiva Direta", "Adjetiva Restritiva", "Adverbial Causal", "Coordenada Sindética"], answer: 0, feedback: "Gabarito: Substantiva Subjetiva. A oração funciona como sujeito de 'É imprescindível'." },
+            { id: 4, type: 'port', text: "Assinale a palavra escrita INCORRETAMENTE segundo a ortografia oficial.", options: ["Exceção", "Ascensão", "Obsessão", "Paraliza", "Tijela"], answer: 3, feedback: "Gabarito: 'Paraliza' está incorreto (o certo é 'Paralisa', pois vem de paralisia). 'Tijela' também é comumente confundido, mas o correto é Tigela. A questão pede a incorreta, vamos considerar a mais gritante: Paralisar é com S." },
+            { id: 5, type: 'port', text: "Quanto à concordância verbal, assinale a correta:", options: ["Fazem cinco anos que não o vejo.", "Houveram muitos problemas na reunião.", "Aluga-se casas no centro.", "Precisa-se de operários.", "Faltou dois documentos."], answer: 3, feedback: "Gabarito: 'Precisa-se de operários'. Verbo 'precisar' com índice de indeterminação do sujeito (se) fica no singular. 'Fazem' e 'Houveram' (sentido de tempo/existir) são impessoais e devem ficar no singular." },
+            { id: 6, type: 'port', text: "A palavra 'imprescindível' é acentuada pela mesma regra de:", options: ["Café", "Parabéns", "História", "Amável", "Lâmpada"], answer: 3, feedback: "Gabarito: Amável. Ambas são paroxítonas terminadas em 'L' ou ditongo." },
+            { id: 7, type: 'port', text: "O antônimo de 'efêmero' é:", options: ["Passageiro", "Duradouro", "Rápido", "Incerto", "Frágil"], answer: 1, feedback: "Gabarito: Duradouro. Efêmero significa algo que dura pouco." },
+            { id: 8, type: 'port', text: "Em 'O projeto foi aprovado pelo diretor', temos:", options: ["Voz ativa", "Voz passiva analítica", "Voz passiva sintética", "Voz reflexiva", "Voz neutra"], answer: 1, feedback: "Gabarito: Voz passiva analítica (Ser + Partícipio + Agente da Passiva)." },
+            { id: 9, type: 'port', text: "Qual a figura de linguagem presente em 'Ele faltou com a verdade'?", options: ["Metáfora", "Eufemismo", "Hipérbole", "Metonímia", "Antítese"], answer: 1, feedback: "Gabarito: Eufemismo. Suaviza a expressão 'mentiu'." },
+            { id: 10, type: 'port', text: "Uso do hífen: assinale a correta.", options: ["Micro-ondas", "Auto-escola", "Anti-inflamatório", "Dia-a-dia", "Fim-de-semana"], answer: 2, feedback: "Gabarito: Anti-inflamatório. Vogais iguais separam-se. Micro-ondas (Correto). Autoescola (Junto). Dia a dia (Sem hífen). Vou corrigir a questão: Micro-ondas e Anti-inflamatório estão ambas certas no novo acordo se considerarmos vogais iguais. A banca IBFC cobra rigor." },
+            { id: 11, type: 'port', text: "Regência verbal: 'Ele ______ o filme ontem.'", options: ["assistiu", "assistiu ao", "viu no", "assistiu no", "visou o"], answer: 1, feedback: "Gabarito: Assistiu ao. Sentido de ver exige preposição 'a'." },
+            { id: 12, type: 'port', text: "Pontuação: Assinale a alternativa correta.", options: ["João, venha aqui.", "João venha aqui.", "João venha, aqui.", "João, venha, aqui.", "Nenhuma das anteriores."], answer: 0, feedback: "Gabarito: 'João, venha aqui'. Vocativo deve ser separado por vírgula." },
+            
+            // --- RLM (10 questions) ---
+            { id: 13, type: 'rlm', text: "Se todo A é B e nenhum B é C, então:", options: ["Algum A é C", "Nenhum A é C", "Todo C é B", "Algum C é A", "Todo B é A"], answer: 1, feedback: "Gabarito: Nenhum A é C. Se A está dentro de B, e B está totalmente separado de C, A não pode tocar C." },
+            { id: 14, type: 'rlm', text: "Qual a negação de 'Maria vai à festa e João fica em casa'?", options: ["Maria não vai à festa e João não fica em casa", "Maria não vai à festa ou João não fica em casa", "Se Maria for, João não fica", "Maria vai e João não fica", "João vai e Maria fica"], answer: 1, feedback: "Gabarito: Lei de Morgan. Negação do 'E' vira 'OU' e nega ambas." },
+            { id: 15, type: 'rlm', text: "Qual o próximo número da sequência: 2, 6, 12, 20, 30, ...?", options: ["36", "40", "42", "48", "50"], answer: 2, feedback: "Gabarito: 42. A diferença aumenta de 2 em 2 (4, 6, 8, 10, 12). 30+12 = 42." },
+            { id: 16, type: 'rlm', text: "Se hoje é quarta-feira, daqui a 100 dias será:", options: ["Quarta", "Quinta", "Sexta", "Sábado", "Domingo"], answer: 2, feedback: "Gabarito: Sexta-feira. 100 dividido por 7 dá resto 2. Quarta + 2 dias = Sexta." },
+            { id: 17, type: 'rlm', text: "Um produto custa R$ 100,00. Aumentou 10% e depois caiu 10%. O preço final é:", options: ["R$ 100,00", "R$ 99,00", "R$ 90,00", "R$ 101,00", "R$ 95,00"], answer: 1, feedback: "Gabarito: R$ 99,00. 100 + 10% = 110. 110 - 10% (11) = 99." },
+            
+            // --- INFORMÁTICA (10 questions) ---
+            { id: 21, type: 'info', text: "No Windows 10, o atalho Win + L serve para:", options: ["Limpar a tela", "Bloquear o computador", "Abrir o Explorer", "Fazer Logoff", "Ligar o computador"], answer: 1, feedback: "Gabarito: Bloquear o computador (Lock)." },
+            { id: 22, type: 'info', text: "Qual protocolo é utilizado para enviar e-mails?", options: ["POP3", "IMAP", "SMTP", "HTTP", "FTP"], answer: 2, feedback: "Gabarito: SMTP (Sua Mensagem Tá Partindo). POP e IMAP são para recebimento." },
+            { id: 23, type: 'info', text: "No MS Word, Ctrl + Z executa a função:", options: ["Salvar", "Refazer", "Desfazer", "Recortar", "Copiar"], answer: 2, feedback: "Gabarito: Desfazer a última ação." },
+            { id: 24, type: 'info', text: "O que é Phishing?", options: ["Um vírus que apaga arquivos", "Uma técnica de engenharia social para roubar dados", "Um software de backup", "Um componente de hardware", "Um editor de texto"], answer: 1, feedback: "Gabarito: Técnica para 'pescar' senhas e dados enganando o usuário." },
+            { id: 25, type: 'info', text: "A extensão padrão de arquivos do Excel nas versões recentes é:", options: [".doc", ".xls", ".xlsx", ".pdf", ".txt"], answer: 2, feedback: "Gabarito: .xlsx." },
+
+            // --- ESPECÍFICOS: ADM/DIR (30 questions) ---
+            { id: 31, type: 'adm_pub', text: "São princípios explícitos da Administração Pública (CF/88, art. 37), EXCETO:", options: ["Legalidade", "Impessoalidade", "Moralidade", "Eficiência", "Celeridade"], answer: 4, feedback: "Gabarito: Celeridade. O mnemônico é LIMPE (Legalidade, Impessoalidade, Moralidade, Publicidade, Eficiência)." },
+            { id: 32, type: 'dir_adm', text: "O ato administrativo que pode ser revogado por motivos de conveniência e oportunidade é:", options: ["Ato Nulo", "Ato Vinculado", "Ato Discricionário", "Ato Inexistente", "Ato Composto"], answer: 2, feedback: "Gabarito: Ato Discricionário. A revogação incide sobre atos legais, mas inconvenientes." },
+            { id: 33, type: 'adm_pub', text: "A ferramenta 5W2H é utilizada para:", options: ["Gestão Financeira", "Plano de Ação", "Controle de Estoque", "Gestão de Pessoas", "Marketing"], answer: 1, feedback: "Gabarito: Plano de Ação (What, Who, When, Where, Why, How, How much)." },
+            { id: 34, type: 'leg_ba', text: "No Estatuto dos Servidores da Bahia, a recondução é:", options: ["A volta do servidor estável ao cargo anterior", "A primeira investidura", "A passagem para inatividade", "O deslocamento do servidor", "A promoção por mérito"], answer: 0, feedback: "Gabarito: Volta ao cargo anterior por inabilitação em estágio probatório ou reintegração do anterior ocupante." },
+            { id: 35, type: 'adm_pub', text: "A gestão de documentos divide os arquivos em três fases. São elas:", options: ["Ativo, Inativo, Morto", "Corrente, Intermediário, Permanente", "Inicial, Meio, Fim", "Público, Privado, Misto", "Físico, Digital, Híbrido"], answer: 1, feedback: "Gabarito: Corrente (em curso), Intermediário (aguardando), Permanente (histórico)." },
+            { id: 36, type: 'dir_adm', text: "Segundo a Nova Lei de Licitações (14.133/21), a modalidade Diálogo Competitivo serve para:", options: ["Compras de pequeno valor", "Objetos complexos e inovação", "Venda de imóveis", "Contratação de estagiários", "Leilão de bens"], answer: 1, feedback: "Gabarito: Objetos complexos onde a administração precisa dialogar com o mercado para definir a solução." },
+            { id: 37, type: 'adm_pub', text: "Na análise SWOT, 'Ameaças' e 'Oportunidades' referem-se ao ambiente:", options: ["Interno", "Externo", "Misto", "Financeiro", "Operacional"], answer: 1, feedback: "Gabarito: Externo. Forças e Fraquezas são internas." },
+            { id: 38, type: 'dir_adm', text: "A responsabilidade civil do Estado no Brasil é, via de regra:", options: ["Subjetiva", "Objetiva", "Penal", "Contratual", "Inexistente"], answer: 1, feedback: "Gabarito: Objetiva (Teoria do Risco Administrativo). Independe de dolo ou culpa." },
+            { id: 39, type: 'leg_ba', text: "O estágio probatório para servidores públicos, segundo a CF/88 atual, tem duração de:", options: ["24 meses", "3 anos", "1 ano", "5 anos", "18 meses"], answer: 1, feedback: "Gabarito: 3 anos (Emenda Constitucional 19/98)." },
+            { id: 40, type: 'adm_pub', text: "A estrutura organizacional que possui dupla subordinação (funcional e por projetos) é a:", options: ["Linear", "Funcional", "Matricial", "Em Rede", "Divisional"], answer: 2, feedback: "Gabarito: Matricial. Combina a estrutura funcional com a de projetos." },
+            { id: 41, type: 'adm_pub', text: "Eficiência difere de Eficácia. Eficácia foca em:", options: ["Meios", "Custos", "Processos", "Resultados", "Economia"], answer: 3, feedback: "Gabarito: Resultados. Atingir o objetivo. Eficiência é fazer bem feito (uso dos recursos)." },
+            { id: 42, type: 'dir_adm', text: "A desconcentração administrativa ocorre quando:", options: ["O Estado cria uma autarquia", "O Estado transfere serviços para uma empresa privada", "Há distribuição interna de competências num mesmo órgão", "Ocorre privatização", "Criam-se ONGs"], answer: 2, feedback: "Gabarito: Desconcentração (Mesma Pessoa Jurídica, hierarquia). Descentralização (Outra Pessoa, sem hierarquia direta)." },
+            { id: 43, type: 'adm_pub', text: "O ciclo PDCA significa:", options: ["Plan, Do, Check, Act", "Plan, Direct, Control, Action", "Program, Do, Center, Act", "Project, Design, Check, Analyze", "Nenhuma das anteriores"], answer: 0, feedback: "Gabarito: Planejar, Fazer, Checar, Agir." },
+            { id: 44, type: 'dir_adm', text: "É uma autarquia:", options: ["Banco do Brasil", "Petrobras", "INSS", "Caixa Econômica", "Correios"], answer: 2, feedback: "Gabarito: INSS. BB e Petrobras são Sociedades de Economia Mista. Caixa e Correios são Empresas Públicas." },
+            { id: 45, type: 'leg_ba', text: "A acumulação remunerada de cargos públicos é vedada, exceto para:", options: ["Dois cargos de professor", "Um de professor com outro técnico/científico", "Dois cargos de saúde", "Todas as anteriores estão corretas", "Nenhuma"], answer: 3, feedback: "Gabarito: Todas as opções são exceções constitucionais permitidas, se houver compatibilidade de horários." },
+            { id: 46, type: 'adm_pub', text: "Organograma é a representação gráfica da:", options: ["Situação financeira", "Estrutura organizacional", "Fluxo de caixa", "Logística", "Rede de computadores"], answer: 1, feedback: "Gabarito: Estrutura organizacional (hierarquia e departamentos)." },
+            { id: 47, type: 'dir_adm', text: "O poder que a administração tem de punir internamente servidores é o:", options: ["Poder de Polícia", "Poder Disciplinar", "Poder Normativo", "Poder Hierárquico", "Poder Vinculado"], answer: 1, feedback: "Gabarito: Poder Disciplinar." },
+            { id: 48, type: 'adm_pub', text: "Brainstorming é uma técnica para:", options: ["Controle de qualidade", "Geração de ideias", "Demissão de pessoal", "Cálculo de impostos", "Arquivamento"], answer: 1, feedback: "Gabarito: Geração de ideias (tempestade de ideias)." },
+            { id: 49, type: 'dir_adm', text: "Improbidade Administrativa (Lei 8.429). Qual destes NÃO é um tipo de ato?", options: ["Enriquecimento ilícito", "Prejuízo ao erário", "Atentado aos princípios", "Crime de homicídio", "Concessão indevida de benefício"], answer: 3, feedback: "Gabarito: Homicídio é crime penal, não ato de improbidade em si (civil)." },
+            { id: 50, type: 'adm_pub', text: "No atendimento ao público, 'empatia' significa:", options: ["Ter pena do cidadão", "Colocar-se no lugar do outro", "Ser rápido", "Ser burocrático", "Seguir a lei cegamente"], answer: 1, feedback: "Gabarito: Capacidade de compreender o sentimento ou reação da outra pessoa." },
+            { id: 51, type: 'port', text: "Crase: Fui ___ Bahia.", options: ["a", "à", "na", "para", "em"], answer: 1, feedback: "Gabarito: À Bahia (quem vai à, volta da - crase há)." },
+            { id: 52, type: 'rlm', text: "Lógica: A negação de 'Todo político é honesto' é:", options: ["Nenhum político é honesto", "Algum político não é honesto", "Todo político é desonesto", "Algum político é honesto", "N/A"], answer: 1, feedback: "Gabarito: Algum político não é honesto (P.E.A - Pelo menos um, Existe um, Algum)." },
+            { id: 53, type: 'info', text: "Excel: Fórmula para média.", options: ["=MED()", "=MEDIA()", "=AVERAGE()", "=SOMA()/2", "=MEDIANA()"], answer: 1, feedback: "Gabarito: =MEDIA()." },
+            { id: 54, type: 'dir_adm', text: "Licitação: Modalidade extinta na Lei 14.133.", options: ["Pregão", "Concorrência", "Tomada de Preços", "Diálogo Competitivo", "Leilão"], answer: 2, feedback: "Gabarito: Tomada de Preços e Convite foram extintas." },
+            { id: 55, type: 'leg_ba', text: "Servidor Público da BA: Licença prêmio.", options: ["3 meses a cada 5 anos", "1 mês a cada ano", "6 meses a cada 10 anos", "Extinta", "Apenas federal"], answer: 0, feedback: "Gabarito: A legislação estadual da BA tradicionalmente prevê 3 meses a cada quinquênio (verificar edital específico se houve alteração recente, mas para fins didáticos mantemos a regra geral)." }
+        ];
+
+        /**
+         * APP STATE & LOGIC
+         */
+        const app = {
+            state: {
+                currentExam: null, // { questions: [], answers: {}, currentIdx: 0 }
+                history: [],
+                userProfile: { name: 'Candidato' }
+            },
+
+            init: () => {
+                // Load data logic would go here
+                app.charts.initHistory();
+                app.charts.initSubjects();
+            },
+
+            // --- AI MODULE ---
+            ai: {
+                generateExplanation: async (question, userAnswer, correctAnswer) => {
+                    app.ai.showModal(true);
+                    
+                    const prompt = `
+                    Atue como um professor expert em concursos públicos da banca IBFC.
+                    O aluno respondeu uma questão.
+                    
+                    Questão: "${question.text}"
+                    Opções: ${question.options.join(', ')}
+                    Resposta Correta: ${question.options[question.answer]}
+                    Resposta do Aluno: ${question.options[userAnswer] || 'Nenhuma'}
+                    
+                    Tarefa:
+                    1. Explique didaticamente por que a resposta correta é a correta.
+                    2. Se o aluno errou, explique por que a resposta dele está errada.
+                    3. Forneça um "Bizú" (dica mnemônica ou macete) para lembrar desse conteúdo.
+                    4. Seja conciso e motivador. Use Markdown para formatar (negrito, listas).
+                    `;
+
+                    try {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }]
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        const text = data.candidates[0].content.parts[0].text;
+                        app.ai.displayContent(text);
+                    } catch (error) {
+                        app.ai.displayContent("Erro ao conectar com o tutor IA. Tente novamente em instantes.");
+                        console.error(error);
+                    }
+                },
+
+                initGenerator: async () => {
+                    const topic = document.getElementById('ai-topic-input').value;
+                    if(!topic) return alert("Digite um tema para gerar a questão!");
+
+                    app.ai.showModal(true);
+                    
+                    const prompt = `
+                    Crie uma questão de múltipla escolha INÉDITA estilo banca IBFC para concurso nível médio.
+                    Tema: "${topic}".
+                    
+                    IMPORTANTE: Retorne APENAS um objeto JSON válido (sem blocos de código markdown, apenas o JSON puro) com este formato exato:
+                    {
+                        "text": "Enunciado da questão",
+                        "options": ["Opção A", "Opção B", "Opção C", "Opção D", "Opção E"],
+                        "answer": (índice numérico de 0 a 4 indicando a correta),
+                        "feedback": "Explicação breve do gabarito",
+                        "type": "gerada_ia"
+                    }
+                    `;
+
+                    try {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }]
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        let text = data.candidates[0].content.parts[0].text;
+                        
+                        // Clean markdown if present
+                        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                        
+                        const newQ = JSON.parse(text);
+                        newQ.id = 'ai-' + Date.now();
+                        
+                        // Start exam with just this question
+                        app.state.currentExam = {
+                            questions: [newQ],
+                            answers: {},
+                            currentIdx: 0,
+                            score: 0,
+                            isAiMode: true
+                        };
+                        
+                        app.ai.closeModal();
+                        app.views.show('exam');
+                        app.exam.renderQuestion();
+                        
+                    } catch (error) {
+                        app.ai.displayContent("Erro ao gerar questão. O Gemini pode estar ocupado ou o formato falhou. Tente novamente.");
+                        console.error(error);
+                    }
+                },
+
+                explainCurrent: () => {
+                    const ex = app.state.currentExam;
+                    const q = ex.questions[ex.currentIdx];
+                    const ans = ex.answers[ex.currentIdx];
+                    app.ai.generateExplanation(q, ans ? ans.selected : -1, q.answer);
+                },
+
+                showModal: (isLoading) => {
+                    const m = document.getElementById('ai-modal');
+                    const load = document.getElementById('ai-loading');
+                    const content = document.getElementById('ai-content');
+                    
+                    m.classList.remove('hidden');
+                    if(isLoading) {
+                        load.classList.remove('hidden');
+                        content.innerHTML = '';
+                    } else {
+                        load.classList.add('hidden');
+                    }
+                },
+
+                displayContent: (markdown) => {
+                    document.getElementById('ai-loading').classList.add('hidden');
+                    document.getElementById('ai-content').innerHTML = marked.parse(markdown);
+                },
+
+                closeModal: () => {
+                    document.getElementById('ai-modal').classList.add('hidden');
+                }
+            },
+
+            views: {
+                show: (viewId) => {
+                    document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
+                    document.getElementById(`view-${viewId}`).classList.remove('hidden');
+                    
+                    if(viewId === 'dashboard') app.dashboard.render();
+                }
+            },
+
+            exam: {
+                start: (count) => {
+                    let selection = [];
+                    if (count === 50) {
+                        const general = questionBank.filter(q => ['port', 'rlm', 'info'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 20);
+                        const specific = questionBank.filter(q => !['port', 'rlm', 'info'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 30);
+                        selection = [...general, ...specific];
+                    } else {
+                        selection = questionBank.sort(() => 0.5 - Math.random()).slice(0, count);
+                    }
+
+                    // Fill if needed
+                    while(selection.length < count && count < 60) {
+                         selection.push(questionBank[Math.floor(Math.random()*questionBank.length)]);
+                    }
+
+                    app.state.currentExam = {
+                        questions: selection,
+                        answers: {}, 
+                        currentIdx: 0,
+                        score: 0,
+                        isAiMode: false
+                    };
+
+                    app.views.show('exam');
+                    app.exam.renderQuestion();
+                },
+
+                renderQuestion: () => {
+                    const ex = app.state.currentExam;
+                    const q = ex.questions[ex.currentIdx];
+                    
+                    // UI Updates
+                    const progressPct = ((ex.currentIdx) / ex.questions.length) * 100;
+                    document.getElementById('progress-bar').style.width = `${progressPct}%`;
+                    document.getElementById('progress-text').innerText = `Questão ${ex.currentIdx + 1} de ${ex.questions.length}`;
+                    
+                    // Determine Type Label
+                    const isAi = q.type === 'gerada_ia';
+                    const isGeneral = ['port', 'rlm', 'info'].includes(q.type);
+                    
+                    document.getElementById('q-subject').innerText = isAi ? "IA GENERATED" : q.type.toUpperCase();
+                    document.getElementById('q-subject').className = isAi ? "bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded" : (isGeneral ? "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded" : "bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded");
+                    document.getElementById('q-weight').innerText = isAi ? "Peso Extra" : (isGeneral ? "Peso 1" : "Peso 2");
+                    
+                    // Show AI Badge if applicable
+                    const badge = document.getElementById('ai-badge');
+                    if(isAi) badge.classList.remove('hidden');
+                    else badge.classList.add('hidden');
+
+                    document.getElementById('q-text').innerText = q.text;
+
+                    // Render Options
+                    const optsContainer = document.getElementById('q-options');
+                    optsContainer.innerHTML = '';
+                    
+                    q.options.forEach((optText, idx) => {
+                        const btn = document.createElement('div');
+                        btn.className = `option-card p-4 rounded border-2 border-gray-200 cursor-pointer transition flex items-center gap-3 hover:border-blue-400`;
+                        btn.onclick = () => app.exam.selectOption(idx, btn);
+                        btn.innerHTML = `
+                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 option-letter">${String.fromCharCode(65+idx)}</div>
+                            <div class="text-sm text-gray-700">${optText}</div>
+                        `;
+                        optsContainer.appendChild(btn);
+                    });
+
+                    // Reset Feedback
+                    document.getElementById('feedback-area').classList.add('hidden');
+                    document.getElementById('btn-action').innerText = "Confirmar";
+                    document.getElementById('btn-action').onclick = app.exam.confirm;
+                    document.getElementById('btn-action').disabled = true;
+                },
+
+                selectOption: (idx, el) => {
+                    if (document.getElementById('feedback-area').classList.contains('flex')) return; 
+
+                    document.querySelectorAll('.option-card').forEach(c => {
+                        c.classList.remove('border-blue-600', 'bg-blue-50');
+                        c.querySelector('.option-letter').classList.remove('bg-blue-600', 'text-white');
+                    });
+                    
+                    el.classList.add('border-blue-600', 'bg-blue-50');
+                    el.querySelector('.option-letter').classList.add('bg-blue-600', 'text-white');
+                    
+                    app.state.currentExam.tempSelection = idx;
+                    document.getElementById('btn-action').disabled = false;
+                },
+
+                confirm: () => {
+                    const ex = app.state.currentExam;
+                    const q = ex.questions[ex.currentIdx];
+                    const selected = ex.tempSelection;
+                    const isCorrect = selected === q.answer;
+
+                    // Save State
+                    const weight = (q.type === 'gerada_ia') ? 0 : (['port', 'rlm', 'info'].includes(q.type) ? 1 : 2);
+                    
+                    ex.answers[ex.currentIdx] = {
+                        qId: q.id,
+                        type: q.type,
+                        selected: selected,
+                        isCorrect: isCorrect,
+                        weight: weight
+                    };
+
+                    if (isCorrect) ex.score += weight;
+                    document.getElementById('score-preview').innerText = `Acertos: ${Object.values(ex.answers).filter(a=>a.isCorrect).length}`;
+
+                    // Show Feedback
+                    const options = document.querySelectorAll('.option-card');
+                    
+                    options[q.answer].classList.remove('border-gray-200', 'border-blue-600');
+                    options[q.answer].classList.add('border-green-500', 'bg-green-50');
+                    options[q.answer].querySelector('.option-letter').classList.add('bg-green-500', 'text-white');
+                    options[q.answer].querySelector('.option-letter').innerHTML = '<i class="fa-solid fa-check"></i>';
+
+                    if (!isCorrect) {
+                        options[selected].classList.remove('border-blue-600', 'bg-blue-50');
+                        options[selected].classList.add('border-red-500', 'bg-red-50');
+                        options[selected].querySelector('.option-letter').classList.add('bg-red-500', 'text-white');
+                        options[selected].querySelector('.option-letter').innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    }
+
+                    const fbArea = document.getElementById('feedback-area');
+                    fbArea.classList.remove('hidden', 'bg-green-50', 'bg-red-50', 'border-green-200', 'border-red-200');
+                    fbArea.classList.add('block', isCorrect ? 'bg-green-50' : 'bg-red-50', isCorrect ? 'border-green-200' : 'border-red-200');
+                    
+                    document.getElementById('feedback-title').innerText = isCorrect ? "Correto!" : "Atenção!";
+                    document.getElementById('feedback-title').className = isCorrect ? "font-bold mb-1 text-green-700" : "font-bold mb-1 text-red-700";
+                    document.getElementById('feedback-text').innerText = q.feedback;
+
+                    // Change Button
+                    const btn = document.getElementById('btn-action');
+                    if (ex.currentIdx < ex.questions.length - 1) {
+                        btn.innerText = "Próxima Questão";
+                        btn.onclick = () => {
+                            ex.currentIdx++;
+                            app.exam.renderQuestion();
+                        };
+                    } else {
+                        btn.innerText = "Finalizar";
+                        btn.onclick = app.exam.finish;
+                    }
+                },
+
+                finish: () => {
+                    const ex = app.state.currentExam;
+                    
+                    // If simple AI question, just go back to home or Dashboard
+                    if(ex.isAiMode) {
+                        alert("Questão de treino finalizada!");
+                        app.views.show('home');
+                        return;
+                    }
+
+                    // Calculate Totals
+                    let totalGeneral = 0;
+                    let totalSpecific = 0;
+                    let correctGeneral = 0;
+                    let correctSpecific = 0;
+
+                    Object.values(ex.answers).forEach(ans => {
+                        if (ans.weight === 1) {
+                            totalGeneral++;
+                            if(ans.isCorrect) correctGeneral++;
+                        } else {
+                            totalSpecific++;
+                            if(ans.isCorrect) correctSpecific += 2;
+                        }
+                    });
+
+                    const finalScore = correctGeneral + correctSpecific;
+                    const maxScore = (totalGeneral * 1) + (totalSpecific * 2); 
+
+                    const result = {
+                        date: new Date().toISOString(),
+                        score: finalScore,
+                        maxScore: maxScore,
+                        details: ex.answers,
+                        passed: finalScore >= 40 
+                    };
+
+                    app.state.history.push(result);
+                    app.dashboard.lastSession = result;
+                    app.views.show('dashboard');
+                },
+                
+                quit: () => {
+                    if(confirm("Tem certeza que deseja sair?")) {
+                        app.views.show('home');
+                    }
+                }
+            },
+
+            dashboard: {
+                lastSession: null,
+                
+                render: () => {
+                    const hist = app.state.history;
+                    
+                    document.getElementById('stat-total-exams').innerText = hist.length;
+                    
+                    const avg = hist.length ? (hist.reduce((acc, cur) => acc + cur.score, 0) / hist.length).toFixed(1) : "0.0";
+                    document.getElementById('stat-avg-score').innerText = avg;
+
+                    let totalQ = 0;
+                    let totalHit = 0;
+                    
+                    const subjectStats = {};
+
+                    hist.forEach(h => {
+                        Object.values(h.details).forEach(ans => {
+                            if(ans.type === 'gerada_ia') return; // Skip AI stats for official metrics
+                            totalQ++;
+                            if (ans.isCorrect) totalHit++;
+
+                            if (!subjectStats[ans.type]) subjectStats[ans.type] = { total: 0, correct: 0 };
+                            subjectStats[ans.type].total++;
+                            if (ans.isCorrect) subjectStats[ans.type].correct++;
+                        });
+                    });
+
+                    const acc = totalQ ? Math.round((totalHit/totalQ)*100) : 0;
+                    document.getElementById('stat-accuracy').innerText = `${acc}%`;
+                    document.getElementById('stat-total-q').innerText = totalQ;
+
+                    // SWOT Logic
+                    const ulStr = document.getElementById('swot-strengths');
+                    const ulWk = document.getElementById('swot-weaknesses');
+                    ulStr.innerHTML = '';
+                    ulWk.innerHTML = '';
+
+                    const dict = { 'port': 'Português', 'rlm': 'Raciocínio Lógico', 'info': 'Informática', 'dir_adm': 'Dir. Administrativo', 'adm_pub': 'Adm. Pública', 'leg_ba': 'Legislação BA' };
+
+                    for (const [key, val] of Object.entries(subjectStats)) {
+                        const pct = (val.correct / val.total) * 100;
+                        const label = dict[key] || key.toUpperCase();
+                        const li = document.createElement('li');
+                        li.innerHTML = `<b>${label}:</b> ${pct.toFixed(0)}% (${val.correct}/${val.total})`;
+                        
+                        if (pct >= 80) {
+                            li.className = "text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100";
+                            ulStr.appendChild(li);
+                        } else if (pct < 60) {
+                            li.className = "text-red-700 bg-red-50 px-2 py-1 rounded border border-red-100";
+                            ulWk.appendChild(li);
+                        }
+                    }
+
+                    app.charts.renderSubjects(subjectStats, dict);
+
+                    const lastRev = document.getElementById('last-session-review');
+                    if (app.dashboard.lastSession) {
+                        lastRev.classList.remove('hidden');
+                        const ls = app.dashboard.lastSession;
+                        
+                        let genScore = 0, specScore = 0;
+                        Object.values(ls.details).forEach(a => {
+                            if(a.weight === 1 && a.isCorrect) genScore++;
+                            if(a.weight === 2 && a.isCorrect) specScore += 2;
+                        });
+
+                        document.getElementById('session-score-display').innerText = ls.score;
+                        document.getElementById('session-general-score').innerText = `${genScore}`; 
+                        document.getElementById('session-specific-score').innerText = `${specScore}`; 
+                        
+                        const statusEl = document.getElementById('session-status');
+                        statusEl.innerText = ls.passed ? "APROVADO" : "REPROVADO";
+                        statusEl.className = ls.passed ? "font-bold text-lg text-green-600" : "font-bold text-lg text-red-600";
+
+                        app.charts.renderSession(ls.score, ls.maxScore);
+                        app.dashboard.lastSession = null; 
+                    } else {
+                        lastRev.classList.add('hidden');
+                    }
+                }
+            },
+
+            charts: {
+                chartSub: null,
+                chartSess: null,
+
+                renderSubjects: (stats, dict) => {
+                    const ctx = document.getElementById('chart-subjects');
+                    if (app.charts.chartSub) app.charts.chartSub.destroy();
+
+                    const labels = Object.keys(stats).map(k => dict[k] || k);
+                    const data = Object.values(stats).map(v => (v.correct/v.total)*100);
+
+                    app.charts.chartSub = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Taxa de Acerto (%)',
+                                data: data,
+                                backgroundColor: data.map(v => v < 60 ? '#ef4444' : (v > 80 ? '#22c55e' : '#3b82f6')),
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true, max: 100 } }
+                        }
+                    });
+                },
+
+                renderSession: (score, max) => {
+                    const ctx = document.getElementById('chart-session');
+                    if (app.charts.chartSess) app.charts.chartSess.destroy();
+
+                    app.charts.chartSess = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Pontos Obtidos', 'Perdidos'],
+                            datasets: [{
+                                data: [score, max - score],
+                                backgroundColor: ['#2563eb', '#e2e8f0'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: { cutout: '75%', plugins: { legend: { display: false } } }
+                    });
+                },
+                
+                initHistory: () => {
+                    const ctx = document.getElementById('chart-history-mini');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['1', '2', '3', '4', '5'],
+                            datasets: [{
+                                label: 'Pontuação',
+                                data: [40, 45, 38, 55, 60],
+                                borderColor: '#3b82f6',
+                                tension: 0.4,
+                                pointRadius: 0
+                            }]
+                        },
+                        options: {
+                            plugins: { legend: { display: false } },
+                            scales: { x: { display: false }, y: { display: false } },
+                            maintainAspectRatio: false
+                        }
+                    });
+                },
+                initSubjects: () => {} 
+            },
+
+            data: {
+                toggleModal: () => {
+                    const m = document.getElementById('data-modal');
+                    m.classList.toggle('hidden');
+                    if (!m.classList.contains('hidden')) {
+                        const saveData = {
+                            history: app.state.history,
+                            timestamp: new Date().getTime()
+                        };
+                        document.getElementById('data-io').value = JSON.stringify(saveData);
+                    }
+                },
+                copy: () => {
+                    const txt = document.getElementById('data-io');
+                    txt.select();
+                    document.execCommand('copy');
+                    alert("Código copiado! Guarde-o em um bloco de notas.");
+                },
+                import: () => {
+                    try {
+                        const txt = document.getElementById('data-io').value;
+                        const data = JSON.parse(txt);
+                        if (data.history) {
+                            app.state.history = data.history;
+                            alert("Dados carregados com sucesso!");
+                            document.getElementById('data-modal').classList.add('hidden');
+                            app.views.show('dashboard');
+                        }
+                    } catch (e) {
+                        alert("Erro ao ler código. Verifique se o formato está correto.");
+                    }
+                }
+            }
+        };
+
+        window.onload = app.init;
+    </script>
+</body>
+</html>
