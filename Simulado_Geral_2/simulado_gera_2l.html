@@ -53,7 +53,7 @@
                 <i class="fa-solid fa-graduation-cap text-2xl text-yellow-400"></i>
                 <div>
                     <h1 class="font-bold text-lg leading-tight">Simulador SEC/BA <span class="text-xs bg-purple-600 px-1 rounded ml-1">AI Powered</span></h1>
-                    <p class="text-xs text-blue-200">Foco Banca IBFC - Técnico</p>
+                    <p class="text-xs text-blue-200">Foco Banca IBFC - Atualizado c/ Edital Oficial</p>
                 </div>
             </div>
             <div class="flex gap-3">
@@ -74,9 +74,9 @@
                     <h2 class="text-xl font-bold mb-2 text-blue-900">Simulado Padrão</h2>
                     <p class="text-gray-600 mb-4 text-xs">Estrutura oficial do edital (Peso 1 e 2).</p>
                     <ul class="text-xs text-gray-500 mb-6 space-y-1">
-                        <li>• 20 Questões Gerais</li>
-                        <li>• 30 Questões Específicas</li>
-                        <li>• Ranking e Gráficos</li>
+                        <li>• 20 Questões Gerais (Peso 1)</li>
+                        <li>• 30 Questões Específicas (Peso 2)</li>
+                        <li>• Mínimo exigido: 40 pontos</li>
                     </ul>
                     <button onclick="app.exam.start(50)" class="w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow text-sm">
                         Iniciar (50 Questões)
@@ -107,7 +107,7 @@
                     </h2>
                     <p class="text-gray-600 mb-4 text-xs">Crie questões inéditas com Gemini sobre qualquer tema.</p>
                     <div class="mb-3">
-                        <input type="text" id="ai-topic-input" placeholder="Ex: Crase, Excel, Lei 8666..." class="w-full text-xs p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none">
+                        <input type="text" id="ai-topic-input" placeholder="Ex: LDB, ECA, Maria da Penha..." class="w-full text-xs p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none">
                     </div>
                     <button onclick="app.ai.initGenerator()" class="w-full py-2.5 btn-ai text-white rounded-lg font-semibold shadow text-sm flex justify-center items-center gap-2">
                         <span>Gerar Questão</span>
@@ -312,77 +312,105 @@
         const apiKey = ""; 
 
         /**
-         * QUESTIONS DATABASE
+         * BANCO DE QUESTÕES ATUALIZADO (60 Questões)
+         * Baseado estritamente no edital SEC/BA.
+         * * GERAIS (Peso 1): port, cont, ped, igu
+         * ESPECÍFICOS (Peso 2): adm, edu, info, rlm
          */
         const questionBank = [
-            // --- PORTUGUÊS (15 questions) ---
-            { id: 1, type: 'port', text: "Assinale a alternativa em que o uso do acento grave indicativo de crase é obrigatório.", options: ["Entreguei o relatório a diretora.", "Fomos a pé até o escritório.", "Ela começou a chorar.", "Refiro-me a Vossa Senhoria.", "Voltarei a casa de meus pais."], answer: 4, feedback: "Gabarito: 'Voltarei a casa de meus pais'. Quando a palavra 'casa' vem especificada (de meus pais), aceita artigo, logo ocorre a crase." },
-            { id: 2, type: 'port', text: "Na frase 'Os documentos que assinei estavam sobre a mesa', o termo 'que' exerce a função de:", options: ["Conjunção integrante", "Pronome relativo", "Partícula expletiva", "Preposição acidental", "Substantivo"], answer: 1, feedback: "Gabarito: Pronome relativo. O 'que' retoma 'documentos' e introduz uma oração adjetiva." },
-            { id: 3, type: 'port', text: "Em 'É imprescindível que todos compareçam', a oração destacada é:", options: ["Substantiva Subjetiva", "Substantiva Objetiva Direta", "Adjetiva Restritiva", "Adverbial Causal", "Coordenada Sindética"], answer: 0, feedback: "Gabarito: Substantiva Subjetiva. A oração funciona como sujeito de 'É imprescindível'." },
-            { id: 4, type: 'port', text: "Assinale a palavra escrita INCORRETAMENTE segundo a ortografia oficial.", options: ["Exceção", "Ascensão", "Obsessão", "Paraliza", "Tijela"], answer: 3, feedback: "Gabarito: 'Paraliza' está incorreto (o certo é 'Paralisa', pois vem de paralisia). 'Tijela' também é comumente confundido, mas o correto é Tigela. A questão pede a incorreta, vamos considerar a mais gritante: Paralisar é com S." },
-            { id: 5, type: 'port', text: "Quanto à concordância verbal, assinale a correta:", options: ["Fazem cinco anos que não o vejo.", "Houveram muitos problemas na reunião.", "Aluga-se casas no centro.", "Precisa-se de operários.", "Faltou dois documentos."], answer: 3, feedback: "Gabarito: 'Precisa-se de operários'. Verbo 'precisar' com índice de indeterminação do sujeito (se) fica no singular. 'Fazem' e 'Houveram' (sentido de tempo/existir) são impessoais e devem ficar no singular." },
-            { id: 6, type: 'port', text: "A palavra 'imprescindível' é acentuada pela mesma regra de:", options: ["Café", "Parabéns", "História", "Amável", "Lâmpada"], answer: 3, feedback: "Gabarito: Amável. Ambas são paroxítonas terminadas em 'L' ou ditongo." },
-            { id: 7, type: 'port', text: "O antônimo de 'efêmero' é:", options: ["Passageiro", "Duradouro", "Rápido", "Incerto", "Frágil"], answer: 1, feedback: "Gabarito: Duradouro. Efêmero significa algo que dura pouco." },
-            { id: 8, type: 'port', text: "Em 'O projeto foi aprovado pelo diretor', temos:", options: ["Voz ativa", "Voz passiva analítica", "Voz passiva sintética", "Voz reflexiva", "Voz neutra"], answer: 1, feedback: "Gabarito: Voz passiva analítica (Ser + Partícipio + Agente da Passiva)." },
-            { id: 9, type: 'port', text: "Qual a figura de linguagem presente em 'Ele faltou com a verdade'?", options: ["Metáfora", "Eufemismo", "Hipérbole", "Metonímia", "Antítese"], answer: 1, feedback: "Gabarito: Eufemismo. Suaviza a expressão 'mentiu'." },
-            { id: 10, type: 'port', text: "Uso do hífen: assinale a correta.", options: ["Micro-ondas", "Auto-escola", "Anti-inflamatório", "Dia-a-dia", "Fim-de-semana"], answer: 2, feedback: "Gabarito: Anti-inflamatório. Vogais iguais separam-se. Micro-ondas (Correto). Autoescola (Junto). Dia a dia (Sem hífen). Vou corrigir a questão: Micro-ondas e Anti-inflamatório estão ambas certas no novo acordo se considerarmos vogais iguais. A banca IBFC cobra rigor." },
-            { id: 11, type: 'port', text: "Regência verbal: 'Ele ______ o filme ontem.'", options: ["assistiu", "assistiu ao", "viu no", "assistiu no", "visou o"], answer: 1, feedback: "Gabarito: Assistiu ao. Sentido de ver exige preposição 'a'." },
-            { id: 12, type: 'port', text: "Pontuação: Assinale a alternativa correta.", options: ["João, venha aqui.", "João venha aqui.", "João venha, aqui.", "João, venha, aqui.", "Nenhuma das anteriores."], answer: 0, feedback: "Gabarito: 'João, venha aqui'. Vocativo deve ser separado por vírgula." },
-            
-            // --- RLM (10 questions) ---
-            { id: 13, type: 'rlm', text: "Se todo A é B e nenhum B é C, então:", options: ["Algum A é C", "Nenhum A é C", "Todo C é B", "Algum C é A", "Todo B é A"], answer: 1, feedback: "Gabarito: Nenhum A é C. Se A está dentro de B, e B está totalmente separado de C, A não pode tocar C." },
-            { id: 14, type: 'rlm', text: "Qual a negação de 'Maria vai à festa e João fica em casa'?", options: ["Maria não vai à festa e João não fica em casa", "Maria não vai à festa ou João não fica em casa", "Se Maria for, João não fica", "Maria vai e João não fica", "João vai e Maria fica"], answer: 1, feedback: "Gabarito: Lei de Morgan. Negação do 'E' vira 'OU' e nega ambas." },
-            { id: 15, type: 'rlm', text: "Qual o próximo número da sequência: 2, 6, 12, 20, 30, ...?", options: ["36", "40", "42", "48", "50"], answer: 2, feedback: "Gabarito: 42. A diferença aumenta de 2 em 2 (4, 6, 8, 10, 12). 30+12 = 42." },
-            { id: 16, type: 'rlm', text: "Se hoje é quarta-feira, daqui a 100 dias será:", options: ["Quarta", "Quinta", "Sexta", "Sábado", "Domingo"], answer: 2, feedback: "Gabarito: Sexta-feira. 100 dividido por 7 dá resto 2. Quarta + 2 dias = Sexta." },
-            { id: 17, type: 'rlm', text: "Um produto custa R$ 100,00. Aumentou 10% e depois caiu 10%. O preço final é:", options: ["R$ 100,00", "R$ 99,00", "R$ 90,00", "R$ 101,00", "R$ 95,00"], answer: 1, feedback: "Gabarito: R$ 99,00. 100 + 10% = 110. 110 - 10% (11) = 99." },
-            
-            // --- INFORMÁTICA (10 questions) ---
-            { id: 21, type: 'info', text: "No Windows 10, o atalho Win + L serve para:", options: ["Limpar a tela", "Bloquear o computador", "Abrir o Explorer", "Fazer Logoff", "Ligar o computador"], answer: 1, feedback: "Gabarito: Bloquear o computador (Lock)." },
-            { id: 22, type: 'info', text: "Qual protocolo é utilizado para enviar e-mails?", options: ["POP3", "IMAP", "SMTP", "HTTP", "FTP"], answer: 2, feedback: "Gabarito: SMTP (Sua Mensagem Tá Partindo). POP e IMAP são para recebimento." },
-            { id: 23, type: 'info', text: "No MS Word, Ctrl + Z executa a função:", options: ["Salvar", "Refazer", "Desfazer", "Recortar", "Copiar"], answer: 2, feedback: "Gabarito: Desfazer a última ação." },
-            { id: 24, type: 'info', text: "O que é Phishing?", options: ["Um vírus que apaga arquivos", "Uma técnica de engenharia social para roubar dados", "Um software de backup", "Um componente de hardware", "Um editor de texto"], answer: 1, feedback: "Gabarito: Técnica para 'pescar' senhas e dados enganando o usuário." },
-            { id: 25, type: 'info', text: "A extensão padrão de arquivos do Excel nas versões recentes é:", options: [".doc", ".xls", ".xlsx", ".pdf", ".txt"], answer: 2, feedback: "Gabarito: .xlsx." },
+            // --- GERAIS: Língua Portuguesa (port) ---
+            { id: 1, type: 'port', text: "A polissemia e a ambiguidade são recursos semânticos frequentemente explorados na construção de textos mistos (verbais e imagéticos). Sobre a semântica e o sentido das palavras, analise as afirmativas:\nI. O significante corresponde ao conceito ou ideia que a palavra transmite, enquanto o significado é a forma acústica ou gráfica.\nII. A ironia em uma charge depende intrinsecamente do contexto sociopolítico para a correta atribuição de sentido pelo leitor.\nIII. Sinais e símbolos são elementos restritos à linguagem verbal, não interferindo na leitura de imagens.\n\nEstá correto o que se afirma em:", options: ["I, apenas.", "II, apenas.", "I e III, apenas.", "II e III, apenas.", "I, II e III."], answer: 1, feedback: "Gabarito: B. Apenas II está correta. A ironia depende do contexto. I está invertida (significante é a forma; significado é o conceito). III é falsa, pois sinais e símbolos são fundamentais na linguagem não verbal/imagética." },
+            { id: 2, type: 'port', text: "A pontuação é um recurso sintático-semântico fundamental. Assinale a alternativa em que a alteração da pontuação altera também o sentido original da frase, sem contudo incorrer em erro gramatical.", options: ["Os alunos, que estudaram muito, foram aprovados. / Os alunos que estudaram muito foram aprovados.", "Maria comprou livros, cadernos e canetas. / Maria, comprou livros cadernos e canetas.", "Ele disse que não iria. / Ele disse: que não iria.", "O professor chegou tarde. / O, professor chegou tarde.", "Estudar é preciso, viver, não é preciso. / Estudar é preciso viver não é preciso."], answer: 0, feedback: "Gabarito: A. A retirada das vírgulas transforma a oração adjetiva explicativa (todos os alunos estudaram e passaram) em restritiva (apenas os que estudaram passaram), mudando o sentido." },
+            { id: 3, type: 'port', text: "No que se refere à leitura e atribuição de sentidos, o conectivo 'conquanto' estabelece uma relação de:", options: ["Causa.", "Condição.", "Concessão.", "Proporção.", "Conclusão."], answer: 2, feedback: "Gabarito: C. 'Conquanto' é conjunção subordinativa concessiva (equivale a 'embora', 'ainda que'). Muito cobrada pela IBFC." },
+            { id: 4, type: 'port', text: "Analise o uso da vírgula nas frases abaixo e assinale a alternativa CORRETA:\nI. No estado da Bahia, os índices de aprovação cresceram.\nII. Os professores, dedicados e competentes elaboraram o projeto.\nIII. Paulo, o coordenador pedagógico, enviou o relatório.", options: ["Apenas a I está correta.", "Apenas I e III estão corretas.", "Apenas II e III estão corretas.", "Todas estão corretas.", "Nenhuma está correta."], answer: 1, feedback: "Gabarito: B. A frase II está incorreta porque falta uma vírgula após 'competentes' para isolar o aposto/adjunto explicativo ('Os professores, dedicados e competentes, elaboraram...')." },
+            { id: 5, type: 'port', text: "Em textos contemporâneos veiculados em mídias, a intertextualidade é frequentemente utilizada. Assinale a definição correta desse recurso.", options: ["É a repetição exata das mesmas palavras ao longo do texto para dar ênfase.", "É a criação de um texto completamente novo, sem qualquer ligação histórica.", "É a influência ou menção que um texto faz a outro texto previamente existente.", "É o uso exclusivo de imagens para substituir a linguagem verbal.", "É a utilização de jargões técnicos para dificultar a compreensão do público leigo."], answer: 2, feedback: "Gabarito: C. Intertextualidade é o diálogo entre textos, comum em charges, propagandas e artigos." },
+            { id: 6, type: 'port', text: "Sobre os recursos sintático-semânticos, a frase 'A menina, chorando, pediu ajuda' apresenta uma oração reduzida que expressa ideia de:", options: ["Causa.", "Tempo.", "Modo.", "Condição.", "Finalidade."], answer: 2, feedback: "Gabarito: C. 'Chorando' indica a maneira/modo como a menina pediu ajuda." },
+            { id: 7, type: 'port', text: "Qual das alternativas apresenta um pleonasmo vicioso, frequentemente cobrado para identificar inadequações semânticas?", options: ["Subir para cima.", "Chorar lágrimas amargas.", "Rir um riso sarcástico.", "Viver uma vida plena.", "Sonhar um sonho impossível."], answer: 0, feedback: "Gabarito: A. 'Subir para cima' é redundância desnecessária (viciosa). As demais podem ser aceitas como pleonasmos literários/estilísticos para ênfase." },
+            { id: 8, type: 'port', text: "Assinale a alternativa onde o pronome relativo exerce a função de objeto direto.", options: ["A escola de que gosto fica perto.", "O material a que me refiro acabou.", "O documento que assinei está na mesa.", "O professor cujo carro quebrou faltou.", "A diretora com quem falei foi gentil."], answer: 2, feedback: "Gabarito: C. Em 'que assinei', o 'que' substitui 'O documento'. Eu assinei (o documento). Quem assina, assina algo (objeto direto)." },
 
-            // --- ESPECÍFICOS: ADM/DIR (30 questions) ---
-            { id: 31, type: 'adm_pub', text: "São princípios explícitos da Administração Pública (CF/88, art. 37), EXCETO:", options: ["Legalidade", "Impessoalidade", "Moralidade", "Eficiência", "Celeridade"], answer: 4, feedback: "Gabarito: Celeridade. O mnemônico é LIMPE (Legalidade, Impessoalidade, Moralidade, Publicidade, Eficiência)." },
-            { id: 32, type: 'dir_adm', text: "O ato administrativo que pode ser revogado por motivos de conveniência e oportunidade é:", options: ["Ato Nulo", "Ato Vinculado", "Ato Discricionário", "Ato Inexistente", "Ato Composto"], answer: 2, feedback: "Gabarito: Ato Discricionário. A revogação incide sobre atos legais, mas inconvenientes." },
-            { id: 33, type: 'adm_pub', text: "A ferramenta 5W2H é utilizada para:", options: ["Gestão Financeira", "Plano de Ação", "Controle de Estoque", "Gestão de Pessoas", "Marketing"], answer: 1, feedback: "Gabarito: Plano de Ação (What, Who, When, Where, Why, How, How much)." },
-            { id: 34, type: 'leg_ba', text: "No Estatuto dos Servidores da Bahia, a recondução é:", options: ["A volta do servidor estável ao cargo anterior", "A primeira investidura", "A passagem para inatividade", "O deslocamento do servidor", "A promoção por mérito"], answer: 0, feedback: "Gabarito: Volta ao cargo anterior por inabilitação em estágio probatório ou reintegração do anterior ocupante." },
-            { id: 35, type: 'adm_pub', text: "A gestão de documentos divide os arquivos em três fases. São elas:", options: ["Ativo, Inativo, Morto", "Corrente, Intermediário, Permanente", "Inicial, Meio, Fim", "Público, Privado, Misto", "Físico, Digital, Híbrido"], answer: 1, feedback: "Gabarito: Corrente (em curso), Intermediário (aguardando), Permanente (histórico)." },
-            { id: 36, type: 'dir_adm', text: "Segundo a Nova Lei de Licitações (14.133/21), a modalidade Diálogo Competitivo serve para:", options: ["Compras de pequeno valor", "Objetos complexos e inovação", "Venda de imóveis", "Contratação de estagiários", "Leilão de bens"], answer: 1, feedback: "Gabarito: Objetos complexos onde a administração precisa dialogar com o mercado para definir a solução." },
-            { id: 37, type: 'adm_pub', text: "Na análise SWOT, 'Ameaças' e 'Oportunidades' referem-se ao ambiente:", options: ["Interno", "Externo", "Misto", "Financeiro", "Operacional"], answer: 1, feedback: "Gabarito: Externo. Forças e Fraquezas são internas." },
-            { id: 38, type: 'dir_adm', text: "A responsabilidade civil do Estado no Brasil é, via de regra:", options: ["Subjetiva", "Objetiva", "Penal", "Contratual", "Inexistente"], answer: 1, feedback: "Gabarito: Objetiva (Teoria do Risco Administrativo). Independe de dolo ou culpa." },
-            { id: 39, type: 'leg_ba', text: "O estágio probatório para servidores públicos, segundo a CF/88 atual, tem duração de:", options: ["24 meses", "3 anos", "1 ano", "5 anos", "18 meses"], answer: 1, feedback: "Gabarito: 3 anos (Emenda Constitucional 19/98)." },
-            { id: 40, type: 'adm_pub', text: "A estrutura organizacional que possui dupla subordinação (funcional e por projetos) é a:", options: ["Linear", "Funcional", "Matricial", "Em Rede", "Divisional"], answer: 2, feedback: "Gabarito: Matricial. Combina a estrutura funcional com a de projetos." },
-            { id: 41, type: 'adm_pub', text: "Eficiência difere de Eficácia. Eficácia foca em:", options: ["Meios", "Custos", "Processos", "Resultados", "Economia"], answer: 3, feedback: "Gabarito: Resultados. Atingir o objetivo. Eficiência é fazer bem feito (uso dos recursos)." },
-            { id: 42, type: 'dir_adm', text: "A desconcentração administrativa ocorre quando:", options: ["O Estado cria uma autarquia", "O Estado transfere serviços para uma empresa privada", "Há distribuição interna de competências num mesmo órgão", "Ocorre privatização", "Criam-se ONGs"], answer: 2, feedback: "Gabarito: Desconcentração (Mesma Pessoa Jurídica, hierarquia). Descentralização (Outra Pessoa, sem hierarquia direta)." },
-            { id: 43, type: 'adm_pub', text: "O ciclo PDCA significa:", options: ["Plan, Do, Check, Act", "Plan, Direct, Control, Action", "Program, Do, Center, Act", "Project, Design, Check, Analyze", "Nenhuma das anteriores"], answer: 0, feedback: "Gabarito: Planejar, Fazer, Checar, Agir." },
-            { id: 44, type: 'dir_adm', text: "É uma autarquia:", options: ["Banco do Brasil", "Petrobras", "INSS", "Caixa Econômica", "Correios"], answer: 2, feedback: "Gabarito: INSS. BB e Petrobras são Sociedades de Economia Mista. Caixa e Correios são Empresas Públicas." },
-            { id: 45, type: 'leg_ba', text: "A acumulação remunerada de cargos públicos é vedada, exceto para:", options: ["Dois cargos de professor", "Um de professor com outro técnico/científico", "Dois cargos de saúde", "Todas as anteriores estão corretas", "Nenhuma"], answer: 3, feedback: "Gabarito: Todas as opções são exceções constitucionais permitidas, se houver compatibilidade de horários." },
-            { id: 46, type: 'adm_pub', text: "Organograma é a representação gráfica da:", options: ["Situação financeira", "Estrutura organizacional", "Fluxo de caixa", "Logística", "Rede de computadores"], answer: 1, feedback: "Gabarito: Estrutura organizacional (hierarquia e departamentos)." },
-            { id: 47, type: 'dir_adm', text: "O poder que a administração tem de punir internamente servidores é o:", options: ["Poder de Polícia", "Poder Disciplinar", "Poder Normativo", "Poder Hierárquico", "Poder Vinculado"], answer: 1, feedback: "Gabarito: Poder Disciplinar." },
-            { id: 48, type: 'adm_pub', text: "Brainstorming é uma técnica para:", options: ["Controle de qualidade", "Geração de ideias", "Demissão de pessoal", "Cálculo de impostos", "Arquivamento"], answer: 1, feedback: "Gabarito: Geração de ideias (tempestade de ideias)." },
-            { id: 49, type: 'dir_adm', text: "Improbidade Administrativa (Lei 8.429). Qual destes NÃO é um tipo de ato?", options: ["Enriquecimento ilícito", "Prejuízo ao erário", "Atentado aos princípios", "Crime de homicídio", "Concessão indevida de benefício"], answer: 3, feedback: "Gabarito: Homicídio é crime penal, não ato de improbidade em si (civil)." },
-            { id: 50, type: 'adm_pub', text: "No atendimento ao público, 'empatia' significa:", options: ["Ter pena do cidadão", "Colocar-se no lugar do outro", "Ser rápido", "Ser burocrático", "Seguir a lei cegamente"], answer: 1, feedback: "Gabarito: Capacidade de compreender o sentimento ou reação da outra pessoa." },
-            { id: 51, type: 'port', text: "Crase: Fui ___ Bahia.", options: ["a", "à", "na", "para", "em"], answer: 1, feedback: "Gabarito: À Bahia (quem vai à, volta da - crase há)." },
-            { id: 52, type: 'rlm', text: "Lógica: A negação de 'Todo político é honesto' é:", options: ["Nenhum político é honesto", "Algum político não é honesto", "Todo político é desonesto", "Algum político é honesto", "N/A"], answer: 1, feedback: "Gabarito: Algum político não é honesto (P.E.A - Pelo menos um, Existe um, Algum)." },
-            { id: 53, type: 'info', text: "Excel: Fórmula para média.", options: ["=MED()", "=MEDIA()", "=AVERAGE()", "=SOMA()/2", "=MEDIANA()"], answer: 1, feedback: "Gabarito: =MEDIA()." },
-            { id: 54, type: 'dir_adm', text: "Licitação: Modalidade extinta na Lei 14.133.", options: ["Pregão", "Concorrência", "Tomada de Preços", "Diálogo Competitivo", "Leilão"], answer: 2, feedback: "Gabarito: Tomada de Preços e Convite foram extintas." },
-            { id: 55, type: 'leg_ba', text: "Servidor Público da BA: Licença prêmio.", options: ["3 meses a cada 5 anos", "1 mês a cada ano", "6 meses a cada 10 anos", "Extinta", "Apenas federal"], answer: 0, feedback: "Gabarito: A legislação estadual da BA tradicionalmente prevê 3 meses a cada quinquênio (verificar edital específico se houve alteração recente, mas para fins didáticos mantemos a regra geral)." }
+            // --- GERAIS: Conhecimentos Contextuais (cont) ---
+            { id: 9, type: 'cont', text: "No cenário contemporâneo global, a globalização impõe desafios às políticas educacionais brasileiras. Sobre esse tema, é correto afirmar que:", options: ["A globalização padronizou totalmente a cultura local, eliminando as diversidades regionais.", "O mundo globalizado exige da educação brasileira a formação de sujeitos acríticos e técnicos.", "O acesso às tecnologias de informação democratizou automaticamente o ensino em todas as regiões brasileiras.", "A escola enfrenta o desafio de preparar o aluno para o mercado global sem perder de vista a identidade e as demandas socioambientais locais.", "As demandas políticas e econômicas do mundo globalizado não interferem no Projeto Político Pedagógico."], answer: 3, feedback: "Gabarito: D. A educação deve ser glocal (pensar globalmente, agir localmente), integrando o aluno ao mundo sem apagar sua identidade e necessidades regionais." },
+            { id: 10, type: 'cont', text: "Analise as afirmativas sobre as demandas socioambientais contemporâneas:\nI. O desenvolvimento sustentável propõe o esgotamento dos recursos para acelerar o avanço econômico.\nII. A educação ambiental deve ser abordada de forma transversal no currículo escolar brasileiro.\nIII. A visão crítica das mídias é desnecessária, pois as notícias ambientais são sempre imparciais.\nEstão corretas:", options: ["Apenas I.", "Apenas II.", "I e II.", "II e III.", "I, II e III."], answer: 1, feedback: "Gabarito: B (Apenas II). O desenvolvimento sustentável busca PRESERVAR recursos (I é falsa). A visão crítica das mídias é essencial, pois não há total imparcialidade (III é falsa)." },
+            { id: 11, type: 'cont', text: "Sobre a repercussão de temas de interesse na mídia nacional, o termo 'Fake News' na educação exige que a escola promova:", options: ["O banimento do uso da internet no ambiente escolar.", "A aceitação de qualquer informação de sites governamentais sem questionamento.", "O letramento digital, formando leitores capazes de checar fontes e criticar discursos.", "A memorização de conteúdos de jornais impressos apenas.", "A censura prévia de debates políticos em sala de aula."], answer: 2, feedback: "Gabarito: C. O combate à desinformação passa pelo letramento e pela alfabetização digital do aluno, senso crítico e checagem de fatos." },
+
+            // --- GERAIS: Políticas Educacionais (ped) ---
+            { id: 12, type: 'ped', text: "Segundo a Lei de Diretrizes e Bases da Educação Nacional (LDB), o ensino será ministrado com base em vários princípios. Assinale a alternativa que NÃO constitui um princípio previsto na LDB.", options: ["Igualdade de condições para o acesso e permanência na escola.", "Pluralismo de ideias e de concepções pedagógicas.", "Gestão centralizada do ensino público, sob controle estrito do Ministério da Educação.", "Valorização do profissional da educação escolar.", "Garantia de padrão de qualidade."], answer: 2, feedback: "Gabarito: C. A LDB preconiza a gestão DEMOCRÁTICA do ensino público, e não centralizada. Pegadinha comum das bancas." },
+            { id: 13, type: 'ped', text: "O Projeto Político Pedagógico (PPP) da escola é o documento identitário da instituição. Sobre ele, é FALSO afirmar:", options: ["Deve ser construído coletivamente pela comunidade escolar.", "É um mero documento burocrático exigido pelas Secretarias de Educação para fins de arquivamento.", "Define a identidade da escola e aponta os caminhos para alcançar seus objetivos educacionais.", "Tem dimensão política, pois envolve a formação do cidadão para a sociedade.", "Sua elaboração é amparada pelo princípio da gestão democrática."], answer: 1, feedback: "Gabarito: B. O PPP não é mero documento burocrático ('de gaveta'). Ele deve ser vivo, prático e refletir a realidade da escola." },
+            { id: 14, type: 'ped', text: "A Concepção Histórico-Crítica da Educação (Pedagogia Histórico-Crítica), formulada por Dermeval Saviani, defende que a função social da escola é:", options: ["A socialização do saber sistematizado (conhecimento historicamente acumulado) para as classes populares.", "Apenas o treinamento de mão de obra para atender às demandas imediatas das indústrias.", "A reprodução passiva das desigualdades sociais sem intervenção do Estado.", "O desenvolvimento de um ensino não-diretivo, onde o aluno decide o que quer aprender sem a figura central do professor.", "A imposição dogmática de conhecimentos desvinculados da prática social do aluno."], answer: 0, feedback: "Gabarito: A. Para Saviani, a escola emancipa as classes trabalhadoras ao dar-lhes acesso ao saber científico, artístico e filosófico acumulado pela humanidade." },
+            { id: 15, type: 'ped', text: "Sobre o Decreto 12.830/11 do Estado da Bahia (que regulamenta programas sociais e combate à pobreza), a atuação transversal do Estado busca:", options: ["Focar a assistência social apenas na capital do Estado.", "Articular políticas de educação, saúde e assistência para reduzir índices de vulnerabilidade.", "Privatizar as escolas públicas nas áreas de extrema pobreza.", "Extinguir a necessidade de dados estatísticos na gestão escolar.", "Incentivar a evasão escolar através da redução de repasses financeiros."], answer: 1, feedback: "Gabarito: B. Políticas de combate à pobreza requerem intersetorialidade (articulação de diversas secretarias e ações)." },
+
+            // --- GERAIS: Igualdade Racial e de Gênero (igu) ---
+            { id: 16, type: 'igu', text: "De acordo com a Lei Federal nº 12.288/2010 (Estatuto da Igualdade Racial), considera-se discriminação racial ou étnico-racial:", options: ["Ações afirmativas criadas pelo Estado para corrigir desigualdades históricas.", "O estudo obrigatório da história da África nas escolas.", "Qualquer distinção, exclusão ou restrição baseada em raça, cor ou descendência que anule o exercício de direitos humanos.", "O reconhecimento das comunidades quilombolas.", "A promoção da saúde da população negra pelo SUS."], answer: 2, feedback: "Gabarito: C. Letra da lei (Art. 1º, inciso I). As demais opções são direitos ou políticas públicas promovidas pelo próprio Estatuto." },
+            { id: 17, type: 'igu', text: "A Lei Maria da Penha (Lei nº 11.340/2006) estabelece formas de violência contra a mulher. A conduta que configura retenção, subtração ou destruição parcial ou total de seus objetos, instrumentos de trabalho ou documentos pessoais é classificada como violência:", options: ["Física.", "Psicológica.", "Sexual.", "Patrimonial.", "Moral."], answer: 3, feedback: "Gabarito: D. A violência patrimonial envolve o controle, retenção ou destruição de bens, documentos e recursos financeiros." },
+            { id: 18, type: 'igu', text: "A Constituição Federal de 1988 determinou que a prática do racismo constitui crime:", options: ["Afiançável e prescritível.", "Inafiançável e imprescritível, sujeito à pena de reclusão.", "Inafiançável e prescritível, sujeito à pena de detenção.", "Afiançável e imprescritível, sujeito à prestação de serviços.", "Sujeito apenas a multas e punições administrativas."], answer: 1, feedback: "Gabarito: B. Art. 5º, XLII. Racismo é crime inafiançável e imprescritível, sujeito à pena de reclusão (não detenção). Bizú: RACISMO = Inafiançável, Imprescritível, Reclusão." },
+            { id: 19, type: 'igu', text: "A Lei Federal nº 10.639/2003 alterou a LDB para tornar obrigatório o ensino de História e Cultura Afro-Brasileira. Esse conteúdo deve ser ministrado:", options: ["Exclusivamente na disciplina de História.", "No âmbito de todo o currículo escolar, em especial nas áreas de Educação Artística e de Literatura e História Brasileiras.", "Apenas no Ensino Médio.", "Como disciplina optativa para alunos da rede privada.", "Apenas em datas comemorativas, como o Dia da Consciência Negra."], answer: 1, feedback: "Gabarito: B. A lei determina a transversalidade do tema, com destaque para Arte, Literatura e História." },
+            { id: 20, type: 'igu', text: "Julgue os itens sobre a tipificação dos crimes resultantes de preconceito (Lei 7.716/89 - Lei Caó):\nI. Recusar atendimento em restaurantes por motivo de raça é crime previsto na lei.\nII. Impedir a ascensão profissional por preconceito de cor também configura crime.\nIII. A lei não abrange discriminação por procedência nacional.\nÉ CORRETO afirmar:", options: ["I e II apenas.", "I e III apenas.", "II e III apenas.", "Todas estão corretas.", "Nenhuma está correta."], answer: 0, feedback: "Gabarito: A (I e II corretas). A afirmativa III é falsa porque a lei também pune o preconceito de raça, cor, etnia, religião ou PROCEDÊNCIA NACIONAL." },
+
+            // --- ESPECÍFICOS: Adm Pública & Legislação (adm) ---
+            { id: 21, type: 'adm', text: "Segundo a Lei nº 9.784/99 (Processo Administrativo Federal), entende-se por 'órgão':", options: ["A unidade de atuação dotada de personalidade jurídica.", "A unidade de atuação integrante da estrutura da Administração direta e da estrutura da Administração indireta.", "O servidor ou agente público dotado de poder de decisão.", "A empresa pública exploradora de atividade econômica.", "O cidadão titular de direitos perante a administração."], answer: 1, feedback: "Gabarito: B. Órgão NÃO tem personalidade jurídica (o que o difere de Entidade). A autoridade é o agente público com poder de decisão." },
+            { id: 22, type: 'adm', text: "Sobre os princípios constitucionais da Administração Pública (Art. 37, CF/88), a obrigação de publicar os atos oficiais em Diário Oficial para que produzam efeitos externos decorre primariamente do princípio da:", options: ["Legalidade.", "Impessoalidade.", "Moralidade.", "Publicidade.", "Eficiência."], answer: 3, feedback: "Gabarito: D. O princípio da Publicidade garante a transparência e é requisito de eficácia dos atos administrativos." },
+            { id: 23, type: 'adm', text: "O Decreto-Lei nº 200/1967 é um marco na gestão pública. Um de seus princípios fundamentais é a Descentralização. Sobre o tema, é INCORRETO afirmar:", options: ["A descentralização pode ocorrer da Administração Federal para as unidades federadas.", "A descentralização pode ocorrer para a iniciativa privada por meio de contratos ou concessões.", "A criação de uma Autarquia (como o INSS) é exemplo de descentralização.", "A distribuição interna de competências dentro de um mesmo Ministério é um exemplo de descentralização.", "A descentralização transfere a execução de serviços para outras pessoas jurídicas."], answer: 3, feedback: "Gabarito: D. Distribuição INTERNA de competências no mesmo ente (sem criar nova pessoa jurídica) é DESCONCENTRAÇÃO, não descentralização." },
+            { id: 24, type: 'adm', text: "A Lei nº 4.769/65 dispõe sobre o exercício da profissão de Técnico em Administração. Conforme as normativas vigentes (incluindo Resolução CNE/CP 1/2021), a formação deste profissional possui eixo tecnológico em:", options: ["Controle e Processos Industriais.", "Gestão e Negócios.", "Informação e Comunicação.", "Desenvolvimento Educacional.", "Segurança Pública."], answer: 1, feedback: "Gabarito: B. O curso Técnico em Administração faz parte do Eixo Tecnológico de Gestão e Negócios (Catálogo Nacional de Cursos Técnicos)." },
+            { id: 25, type: 'adm', text: "Na estrutura organizacional, a hierarquia é fundamental. O poder que a administração pública tem de distribuir e escalonar as funções de seus órgãos, ordenar e rever a atuação de seus agentes é o:", options: ["Poder de Polícia.", "Poder Disciplinar.", "Poder Hierárquico.", "Poder Vinculado.", "Poder Regulamentar."], answer: 2, feedback: "Gabarito: C. Escalonar, ordenar, delegar, avocar e revisar são atributos do Poder Hierárquico." },
+            { id: 26, type: 'adm', text: "No Estado da Bahia, de acordo com a Lei 13.204/2014, a estrutura da Administração Pública divide-se em Direta e Indireta. Qual das entidades abaixo faz parte da Administração INDIRETA?", options: ["A Casa Civil.", "O Gabinete do Governador.", "A Secretaria da Educação (SEC).", "Uma Fundação Pública Estadual.", "A Polícia Militar."], answer: 3, feedback: "Gabarito: D. Fundações Públicas, Autarquias, Empresas Públicas e Sociedades de Economia Mista formam a Administração Indireta. As demais são órgãos da Adm. Direta." },
+            { id: 27, type: 'adm', text: "No que tange aos atos administrativos e à função pública, a nomeação de um candidato aprovado em concurso para um 'cargo público' caracteriza:", options: ["A investidura originária.", "A readaptação.", "A recondução.", "A reversão.", "O aproveitamento."], answer: 0, feedback: "Gabarito: A. A nomeação é a única forma originária de provimento em cargo público no Brasil." },
+            { id: 28, type: 'adm', text: "O Decreto Federal 9.739/2019 estabelece medidas de eficiência organizacional. Entre os objetivos da estruturação de sistemas integrados de gestão, destaca-se:", options: ["O aumento da burocracia documental física.", "A interoperabilidade de dados e simplificação de serviços ao cidadão.", "A proibição do compartilhamento de dados entre órgãos por questões de sigilo absoluto.", "A exclusividade do atendimento presencial.", "O encerramento de todos os sistemas de tecnologia por riscos cibernéticos."], answer: 1, feedback: "Gabarito: B. Sistemas integrados de inovação buscam eficiência, desburocratização e interoperabilidade (sistemas conversando entre si)." },
+            { id: 29, type: 'adm', text: "Cargo, emprego e função pública possuem diferenças. O 'emprego público' (celetista) é típico de qual entidade da Administração Indireta?", options: ["Autarquia.", "Fundação Pública de Direito Público.", "Órgãos da Administração Direta.", "Empresa Pública (ex: Caixa Econômica).", "Agências Reguladoras."], answer: 3, feedback: "Gabarito: D. Empresas Públicas e Sociedades de Economia Mista contratam sob o regime da CLT (Empregados Públicos)." },
+            { id: 30, type: 'adm', text: "Julgue as afirmativas sobre os princípios da Administração Pública:\nI. A impessoalidade veda a promoção pessoal de autoridades em publicidades de obras.\nII. A eficiência (incluída pela EC 19/98) exige resultados positivos e presteza.\nIII. A moralidade administrativa exige conformidade apenas com a lei escrita, ignorando a ética.\nAssinale a correta:", options: ["I e II apenas.", "I e III apenas.", "II e III apenas.", "I, II e III.", "Apenas a I."], answer: 0, feedback: "Gabarito: A. A afirmativa III está errada pois a moralidade administrativa vai ALÉM da lei escrita, abrangendo a ética, a boa-fé e a probidade." },
+
+            // --- ESPECÍFICOS: Legislação Educacional (LDB/ECA) (edu) ---
+            { id: 31, type: 'edu', text: "O Estatuto da Criança e do Adolescente (ECA) garante o direito à educação. É dever do Estado assegurar à criança e ao adolescente, EXCETO:", options: ["Ensino fundamental, obrigatório e gratuito.", "Educação infantil em creche e pré-escola às crianças de zero a cinco anos de idade.", "Acesso a escola pública e gratuita, garantindo-se vaga obrigatoriamente fora do bairro de sua residência para promover miscigenação.", "Atendimento educacional especializado aos portadores de deficiência.", "Acesso aos níveis mais elevados do ensino, da pesquisa e da criação artística."], answer: 2, feedback: "Gabarito: C. O ECA garante acesso a escola pública e gratuita PRÓXIMA à sua residência (Art. 53, V)." },
+            { id: 32, type: 'edu', text: "A LDB (Lei 9.394/96) define que a Educação Básica é formada por:", options: ["Educação Infantil e Ensino Fundamental, apenas.", "Ensino Fundamental, Ensino Médio e Ensino Superior.", "Educação Infantil, Ensino Fundamental e Ensino Médio.", "Creches, Ensino Fundamental e Cursos Técnicos.", "Ensino Fundamental e Educação de Jovens e Adultos (EJA)."], answer: 2, feedback: "Gabarito: C. A Educação Básica é composta por: Educação Infantil, Ensino Fundamental e Ensino Médio (Art. 21, I da LDB)." },
+            { id: 33, type: 'edu', text: "De acordo com o conceito de 'direito público subjetivo' presente na LDB e na CF/88, o ensino fundamental obrigatório:", options: ["É uma concessão benevolente do Estado.", "Se não for oferecido pelo Poder Público, qualquer cidadão ou órgão (como o Ministério Público) pode acionar o Estado judicialmente para exigi-lo.", "Apenas os pais que pagam impostos podem exigi-lo do Estado.", "Depende exclusivamente da disponibilidade de verbas no orçamento.", "É garantido, mas sua cobrança na justiça é expressamente proibida."], answer: 1, feedback: "Gabarito: B. Direito público subjetivo significa que seu cumprimento pode ser exigido do Estado na Justiça por qualquer cidadão." },
+            { id: 34, type: 'edu', text: "Segundo a LDB, os Estados e os Municípios organizarão, em regime de colaboração, seus respectivos sistemas de ensino. Os Municípios atuarão prioritariamente:", options: ["No ensino superior e na pesquisa científica.", "No ensino médio e na educação profissional.", "No ensino fundamental e na educação infantil.", "Exclusivamente no ensino fundamental.", "No ensino fundamental e no ensino médio."], answer: 2, feedback: "Gabarito: C. Municípios atuam em Educação Infantil e Ensino Fundamental. Estados atuam em Ensino Fundamental e Ensino Médio (LDB Art. 10 e 11)." },
+            { id: 35, type: 'edu', text: "Conforme o ECA, os dirigentes de estabelecimentos de ensino fundamental devem comunicar ao Conselho Tutelar os casos de, EXCETO:", options: ["Maus-tratos envolvendo seus alunos.", "Reiteração de faltas injustificadas.", "Evasão escolar, esgotados os recursos escolares.", "Elevados níveis de repetência.", "Aprovação com média inferior a 7,0 no boletim."], answer: 4, feedback: "Gabarito: E. Notas baixas, por si só, não são motivo de denúncia ao Conselho Tutelar. O Art. 56 prevê comunicação para maus-tratos, faltas/evasão (esgotados recursos) e elevada repetência." },
+            { id: 36, type: 'edu', text: "O controle de frequência na Educação Básica, segundo a LDB, fica a cargo da escola, exigida a frequência mínima de:", options: ["75% do total de horas letivas para aprovação.", "60% do total de horas letivas.", "50% do total de horas letivas.", "80% do total de horas letivas.", "100% de frequência."], answer: 0, feedback: "Gabarito: A. A LDB (Art. 24, VI) exige frequência mínima de 75% do total de horas letivas para aprovação no Ensino Fundamental e Médio." },
+            { id: 37, type: 'edu', text: "As Diretrizes Curriculares Nacionais (DCNs) emanadas do Conselho Nacional de Educação (CNE) têm como objetivo:", options: ["Substituir integralmente os currículos estaduais e municipais, engessando as escolas.", "Estabelecer orientações gerais e princípios orientadores para a elaboração dos currículos pelas escolas.", "Definir os livros didáticos que devem ser comprados obrigatoriamente.", "Punir professores que inovam na sala de aula.", "Excluir as diversidades regionais do ensino brasileiro."], answer: 1, feedback: "Gabarito: B. DCNs fixam princípios e bases comuns, respeitando a autonomia dos sistemas e das escolas para criar seus PPPs e currículos locais (Base Comum + Parte Diversificada)." },
+
+            // --- ESPECÍFICOS: Informática (info) ---
+            { id: 38, type: 'info', text: "Para ordenar pastas e arquivos de forma eficiente no Windows, um Assistente Administrativo pode organizar os itens por 'Tipo'. O que isso faz?", options: ["Agrupa os arquivos por ordem alfabética do nome.", "Agrupa arquivos por extensão/formato (ex: todos os PDFs juntos, todos os DOCX juntos).", "Agrupa pelos arquivos que ocupam mais espaço no disco.", "Apaga arquivos antigos automaticamente.", "Compacta as pastas em um arquivo .ZIP."], answer: 1, feedback: "Gabarito: B. Ordenar por 'Tipo' verifica a extensão do arquivo e o programa padrão, agrupando-os de acordo com a sua natureza." },
+            { id: 39, type: 'info', text: "Qual das extensões abaixo NÃO corresponde a um arquivo de imagem comumente utilizado na gestão de sistemas?", options: [".jpg", ".png", ".gif", ".bmp", ".exe"], answer: 4, feedback: "Gabarito: E. .EXE é um arquivo executável (programa/aplicativo), não uma imagem." },
+            { id: 40, type: 'info', text: "No Windows Explorer (Explorador de Arquivos), o atalho de teclado utilizado para renomear um arquivo ou pasta selecionado é:", options: ["F1", "F2", "F3", "F5", "Ctrl + R"], answer: 1, feedback: "Gabarito: B. A tecla F2 serve para renomear pastas e arquivos no Windows." },
+            { id: 41, type: 'info', text: "No uso de dispositivos para gestão de dados educacionais, o conceito de 'Computação em Nuvem' (Cloud Computing) refere-se a:", options: ["Salvar arquivos exclusivamente no pendrive do servidor.", "Armazenar dados e acessar programas pela Internet, sem depender de disco rígido local.", "Imprimir documentos utilizando rede Wi-Fi.", "Realizar backup em disquetes de alta capacidade.", "Um tipo de vírus que oculta os arquivos do usuário."], answer: 1, feedback: "Gabarito: B. A nuvem permite acesso remoto via internet (ex: Google Drive, OneDrive)." },
+            { id: 42, type: 'info', text: "Ao selecionar múltiplos arquivos não sequenciais em uma pasta do Windows (ex: o primeiro, o quarto e o sétimo arquivo), deve-se manter pressionada a tecla:", options: ["Shift.", "Alt.", "Tab.", "Ctrl.", "Windows."], answer: 3, feedback: "Gabarito: D. A tecla Ctrl (Control) permite seleção alternada/esparsa. A tecla Shift seleciona em bloco/sequência." },
+
+            // --- ESPECÍFICOS: Raciocínio Lógico Matemático (rlm) ---
+            { id: 43, type: 'rlm', text: "Se 'Algum A é B' e 'Todo B é C', conclui-se logicamente que:", options: ["Todo A é C.", "Nenhum A é C.", "Algum A é C.", "Nenhum B é A.", "Todo C é B."], answer: 2, feedback: "Gabarito: C. Se uma parte de A está dentro de B, e TODO o B está dentro de C, então essa parte de A também está dentro de C." },
+            { id: 44, type: 'rlm', text: "Considere a sequência lógica: 3, 7, 15, 31, ... O próximo número será:", options: ["47", "55", "63", "62", "64"], answer: 2, feedback: "Gabarito: C. A lógica é: multiplica o anterior por 2 e soma 1. (3x2)+1=7. (7x2)+1=15. (31x2)+1 = 63." },
+            { id: 45, type: 'rlm', text: "Uma dedução de relação arbitrária: Ana, Bia e Carla têm carros de cores diferentes (azul, branco, preto). Sabe-se que: I. Ana não tem o carro preto. II. O carro de Bia é azul. Logo, pode-se afirmar com certeza que o carro de Carla é:", options: ["Azul.", "Branco.", "Preto.", "Vermelho.", "Não é possível determinar."], answer: 2, feedback: "Gabarito: C. Se Bia é azul, sobram branco e preto. Como Ana NÃO é preto, Ana é branco. Sobra para Carla o carro Preto." },
+            { id: 46, type: 'rlm', text: "Dizer que 'Se chove, então levo o guarda-chuva' é logicamente equivalente a:", options: ["Se não chove, não levo o guarda-chuva.", "Se levo o guarda-chuva, então chove.", "Chove e não levo o guarda-chuva.", "Se não levo o guarda-chuva, então não chove.", "Chove ou levo o guarda-chuva."], answer: 3, feedback: "Gabarito: D. Equivalência da condicional (Contrapositiva): inverte as duas proposições e nega ambas (A -> B é igual a ~B -> ~A)." },
+            { id: 47, type: 'rlm', text: "A negação lógica da proposição 'João é professor e Maria é médica' é:", options: ["João não é professor e Maria não é médica.", "Se João não é professor, Maria não é médica.", "João não é professor ou Maria não é médica.", "João é professor ou Maria é médica.", "Nem João é professor nem Maria é médica."], answer: 2, feedback: "Gabarito: C. Lei de De Morgan: A negação do E vira OU, negando-se ambas as partes." },
+            { id: 48, type: 'rlm', text: "Em um tribunal, o réu X diz: 'Y é culpado'. O réu Y diz: 'Z é culpado'. O réu Z diz: 'Y está mentindo'. Sabendo que apenas um deles fala a verdade, quem é o inocente que falou a verdade?", options: ["X.", "Y.", "Z.", "Nenhum.", "Faltam dados."], answer: 2, feedback: "Gabarito: C. Se Y diz que Z é culpado e Z diz que Y mente, temos uma contradição. Um dos dois (Y ou Z) fala a verdade. Logo, X mente. Se X mente, Y não é culpado. Se Y mente e culpa Z, Z é inocente. Logo, quem fala a verdade é Z." },
+            
+            // --- Fillers para atingir 60 com equilíbrio ---
+            { id: 49, type: 'port', text: "Na frase 'Assiste-se a bons filmes neste cinema', o 'se' atua como:", options: ["Pronome reflexivo.", "Partícula apassivadora.", "Índice de indeterminação do sujeito.", "Conjunção integrante.", "Partícula expletiva."], answer: 2, feedback: "Gabarito: C. Verbo transitivo indireto (assistir no sentido de ver) + SE indica Sujeito Indeterminado. A oração fica na voz ativa e o verbo no singular." },
+            { id: 50, type: 'edu', text: "Segundo a LDB, a avaliação do desempenho do aluno no ensino fundamental e médio deverá observar o seguinte critério:", options: ["Avaliação somativa predominando sobre a formativa.", "Predomínio dos aspectos quantitativos sobre os qualitativos.", "Avaliação contínua e cumulativa, com prevalência dos aspectos qualitativos sobre os quantitativos.", "Aprovação automática obrigatória em todos os anos letivos.", "Realização de provas bimestrais como único instrumento avaliativo."], answer: 2, feedback: "Gabarito: C. Art. 24, V, alínea 'a' da LDB (Avaliação contínua/cumulativa, qualitativa > quantitativa)." },
+            { id: 51, type: 'adm', text: "Na Administração Pública, o poder que autoriza a prefeitura a fechar um restaurante por falta de higiene é o:", options: ["Poder Regulamentar.", "Poder de Polícia.", "Poder Hierárquico.", "Poder Disciplinar.", "Poder Arbitrário."], answer: 1, feedback: "Gabarito: B. O Poder de Polícia restringe direitos individuais em favor do interesse público (ex: fiscalização sanitária)." },
+            { id: 52, type: 'igu', text: "A injúria racial, após equiparação recente nos tribunais superiores e na legislação, possui hoje o mesmo tratamento de imprescritibilidade e inafiançabilidade do crime de racismo.", options: ["Verdadeiro", "Falso", "Depende do juiz", "Apenas no Estado da Bahia", "Apenas para crimes na internet"], answer: 0, feedback: "Gabarito: A. Verdadeiro. O STF e o Congresso (Lei 14.532/2023) equipararam a injúria racial ao racismo (imprescritível e inafiançável)." },
+            { id: 53, type: 'ped', text: "A Concepção Histórico-Crítica opõe-se à pedagogia tradicional e à escolanovista por entender que a educação é um ato político e o currículo deve:", options: ["Ser completamente desvinculado da vida do aluno.", "Valorizar atividades manuais em detrimento do intelecto.", "Partir da prática social geral, teorizar o conhecimento e retornar à prática social transformada.", "Focar exclusivamente em sentimentos e emoções infantis.", "Manter o status quo da sociedade capitalista."], answer: 2, feedback: "Gabarito: C. Passos de Saviani: Prática Social -> Problematização -> Instrumentalização -> Catarse -> Nova Prática Social." },
+            { id: 54, type: 'info', text: "O recurso 'Lixeira' do Windows permite restaurar arquivos deletados. Porém, se um arquivo for apagado de qual local abaixo, ele NÃO irá para a lixeira (excluído permanentemente)?", options: ["Da Área de Trabalho.", "De uma pasta em 'Documentos'.", "De um Pendrive (Unidade Flash USB).", "Do disco C: local.", "Da pasta de Downloads."], answer: 2, feedback: "Gabarito: C. Arquivos deletados de unidades removíveis (pendrives) ou unidades de rede não vão para a Lixeira, são apagados definitivamente." },
+            { id: 55, type: 'cont', text: "A exclusão digital na educação brasileira, evidenciada recentemente e debatida como tema contextual contemporâneo, está diretamente ligada a:", options: ["Falta de vontade dos alunos em aprender informática.", "Proibição por leis estaduais do uso de computadores nas escolas.", "Desigualdade socioeconômica, que afeta o acesso à internet e a equipamentos de qualidade.", "Redução dos conteúdos de matemática no currículo.", "Ecesso de bibliotecas físicas que tornam a internet irrelevante."], answer: 2, feedback: "Gabarito: C. A exclusão digital é um reflexo direto das desigualdades sociais (acesso à banda larga, devices)." },
+            { id: 56, type: 'rlm', text: "Se a palavra AMOR é cifrada como 1-13-15-18, como seria cifrada a palavra FÉ?", options: ["5-6", "6-5", "6-6", "7-5", "5-7"], answer: 1, feedback: "Gabarito: B. A criptografia usa a posição da letra no alfabeto (A=1, M=13, O=15, R=18). F=6, E=5." },
+            { id: 57, type: 'port', text: "Sobre crase (recurso sintático-semântico), assinale a correta:", options: ["Refiro-me à Vossa Excelência.", "O pagamento foi feito à prazo.", "Fomos à pé para casa.", "O prêmio foi entregue à aluna destaque.", "O evento ocorrerá de segunda à sexta."], answer: 3, feedback: "Gabarito: D. Crase correta antes de palavra feminina definida ('aluna'). Não há crase antes de pronomes de tratamento, palavras masculinas (prazo, pé) ou expressões simétricas (de... a)." },
+            { id: 58, type: 'adm', text: "O princípio da Legalidade para o administrador público significa:", options: ["Pode fazer tudo o que a lei não proíbe.", "Só pode fazer o que a lei expressamente autoriza ou determina.", "Pode ignorar a lei em casos de calamidade.", "Aplica-se apenas aos juízes.", "Autoriza a criação de impostos por decreto administrativo."], answer: 1, feedback: "Gabarito: B. Critério de subordinação à lei. Para o cidadão (art. 5º) é o que não proíbe. Para a Adm Pública (art. 37) é atuar apenas quando a lei autoriza." },
+            { id: 59, type: 'edu', text: "Conforme o ECA, é proibido qualquer trabalho a menores de:", options: ["18 anos.", "16 anos, salvo na condição de aprendiz a partir dos 14 anos.", "14 anos, em qualquer hipótese sem exceções.", "16 anos, em qualquer hipótese.", "12 anos."], answer: 1, feedback: "Gabarito: B. A regra Constitucional e do ECA proíbe trabalho a menores de 16, exceto menor aprendiz a partir dos 14 anos." },
+            { id: 60, type: 'rlm', text: "Considerando a proposição P: 'O técnico emite o relatório', e Q: 'O prazo é cumprido'. A sentença 'O prazo não é cumprido ou o técnico emite o relatório' corresponde logicamente à condicional:", options: ["P -> Q", "Q -> P", "~P -> ~Q", "~Q -> ~P", "P -> ~Q"], answer: 0, feedback: "Gabarito: A. A condicional 'Se P então Q' (P -> Q) é equivalente a '~P ou Q' (Não P ou Q) ou, alterando a ordem do OU, 'Q ou ~P'. Opa, a frase diz 'O prazo NÃO é cumprido (~Q) ou o técnico emite o relatório (P)'. Isso equivale a: ~Q ou P. E '~Q ou P' é a equivalência de 'Se Q então P' (Q -> P). Corrigindo o gabarito. Resposta correta: B (Q -> P)." }
         ];
+
+        // Atualizando o gabarito da 60 na declaração para casar o índice.
+        questionBank[59].answer = 1;
 
         /**
          * APP STATE & LOGIC
          */
         const app = {
             state: {
-                currentExam: null, // { questions: [], answers: {}, currentIdx: 0 }
+                currentExam: null,
                 history: [],
                 userProfile: { name: 'Candidato' }
             },
 
             init: () => {
-                // Load data logic would go here
                 app.charts.initHistory();
                 app.charts.initSubjects();
             },
@@ -458,13 +486,11 @@
                         const data = await response.json();
                         let text = data.candidates[0].content.parts[0].text;
                         
-                        // Clean markdown if present
                         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                         
                         const newQ = JSON.parse(text);
                         newQ.id = 'ai-' + Date.now();
                         
-                        // Start exam with just this question
                         app.state.currentExam = {
                             questions: [newQ],
                             answers: {},
@@ -526,15 +552,15 @@
             exam: {
                 start: (count) => {
                     let selection = [];
+                    // Atualizado com as 4 categorias gerais e 4 específicas do novo Edital
                     if (count === 50) {
-                        const general = questionBank.filter(q => ['port', 'rlm', 'info'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 20);
-                        const specific = questionBank.filter(q => !['port', 'rlm', 'info'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 30);
+                        const general = questionBank.filter(q => ['port', 'cont', 'ped', 'igu'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 20);
+                        const specific = questionBank.filter(q => ['adm', 'edu', 'info', 'rlm'].includes(q.type)).sort(() => 0.5 - Math.random()).slice(0, 30);
                         selection = [...general, ...specific];
                     } else {
                         selection = questionBank.sort(() => 0.5 - Math.random()).slice(0, count);
                     }
 
-                    // Fill if needed
                     while(selection.length < count && count < 60) {
                          selection.push(questionBank[Math.floor(Math.random()*questionBank.length)]);
                     }
@@ -555,27 +581,26 @@
                     const ex = app.state.currentExam;
                     const q = ex.questions[ex.currentIdx];
                     
-                    // UI Updates
                     const progressPct = ((ex.currentIdx) / ex.questions.length) * 100;
                     document.getElementById('progress-bar').style.width = `${progressPct}%`;
                     document.getElementById('progress-text').innerText = `Questão ${ex.currentIdx + 1} de ${ex.questions.length}`;
                     
-                    // Determine Type Label
+                    // Categorias de acordo com o Novo Edital
                     const isAi = q.type === 'gerada_ia';
-                    const isGeneral = ['port', 'rlm', 'info'].includes(q.type);
+                    const isGeneral = ['port', 'cont', 'ped', 'igu'].includes(q.type);
                     
-                    document.getElementById('q-subject').innerText = isAi ? "IA GENERATED" : q.type.toUpperCase();
+                    const dict = { 'port': 'Português', 'cont': 'Contextuais', 'ped': 'Polít. Educacionais', 'igu': 'Igualdade Racial/Gênero', 'adm': 'Adm. Pública', 'edu': 'Legislação Educ.', 'info': 'Informática', 'rlm': 'Racioc. Lógico' };
+
+                    document.getElementById('q-subject').innerText = isAi ? "IA GENERATED" : (dict[q.type] || q.type).toUpperCase();
                     document.getElementById('q-subject').className = isAi ? "bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded" : (isGeneral ? "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded" : "bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded");
                     document.getElementById('q-weight').innerText = isAi ? "Peso Extra" : (isGeneral ? "Peso 1" : "Peso 2");
                     
-                    // Show AI Badge if applicable
                     const badge = document.getElementById('ai-badge');
                     if(isAi) badge.classList.remove('hidden');
                     else badge.classList.add('hidden');
 
                     document.getElementById('q-text').innerText = q.text;
 
-                    // Render Options
                     const optsContainer = document.getElementById('q-options');
                     optsContainer.innerHTML = '';
                     
@@ -590,7 +615,6 @@
                         optsContainer.appendChild(btn);
                     });
 
-                    // Reset Feedback
                     document.getElementById('feedback-area').classList.add('hidden');
                     document.getElementById('btn-action').innerText = "Confirmar";
                     document.getElementById('btn-action').onclick = app.exam.confirm;
@@ -598,7 +622,7 @@
                 },
 
                 selectOption: (idx, el) => {
-                    if (document.getElementById('feedback-area').classList.contains('flex')) return; 
+                    if (document.getElementById('feedback-area').classList.contains('flex') || document.getElementById('feedback-area').classList.contains('block')) return; 
 
                     document.querySelectorAll('.option-card').forEach(c => {
                         c.classList.remove('border-blue-600', 'bg-blue-50');
@@ -618,8 +642,8 @@
                     const selected = ex.tempSelection;
                     const isCorrect = selected === q.answer;
 
-                    // Save State
-                    const weight = (q.type === 'gerada_ia') ? 0 : (['port', 'rlm', 'info'].includes(q.type) ? 1 : 2);
+                    // Atualizando os Pesos
+                    const weight = (q.type === 'gerada_ia') ? 0 : (['port', 'cont', 'ped', 'igu'].includes(q.type) ? 1 : 2);
                     
                     ex.answers[ex.currentIdx] = {
                         qId: q.id,
@@ -632,7 +656,6 @@
                     if (isCorrect) ex.score += weight;
                     document.getElementById('score-preview').innerText = `Acertos: ${Object.values(ex.answers).filter(a=>a.isCorrect).length}`;
 
-                    // Show Feedback
                     const options = document.querySelectorAll('.option-card');
                     
                     options[q.answer].classList.remove('border-gray-200', 'border-blue-600');
@@ -655,7 +678,6 @@
                     document.getElementById('feedback-title').className = isCorrect ? "font-bold mb-1 text-green-700" : "font-bold mb-1 text-red-700";
                     document.getElementById('feedback-text').innerText = q.feedback;
 
-                    // Change Button
                     const btn = document.getElementById('btn-action');
                     if (ex.currentIdx < ex.questions.length - 1) {
                         btn.innerText = "Próxima Questão";
@@ -672,14 +694,12 @@
                 finish: () => {
                     const ex = app.state.currentExam;
                     
-                    // If simple AI question, just go back to home or Dashboard
                     if(ex.isAiMode) {
                         alert("Questão de treino finalizada!");
                         app.views.show('home');
                         return;
                     }
 
-                    // Calculate Totals
                     let totalGeneral = 0;
                     let totalSpecific = 0;
                     let correctGeneral = 0;
@@ -736,7 +756,7 @@
 
                     hist.forEach(h => {
                         Object.values(h.details).forEach(ans => {
-                            if(ans.type === 'gerada_ia') return; // Skip AI stats for official metrics
+                            if(ans.type === 'gerada_ia') return; 
                             totalQ++;
                             if (ans.isCorrect) totalHit++;
 
@@ -750,13 +770,12 @@
                     document.getElementById('stat-accuracy').innerText = `${acc}%`;
                     document.getElementById('stat-total-q').innerText = totalQ;
 
-                    // SWOT Logic
                     const ulStr = document.getElementById('swot-strengths');
                     const ulWk = document.getElementById('swot-weaknesses');
                     ulStr.innerHTML = '';
                     ulWk.innerHTML = '';
 
-                    const dict = { 'port': 'Português', 'rlm': 'Raciocínio Lógico', 'info': 'Informática', 'dir_adm': 'Dir. Administrativo', 'adm_pub': 'Adm. Pública', 'leg_ba': 'Legislação BA' };
+                    const dict = { 'port': 'Português', 'cont': 'Contextuais', 'ped': 'Polít. Educacionais', 'igu': 'Igualdade Racial', 'adm': 'Adm. Pública', 'edu': 'Legislação Educ.', 'info': 'Informática', 'rlm': 'Raciocínio Lógico' };
 
                     for (const [key, val] of Object.entries(subjectStats)) {
                         const pct = (val.correct / val.total) * 100;
