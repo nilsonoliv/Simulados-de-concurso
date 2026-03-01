@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador IBFC - Técnico Administrativo (SEC/BA)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        .option-card {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .option-card:hover:not(.disabled) {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+        .option-card.selected {
+            background-color: #dbeafe;
+            border-color: #2563eb;
+            border-width: 2px;
+        }
+        .option-card.correct {
+            background-color: #dcfce7;
+            border-color: #16a34a;
+        }
+        .option-card.wrong {
+            background-color: #fee2e2;
+            border-color: #dc2626;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-blue-900 text-white shadow-lg z-10">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-graduation-cap text-2xl text-yellow-400"></i>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Simulador IBFC</h1>
+                    <p class="text-xs text-blue-200">Foco: Técnico Administrativo (SEC/BA)</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="app.toggleModal('dataModal')" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar/Carregar
+                </button>
+                <button onclick="app.resetSession()" class="bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-bold px-3 py-1.5 rounded text-sm transition">
+                    <i class="fa-solid fa-rotate"></i> Novo Treino
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Left Column: Quiz Area -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-6" id="quiz-container">
+            
+            <!-- Progress Bar -->
+            <div class="mb-6 bg-white rounded-full h-2.5 dark:bg-gray-300 w-full max-w-3xl mx-auto shadow-sm">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <!-- Question Card -->
+            <div id="question-card" class="bg-white rounded-xl shadow-md max-w-3xl mx-auto p-6 md:p-8 fade-in relative">
+                <span id="topic-badge" class="absolute top-4 right-4 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Tópico</span>
+                
+                <h2 class="text-gray-500 text-sm font-semibold mb-2">Questão <span id="q-number">1</span> de <span id="q-total">20</span></h2>
+                
+                <div class="prose max-w-none mb-6 text-gray-800">
+                    <p id="q-text" class="text-lg font-medium leading-relaxed">Carregando questão...</p>
+                </div>
+
+                <!-- Options -->
+                <div id="options-container" class="space-y-3">
+                    <!-- Options injected via JS -->
+                </div>
+
+                <!-- Feedback Area -->
+                <div id="feedback-area" class="hidden mt-6 p-4 rounded-lg border-l-4 bg-gray-50">
+                    <h3 class="font-bold text-lg mb-1" id="feedback-title">Resposta</h3>
+                    <p id="feedback-text" class="text-sm text-gray-700 leading-relaxed"></p>
+                </div>
+
+                <!-- Action Button -->
+                <div class="mt-8 flex justify-end">
+                    <button id="action-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow transition transform active:scale-95">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Session Summary (Hidden by default) -->
+            <div id="summary-card" class="hidden bg-white rounded-xl shadow-md max-w-3xl mx-auto p-8 text-center fade-in">
+                <div class="mb-4 text-6xl text-blue-600">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Simulado Finalizado!</h2>
+                <p class="text-gray-600 mb-6">Confira seu desempenho detalhado no painel ao lado (ou abaixo).</p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="app.resetSession()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">Novo Simulado</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Column: Dashboard -->
+        <aside class="w-full md:w-96 bg-white border-l border-gray-200 overflow-y-auto hidden md:block" id="dashboard">
+            <div class="p-6 space-y-8">
+                
+                <!-- Current Session Stats -->
+                <div>
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Sessão Atual</h3>
+                    <div class="relative h-40 w-40 mx-auto">
+                        <canvas id="sessionChart"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                            <span class="text-2xl font-bold text-gray-800" id="session-score">0%</span>
+                            <span class="text-xs text-gray-500">Acerto</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Historical Stats -->
+                <div>
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Evolução Histórica</h3>
+                    <div class="h-32">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- SWOT Analysis -->
+                <div>
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Análise de Desempenho (SWOT)</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-green-50 p-3 rounded-lg border border-green-100">
+                            <div class="flex items-center gap-2 mb-2 text-green-700 font-bold text-sm">
+                                <i class="fa-solid fa-arrow-trend-up"></i> Pontos Fortes (>80%)
+                            </div>
+                            <ul id="swot-strengths" class="text-xs text-green-800 list-disc list-inside empty:text-gray-400">
+                                <li>Sem dados suficientes</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-red-50 p-3 rounded-lg border border-red-100">
+                            <div class="flex items-center gap-2 mb-2 text-red-700 font-bold text-sm">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Pontos de Atenção (<60%)
+                            </div>
+                            <ul id="swot-weaknesses" class="text-xs text-red-800 list-disc list-inside empty:text-gray-400">
+                                <li>Sem dados suficientes</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+    </div>
+
+    <!-- Mobile Dashboard Toggle (Visible only on mobile) -->
+    <button onclick="document.getElementById('dashboard').classList.toggle('hidden'); document.getElementById('dashboard').classList.toggle('fixed'); document.getElementById('dashboard').classList.toggle('inset-0'); document.getElementById('dashboard').classList.toggle('z-50');" class="md:hidden fixed bottom-4 right-4 bg-blue-900 text-white p-4 rounded-full shadow-xl z-50">
+        <i class="fa-solid fa-chart-pie"></i>
+    </button>
+
+    <!-- Data Modal -->
+    <div id="dataModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 class="text-lg font-bold mb-4">Persistência de Dados</h3>
+            <p class="text-sm text-gray-600 mb-4">Copie o código abaixo para salvar seu progresso ou cole um código anterior para restaurar.</p>
+            
+            <textarea id="jsonData" class="w-full h-32 p-2 border border-gray-300 rounded text-xs font-mono mb-4 bg-gray-50" placeholder="Cole seu JSON aqui..."></textarea>
+            
+            <div class="flex gap-2 justify-end">
+                <button onclick="app.toggleModal('dataModal')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+                <button onclick="app.importData()" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded">Carregar</button>
+                <button onclick="app.exportData()" class="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded">Gerar Código Atual</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- QUESTÕES ---
+        // Banco de 40 questões dividido nos 4 tópicos do edital
+        // T1: Leitura/Sentidos | T2: Mistos | T3: Semântica | T4: Pontuação
+        const QUESTION_BANK = [
+            // TÓPICO 1: Leitura e Sentidos (10 questões)
+            {
+                id: 1, topic: "1. Leitura e Interpretação",
+                text: "No trecho 'A educação transforma a sociedade, embora os resultados demorem a aparecer', a conjunção destacada 'embora' estabelece uma relação de:",
+                options: ["A) Causa", "B) Consequência", "C) Concessão", "D) Condição", "E) Finalidade"],
+                correct: 2,
+                explanation: "O 'embora' é uma conjunção subordinativa concessiva típica. Ela indica uma oposição que não impede a realização da ação principal. Estilo clássico da IBFC cobrar valor semântico de conectivos."
+            },
+            {
+                id: 2, topic: "1. Leitura e Interpretação",
+                text: "Assinale a alternativa em que a reescrita mantém o sentido original de: 'É imprescindível que todos colaborem.'",
+                options: ["A) É provável que todos colaborem.", "B) É necessário que todos colaborem.", "C) É possível que todos colaborem.", "D) É duvidoso que todos colaborem.", "E) É facultativo que todos colaborem."],
+                correct: 1,
+                explanation: "'Imprescindível' significa aquilo que não se pode prescindir, ou seja, indispensável, necessário."
+            },
+            {
+                id: 3, topic: "1. Leitura e Interpretação",
+                text: "Em um texto administrativo, o uso da norma culta e a impessoalidade são fundamentais. Qual frase abaixo fere o princípio da impessoalidade?",
+                options: ["A) Encaminha-se o relatório anexo.", "B) Solicita-se a presença de todos.", "C) Eu acho que o prazo deve ser estendido.", "D) Determinou-se o fechamento do setor.", "E) Observou-se um aumento na demanda."],
+                correct: 2,
+                explanation: "O uso de 'Eu acho' (1ª pessoa do singular e verbo de opinião subjetiva) fere frontalmente a impessoalidade exigida na redação oficial."
+            },
+            {
+                id: 4, topic: "1. Leitura e Interpretação",
+                text: "A palavra 'efêmero' no contexto 'A fama nas redes sociais é algo efêmero' pode ser substituída, sem prejuízo de sentido, por:",
+                options: ["A) Duradouro", "B) Passageiro", "C) Constante", "D) Perpétuo", "E) Estável"],
+                correct: 1,
+                explanation: "Efêmero significa algo de pouca duração, passageiro, transitório."
+            },
+            {
+                id: 5, topic: "1. Leitura e Interpretação",
+                text: "Identifique a função da linguagem predominante em: 'Alô? Está me ouvindo? O sinal está ruim...'",
+                options: ["A) Metalinguística", "B) Referencial", "C) Fática", "D) Poética", "E) Conativa"],
+                correct: 2,
+                explanation: "A função Fática centra-se no canal de comunicação, testando sua eficiência (ex: alô, testando, psiu)."
+            },
+            {
+                id: 6, topic: "1. Leitura e Interpretação",
+                text: "No fragmento 'O funcionário que estuda progride', a oração 'que estuda' tem valor:",
+                options: ["A) Restritivo", "B) Explicativo", "C) Adverbial", "D) Substantivo", "E) Coordenado"],
+                correct: 0,
+                explanation: "É uma Oração Subordinada Adjetiva Restritiva (sem vírgulas). Ela restringe o grupo de funcionários: apenas aqueles que estudam progridem."
+            },
+            {
+                id: 7, topic: "1. Leitura e Interpretação",
+                text: "Qual das opções abaixo apresenta um argumento de autoridade?",
+                options: ["A) Todos sabem que a saúde é vital.", "B) Segundo a OMS, o sedentarismo afeta 20% da população.", "C) Eu acredito que precisamos melhorar.", "D) A vida é como um livro aberto.", "E) Choveu muito ontem à noite."],
+                correct: 1,
+                explanation: "Citar a OMS (Organização Mundial da Saúde) para validar uma tese configura Argumento de Autoridade."
+            },
+            {
+                id: 8, topic: "1. Leitura e Interpretação",
+                text: "O termo 'Infelizmente' em 'Infelizmente, os prazos não foram cumpridos' revela:",
+                options: ["A) Uma certeza científica.", "B) Um posicionamento do emissor.", "C) Uma dúvida do receptor.", "D) Uma ordem direta.", "E) Uma característica física."],
+                correct: 1,
+                explanation: "Advérbios como 'infelizmente', 'felizmente', 'lamentavelmente' são modalizadores que expressam a opinião/sentimento do emissor sobre o fato."
+            },
+            {
+                id: 9, topic: "1. Leitura e Interpretação",
+                text: "A tipologia textual que tem como principal objetivo instruir ou orientar o leitor a realizar uma ação é a:",
+                options: ["A) Narrativa", "B) Descritiva", "C) Injuntiva", "D) Dissertativa", "E) Expositiva"],
+                correct: 2,
+                explanation: "O texto injuntivo (ou instrucional) serve para orientar (ex: manuais, receitas, editais)."
+            },
+            {
+                id: 10, topic: "1. Leitura e Interpretação",
+                text: "Na frase 'Ele não fez o trabalho, tampouco justificou a falta', o termo 'tampouco' expressa ideia de:",
+                options: ["A) Adição negativa", "B) Alternância", "C) Explicação", "D) Conclusão", "E) Tempo"],
+                correct: 0,
+                explanation: "Tampouco significa 'muito menos' ou 'nem'. Serve para somar negações (Não fez isso + nem aquilo)."
+            },
+
+            // TÓPICO 2: Textos Mistos (10 questões)
+            {
+                id: 11, topic: "2. Textos Mistos e Imagéticos",
+                text: "[Descrição de Imagem: Uma placa de trânsito 'PARE' onde alguém pichou abaixo a palavra 'de sonhar']. A intervenção na placa cria um efeito de sentido baseado na:",
+                options: ["A) Reiteração da lei de trânsito.", "B) Ambiguidade proposital.", "C) Função denotativa pura.", "D) Contradição lógica.", "E) Polissemia poética."],
+                correct: 4,
+                explanation: "A pichação transforma o sentido imperativo de trânsito (Pare o carro) em um sentido poético/existencial (Pare de sonhar), explorando a polissemia do verbo 'parar'."
+            },
+            {
+                id: 12, topic: "2. Textos Mistos e Imagéticos",
+                text: "[Descrição de Charge: Um médico diz ao paciente 'Sua doença é grave: excesso de informação'. O paciente está segurando 3 celulares]. A crítica central do texto misto refere-se:",
+                options: ["A) À evolução da medicina.", "B) À qualidade dos celulares modernos.", "C) Ao impacto da tecnologia na saúde mental.", "D) À falta de médicos especialistas.", "E) Ao preço dos planos de saúde."],
+                correct: 2,
+                explanation: "A união da fala do médico com a imagem dos celulares critica a sobrecarga de informações digitais."
+            },
+            {
+                id: 13, topic: "2. Textos Mistos e Imagéticos",
+                text: "Em campanhas publicitárias que usam imagem e texto, a função da imagem geralmente é:",
+                options: ["A) Apenas decorativa.", "B) Contradizer o texto escrito.", "C) Reforçar ou complementar a persuasão.", "D) Dificultar a leitura.", "E) Substituir a gramática."],
+                correct: 2,
+                explanation: "Em textos mistos publicitários, a imagem serve para atrair a atenção e complementar o argumento persuasivo do texto verbal."
+            },
+            {
+                id: 14, topic: "2. Textos Mistos e Imagéticos",
+                text: "[Descrição: Um gráfico de barras mostrando o aumento do desemprego e um título 'A Escalada da Crise']. A relação entre o título (verbal) e o gráfico (não verbal) é de:",
+                options: ["A) Oposição", "B) Ironia", "C) Redundância/Confirmação", "D) Negação", "E) Aleatoriedade"],
+                correct: 2,
+                explanation: "O título nomeia o que os dados visuais demonstram, havendo uma relação de confirmação/ilustração mútua."
+            },
+            {
+                id: 15, topic: "2. Textos Mistos e Imagéticos",
+                text: "Em tirinhas e HQs, o formato do balão (nuvem, linha tracejada, linha cheia) é um recurso:",
+                options: ["A) Verbal", "B) Não verbal", "C) Sonoro", "D) Olfativo", "E) Tátil"],
+                correct: 1,
+                explanation: "O formato do balão é um elemento visual (não verbal) que indica se o personagem está pensando, sussurrando ou gritando."
+            },
+            {
+                id: 16, topic: "2. Textos Mistos e Imagéticos",
+                text: "[Descrição: Ícone de uma lixeira em uma tela de computador]. Esse símbolo é um exemplo de:",
+                options: ["A) Linguagem verbal", "B) Linguagem mista", "C) Metáfora visual", "D) Texto literário", "E) Onomatopeia"],
+                correct: 2,
+                explanation: "O ícone da lixeira é uma metáfora visual para a função de 'descartar arquivos', associando uma ação digital a um objeto físico."
+            },
+            {
+                id: 17, topic: "2. Textos Mistos e Imagéticos",
+                text: "Ao ler um infográfico sobre a Dengue, o leitor deve:",
+                options: ["A) Ler apenas os números.", "B) Ignorar as imagens dos mosquitos.", "C) Integrar as informações verbais e visuais.", "D) Ler apenas o título.", "E) Considerar que as imagens são falsas."],
+                correct: 2,
+                explanation: "A leitura de textos mistos exige a competência de integrar as duas linguagens para compreender a totalidade da mensagem."
+            },
+            {
+                id: 18, topic: "2. Textos Mistos e Imagéticos",
+                text: "[Descrição: Uma mão fazendo sinal de positivo (polegar para cima)]. Esse gesto, dependendo da cultura, funciona como:",
+                options: ["A) Um texto exclusivamente verbal.", "B) Um signo não verbal arbitrário.", "C) Uma preposição.", "D) Um advérbio de tempo.", "E) Uma conjunção."],
+                correct: 1,
+                explanation: "Gestos são signos não verbais. Seu significado é arbitrário e convencional (depende da cultura)."
+            },
+            {
+                id: 19, topic: "2. Textos Mistos e Imagéticos",
+                text: "Em uma charge política, o exagero nos traços físicos de uma figura pública (caricatura) serve para:",
+                options: ["A) Elogiar a beleza da pessoa.", "B) Enfatizar uma característica ou crítica.", "C) Esconder a identidade da pessoa.", "D) Mostrar realismo fotográfico.", "E) Decorar a página."],
+                correct: 1,
+                explanation: "A caricatura utiliza a distorção visual para enfatizar características de personalidade ou fazer críticas humorísticas."
+            },
+            {
+                id: 20, topic: "2. Textos Mistos e Imagéticos",
+                text: "Um emoji de 'rosto chorando de rir' enviado após uma mensagem séria pode gerar:",
+                options: ["A) Clareza absoluta.", "B) Formalidade extrema.", "C) Ironia ou descrédito da mensagem.", "D) Coesão gramatical.", "E) Ênfase na tristeza."],
+                correct: 2,
+                explanation: "O elemento não verbal (emoji) contradizendo o verbal (mensagem séria) geralmente instaura a ironia."
+            },
+
+            // TÓPICO 3: Semântica e Sentido (10 questões)
+            {
+                id: 21, topic: "3. Semântica",
+                text: "Na frase 'O deputado cassou o mandato do colega', o verbo 'cassar' está corretamente empregado. Seu parônimo 'caçar' significa:",
+                options: ["A) Anular", "B) Perseguir/Capturar", "C) Permitir", "D) Votar", "E) Legislar"],
+                correct: 1,
+                explanation: "Cassar (com SS) = anular, revogar. Caçar (com Ç) = perseguir animais ou coisas."
+            },
+            {
+                id: 22, topic: "3. Semântica",
+                text: "A palavra 'mangueira' pode ser uma árvore ou um tubo de borracha. Esse fenômeno semântico chama-se:",
+                options: ["A) Sinonímia", "B) Antonímia", "C) Polissemia", "D) Homonímia", "E) Paronímia"],
+                correct: 2,
+                explanation: "Polissemia é a propriedade de uma mesma palavra ter vários significados dependendo do contexto."
+            },
+            {
+                id: 23, topic: "3. Semântica",
+                text: "Assinale a alternativa que apresenta antônimos:",
+                options: ["A) Ratificar / Retificar", "B) Súbito / Repentino", "C) Efêmero / Duradouro", "D) Eminente / Iminente", "E) Tráfego / Tráfico"],
+                correct: 2,
+                explanation: "Efêmero (passageiro) é o oposto de Duradouro (permanente). As outras opções são parônimos ou sinônimos."
+            },
+            {
+                id: 24, topic: "3. Semântica",
+                text: "Em 'Aquele funcionário é uma cobra', o termo 'cobra' foi usado em sentido:",
+                options: ["A) Denotativo", "B) Conotativo", "C) Literal", "D) Dicionarizado estrito", "E) Técnico"],
+                correct: 1,
+                explanation: "Conotativo é o sentido figurado. Denotativo é o sentido real (o animal)."
+            },
+            {
+                id: 25, topic: "3. Semântica",
+                text: "Na oração 'Vou ao concerto assistir à sinfonia', a palavra 'concerto' refere-se a espetáculo musical. Se fosse escrita 'conserto', referir-se-ia a:",
+                options: ["A) Acordo político", "B) Reparo", "C) Casamento", "D) Documento", "E) Reunião"],
+                correct: 1,
+                explanation: "Concerto (C) = música. Conserto (S) = reparo, ato de consertar."
+            },
+            {
+                id: 26, topic: "3. Semântica",
+                text: "A relação entre 'assento' (lugar de sentar) e 'acento' (sinal gráfico) é de:",
+                options: ["A) Homônimos homófonos", "B) Homônimos homógrafos", "C) Sinônimos perfeitos", "D) Antônimos", "E) Hiperônimos"],
+                correct: 0,
+                explanation: "Homônimos homófonos possuem o mesmo som, mas grafias e significados diferentes."
+            },
+            {
+                id: 27, topic: "3. Semântica",
+                text: "Qual frase apresenta ambiguidade (duplo sentido)?",
+                options: ["A) Comprei um carro novo.", "B) O aluno disse ao professor que ele estava errado.", "C) A chuva caiu forte.", "D) Estudei muito para a prova.", "E) O sol nasceu cedo."],
+                correct: 1,
+                explanation: "Não se sabe se quem estava errado era o aluno ou o professor. O pronome 'ele' gera a ambiguidade."
+            },
+            {
+                id: 28, topic: "3. Semântica",
+                text: "Em 'O tráfego de veículos estava intenso', a palavra 'tráfego' significa trânsito. Qual é o significado de seu parônimo 'tráfico'?",
+                options: ["A) Movimento de pessoas", "B) Comércio ilegal", "C) Engarrafamento", "D) Sinalização", "E) Acidente"],
+                correct: 1,
+                explanation: "Tráfego = trânsito. Tráfico = comércio ilícito ou clandestino."
+            },
+            {
+                id: 29, topic: "3. Semântica",
+                text: "A hiperonímia é a relação do geral para o específico. Na dupla 'Flor - Rosa', 'Flor' é:",
+                options: ["A) Hipônimo", "B) Hiperônimo", "C) Sinônimo", "D) Antônimo", "E) Parônimo"],
+                correct: 1,
+                explanation: "Flor é o termo geral (Hiperônimo). Rosa é o termo específico (Hipônimo)."
+            },
+            {
+                id: 30, topic: "3. Semântica",
+                text: "O significado da expressão latina 'in loco', muito usada na administração, é:",
+                options: ["A) À distância", "B) Por escrito", "C) No próprio local", "D) Fora do prazo", "E) Em segredo"],
+                correct: 2,
+                explanation: "Verificar 'in loco' significa ir até o lugar onde o fato ocorreu."
+            },
+
+            // TÓPICO 4: Pontuação (10 questões)
+            {
+                id: 31, topic: "4. Pontuação",
+                text: "Assinale a alternativa onde a vírgula foi usada para isolar o vocativo:",
+                options: ["A) Salvador, 15 de janeiro de 2024.", "B) Maria, traga os documentos.", "C) Comprei papel, caneta e lápis.", "D) O diretor, que é novo, chegou.", "E) Se chover, não irei."],
+                correct: 1,
+                explanation: "Vocativo é o chamamento. 'Maria' está sendo chamada, logo a vírgula é obrigatória."
+            },
+            {
+                id: 32, topic: "4. Pontuação",
+                text: "Em: 'O edital, conforme previsto, foi publicado', as vírgulas isolam:",
+                options: ["A) Um adjunto adverbial deslocado.", "B) Uma oração coordenada.", "C) Um aposto explicativo.", "D) Um vocativo.", "E) Uma conjunção conclusiva."],
+                correct: 0,
+                explanation: "'Conforme previsto' é um adjunto adverbial (ou oração adverbial reduzida/intercalada) deslocado."
+            },
+            {
+                id: 33, topic: "4. Pontuação",
+                text: "O uso dos dois-pontos em: 'A regra é clara: não haverá exceções', serve para:",
+                options: ["A) Iniciar uma citação.", "B) Introduzir um esclarecimento ou explicação.", "C) Marcar um diálogo.", "D) Separar orações coordenadas.", "E) Indicar surpresa."],
+                correct: 1,
+                explanation: "Neste caso, os dois-pontos introduzem uma explicação sobre qual é a regra mencionada anteriormente (aposto oracional)."
+            },
+            {
+                id: 34, topic: "4. Pontuação",
+                text: "Qual frase está pontuada INCORRETAMENTE?",
+                options: ["A) Os alunos, estudaram muito.", "B) Ontem à noite, choveu bastante.", "C) Preciso de paz, amor e saúde.", "D) Ana, venha cá.", "E) O Brasil, país tropical, é lindo."],
+                correct: 0,
+                explanation: "Nunca se separa sujeito (Os alunos) do predicado (estudaram) com vírgula."
+            },
+            {
+                id: 35, topic: "4. Pontuação",
+                text: "Em 'Machado de Assis, o Bruxo do Cosme Velho, é genial', a expressão entre vírgulas é um:",
+                options: ["A) Vocativo", "B) Aposto explicativo", "C) Adjunto adnominal", "D) Predicativo do sujeito", "E) Objeto direto"],
+                correct: 1,
+                explanation: "Aposto explicativo é o termo que explica ou detalha um substantivo anterior, devendo vir isolado por pontuação."
+            },
+            {
+                id: 36, topic: "4. Pontuação",
+                text: "O ponto e vírgula (;) é utilizado principalmente para:",
+                options: ["A) Terminar uma frase.", "B) Separar itens de uma enumeração ou lei.", "C) Substituir a interrogação.", "D) Indicar a fala de personagem.", "E) Abreviar palavras."],
+                correct: 1,
+                explanation: "O ponto e vírgula separa orações coordenadas longas ou itens de uma lista/enumeração (comum em leis e editais)."
+            },
+            {
+                id: 37, topic: "4. Pontuação",
+                text: "Na frase 'Estudou muito, mas não passou', a vírgula antes do 'mas' é:",
+                options: ["A) Proibida", "B) Facultativa", "C) Obrigatória", "D) Estilística", "E) Errada"],
+                correct: 2,
+                explanation: "Antes de conjunções adversativas (mas, porém, contudo), a vírgula é obrigatória."
+            },
+            {
+                id: 38, topic: "4. Pontuação",
+                text: "As aspas em 'O funcionário disse que estava 'morto' de cansado' indicam:",
+                options: ["A) Citação direta", "B) Estrangeirismo", "C) Sentido figurado/Conotativo", "D) Título de obra", "E) Sarcasmo"],
+                correct: 2,
+                explanation: "As aspas destacam que a palavra 'morto' não deve ser lida literalmente, mas sim como exagero (sentido figurado)."
+            },
+            {
+                id: 39, topic: "4. Pontuação",
+                text: "O travessão (—) pode substituir qual sinal de pontuação em apostos ou explicações?",
+                options: ["A) Ponto final", "B) Vírgulas ou parênteses", "C) Ponto de interrogação", "D) Aspas", "E) Reticências"],
+                correct: 1,
+                explanation: "O travessão duplo pode substituir vírgulas ou parênteses para dar ênfase a um termo intercalado."
+            },
+            {
+                id: 40, topic: "4. Pontuação",
+                text: "Em 'Brasília, capital do Brasil', a vírgula foi usada pela mesma razão que em:",
+                options: ["A) Pedro, venha aqui.", "B) Fui, vi e venci.", "C) Pelé, o rei do futebol, marcou.", "D) Na semana passada, viajei.", "E) Ele correu, mas caiu."],
+                correct: 2,
+                explanation: "Em ambos os casos ('Brasília...' e 'Pelé...'), a vírgula isola um Aposto Explicativo."
+            }
+        ];
+
+        // --- LÓGICA DA APLICAÇÃO ---
+
+        const app = {
+            state: {
+                currentQuestions: [],
+                currentIndex: 0,
+                answers: [], // { questionId, correct: bool, topic: string }
+                history: [], // [{ date, score, total, details: [...] }]
+            },
+
+            init: () => {
+                app.loadHistory();
+                app.updateDashboardHistory();
+                app.startNewSession();
+            },
+
+            // Algoritmo de Sorteio Adaptativo (20 questões: 5 de cada tópico)
+            startNewSession: () => {
+                const shuffled = [...QUESTION_BANK].sort(() => 0.5 - Math.random());
+                // Agrupar por tópico para garantir distribuição
+                const topics = {};
+                shuffled.forEach(q => {
+                    if (!topics[q.topic]) topics[q.topic] = [];
+                    topics[q.topic].push(q);
+                });
+
+                // Selecionar 5 de cada tópico (Total 20) ou o que tiver disponível
+                let selected = [];
+                Object.keys(topics).forEach(t => {
+                    selected = selected.concat(topics[t].slice(0, 5));
+                });
+                
+                // Embaralhar a seleção final
+                app.state.currentQuestions = selected.sort(() => 0.5 - Math.random());
+                app.state.currentIndex = 0;
+                app.state.answers = [];
+
+                app.renderUI();
+            },
+
+            renderUI: () => {
+                const { currentQuestions, currentIndex } = app.state;
+                const container = document.getElementById('quiz-container');
+                const summaryCard = document.getElementById('summary-card');
+                const questionCard = document.getElementById('question-card');
+                const progressBar = document.getElementById('progress-bar');
+
+                // Atualizar progresso visual
+                const progress = ((currentIndex) / currentQuestions.length) * 100;
+                progressBar.style.width = `${progress}%`;
+
+                // Verificar fim do quiz
+                if (currentIndex >= currentQuestions.length) {
+                    questionCard.classList.add('hidden');
+                    summaryCard.classList.remove('hidden');
+                    app.finishSession();
+                    return;
+                }
+
+                questionCard.classList.remove('hidden');
+                summaryCard.classList.add('hidden');
+
+                const q = currentQuestions[currentIndex];
+                
+                // Renderizar textos
+                document.getElementById('q-number').innerText = currentIndex + 1;
+                document.getElementById('q-total').innerText = currentQuestions.length;
+                document.getElementById('topic-badge').innerText = q.topic;
+                document.getElementById('q-text').innerText = q.text;
+
+                // Renderizar opções
+                const optsContainer = document.getElementById('options-container');
+                optsContainer.innerHTML = '';
+                
+                q.options.forEach((opt, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'option-card border rounded-lg p-3 text-sm md:text-base bg-white border-gray-200';
+                    div.innerText = opt;
+                    div.onclick = () => app.selectOption(idx, div);
+                    div.dataset.index = idx;
+                    optsContainer.appendChild(div);
+                });
+
+                // Resetar estado visual
+                document.getElementById('feedback-area').classList.add('hidden');
+                const actionBtn = document.getElementById('action-btn');
+                actionBtn.innerText = "Confirmar";
+                actionBtn.onclick = app.confirmAnswer;
+                actionBtn.disabled = true;
+                actionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            },
+
+            selectedOptionIndex: null,
+
+            selectOption: (idx, el) => {
+                if (document.getElementById('action-btn').innerText === "Próxima") return; // Bloquear troca após responder
+
+                app.selectedOptionIndex = idx;
+                
+                // Atualizar estilos
+                document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+
+                // Habilitar botão
+                const btn = document.getElementById('action-btn');
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            },
+
+            confirmAnswer: () => {
+                const q = app.state.currentQuestions[app.state.currentIndex];
+                const isCorrect = app.selectedOptionIndex === q.correct;
+                
+                // Salvar resposta
+                app.state.answers.push({
+                    questionId: q.id,
+                    correct: isCorrect,
+                    topic: q.topic
+                });
+
+                // Mostrar Feedback Visual
+                const options = document.querySelectorAll('.option-card');
+                options.forEach((opt, idx) => {
+                    opt.classList.add('disabled', 'cursor-default');
+                    if (idx === q.correct) opt.classList.add('correct');
+                    if (idx === app.selectedOptionIndex && !isCorrect) opt.classList.add('wrong');
+                });
+
+                // Mostrar Explicação
+                const fbArea = document.getElementById('feedback-area');
+                const fbTitle = document.getElementById('feedback-title');
+                const fbText = document.getElementById('feedback-text');
+                
+                fbArea.classList.remove('hidden');
+                fbArea.className = isCorrect 
+                    ? 'mt-6 p-4 rounded-lg border-l-4 bg-green-50 border-green-500 fade-in'
+                    : 'mt-6 p-4 rounded-lg border-l-4 bg-red-50 border-red-500 fade-in';
+                
+                fbTitle.innerText = isCorrect ? "Correto!" : "Incorreto";
+                fbTitle.className = isCorrect ? "font-bold text-lg mb-1 text-green-700" : "font-bold text-lg mb-1 text-red-700";
+                
+                fbText.innerHTML = `<strong>Gabarito Comentado:</strong> ${q.explanation}`;
+
+                // Mudar Botão para Próxima
+                const btn = document.getElementById('action-btn');
+                btn.innerText = "Próxima";
+                btn.onclick = app.nextQuestion;
+                
+                app.updateDashboardSession();
+            },
+
+            nextQuestion: () => {
+                app.state.currentIndex++;
+                app.renderUI();
+            },
+
+            // --- DASHBOARD E ANALYTICS ---
+
+            sessionChartInstance: null,
+            historyChartInstance: null,
+
+            updateDashboardSession: () => {
+                const answers = app.state.answers;
+                const correct = answers.filter(a => a.correct).length;
+                const total = answers.length;
+                const score = total === 0 ? 0 : Math.round((correct / total) * 100);
+
+                document.getElementById('session-score').innerText = `${score}%`;
+
+                // Atualizar gráfico de rosca
+                const ctx = document.getElementById('sessionChart').getContext('2d');
+                if (app.sessionChartInstance) app.sessionChartInstance.destroy();
+
+                app.sessionChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Acertos', 'Erros'],
+                        datasets: [{
+                            data: [correct, total - correct],
+                            backgroundColor: ['#16a34a', '#dc2626'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { cutout: '75%', responsive: true, plugins: { legend: { display: false } } }
+                });
+            },
+
+            finishSession: () => {
+                // Salvar no histórico
+                const sessionData = {
+                    date: new Date().toISOString(),
+                    score: app.state.answers.filter(a => a.correct).length,
+                    total: app.state.answers.length,
+                    details: app.state.answers
+                };
+                app.state.history.push(sessionData);
+                app.updateDashboardHistory();
+                app.calculateSWOT();
+                app.updateDashboardSession(); // Para garantir visual final
+            },
+
+            updateDashboardHistory: () => {
+                const ctx = document.getElementById('historyChart').getContext('2d');
+                if (app.historyChartInstance) app.historyChartInstance.destroy();
+
+                const labels = app.state.history.map((h, i) => `Simulado ${i + 1}`);
+                const data = app.state.history.map(h => (h.score / h.total) * 100);
+
+                app.historyChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Aproveitamento (%)',
+                            data: data,
+                            borderColor: '#2563eb',
+                            tension: 0.3,
+                            fill: true,
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, max: 100 } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+                
+                app.calculateSWOT();
+            },
+
+            calculateSWOT: () => {
+                // Agregar todas as respostas do histórico
+                let topicStats = {};
+
+                app.state.history.forEach(session => {
+                    session.details.forEach(ans => {
+                        if (!topicStats[ans.topic]) topicStats[ans.topic] = { correct: 0, total: 0 };
+                        topicStats[ans.topic].total++;
+                        if (ans.correct) topicStats[ans.topic].correct++;
+                    });
+                });
+
+                const strengths = document.getElementById('swot-strengths');
+                const weaknesses = document.getElementById('swot-weaknesses');
+                strengths.innerHTML = '';
+                weaknesses.innerHTML = '';
+
+                let hasData = false;
+
+                Object.keys(topicStats).forEach(topic => {
+                    hasData = true;
+                    const stat = topicStats[topic];
+                    const percent = (stat.correct / stat.total) * 100;
+                    
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${topic}:</strong> ${Math.round(percent)}%`;
+
+                    if (percent >= 80) {
+                        strengths.appendChild(li);
+                    } else if (percent < 60) {
+                        weaknesses.appendChild(li);
+                    }
+                });
+
+                if (!hasData) {
+                    strengths.innerHTML = "<li>Complete um simulado.</li>";
+                    weaknesses.innerHTML = "<li>Complete um simulado.</li>";
+                }
+            },
+
+            // --- PERSISTÊNCIA ---
+
+            toggleModal: (id) => {
+                const el = document.getElementById(id);
+                el.classList.toggle('hidden');
+                
+                // Preencher com JSON atual ao abrir
+                if(!el.classList.contains('hidden')) {
+                   app.exportData();
+                }
+            },
+
+            exportData: () => {
+                const data = JSON.stringify(app.state.history);
+                const txt = document.getElementById('jsonData');
+                txt.value = data;
+                txt.select();
+                // Tenta copiar automaticamente
+                try { document.execCommand('copy'); } catch(e) {}
+            },
+
+            importData: () => {
+                const txt = document.getElementById('jsonData').value;
+                try {
+                    const data = JSON.parse(txt);
+                    if (Array.isArray(data)) {
+                        app.state.history = data;
+                        app.updateDashboardHistory();
+                        app.toggleModal('dataModal');
+                        alert("Dados carregados com sucesso!");
+                    } else {
+                        throw new Error("Formato inválido");
+                    }
+                } catch (e) {
+                    alert("Erro ao importar JSON. Verifique o código.");
+                }
+            },
+
+            loadHistory: () => {
+                // Tenta carregar do localStorage se disponível, senão inicia vazio
+                // Nota: O prompt pediu import/export via texto, mas localStorage ajuda na usabilidade imediata
+                const saved = localStorage.getItem('ibfc_sim_history');
+                if (saved) {
+                    try { app.state.history = JSON.parse(saved); } catch(e) {}
+                }
+            },
+            
+            resetSession: () => {
+                if(confirm("Deseja iniciar um novo simulado? O progresso atual da sessão será perdido.")) {
+                    document.getElementById('progress-bar').style.width = '0%';
+                    app.startNewSession();
+                }
+            }
+        };
+
+        // Hook para salvar no localStorage a cada finalização (backup automático)
+        const originalFinish = app.finishSession;
+        app.finishSession = function() {
+            originalFinish.apply(this);
+            localStorage.setItem('ibfc_sim_history', JSON.stringify(app.state.history));
+        }
+
+        // Iniciar
+        app.init();
+
+    </script>
+</body>
+</html>
