@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo IBFC - SEC/BA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .btn-option { transition: all 0.2s; }
+        .btn-option:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .btn-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
+        .btn-option.correct { border-color: #22c55e; background-color: #f0fdf4; color: #166534; }
+        .btn-option.incorrect { border-color: #ef4444; background-color: #fef2f2; color: #991b1b; }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-900 text-white p-4 shadow-md shrink-0">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="graduation-cap" class="w-8 h-8"></i>
+                <div>
+                    <h1 class="font-bold text-xl leading-tight">Simulador SEC/BA</h1>
+                    <p class="text-xs text-blue-200">Algoritmo Adaptativo Foco IBFC</p>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="app.showView('home')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="home" class="w-4 h-4"></i> Início</button>
+                <button onclick="app.showView('data')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="save" class="w-4 h-4"></i> Dados</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow overflow-auto p-4 md:p-8">
+        <div class="max-w-6xl mx-auto">
+
+            <!-- VIEW: HOME -->
+            <div id="view-home" class="glass-panel rounded-2xl p-8 text-center max-w-2xl mx-auto mt-10">
+                <div class="bg-blue-100 text-blue-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="brain-circuit" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Treinamento Adaptativo</h2>
+                <p class="text-slate-600 mb-6">Foco na Lei 9.784/99 e LIMPE. O sistema memoriza seus acertos e repete apenas seus erros ou questões inéditas.</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <p class="text-sm text-slate-500">Questões no Banco</p>
+                        <p class="text-2xl font-bold text-blue-600">30</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <p class="text-sm text-slate-500">Seu Domínio Atual</p>
+                        <p class="text-2xl font-bold text-green-600" id="home-mastery">0%</p>
+                    </div>
+                </div>
+
+                <button onclick="app.startSession()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition flex justify-center items-center gap-2 shadow-lg hover:shadow-xl">
+                    <i data-lucide="play" class="w-5 h-5"></i> Iniciar Nova Sessão
+                </button>
+            </div>
+
+            <!-- VIEW: QUIZ -->
+            <div id="view-quiz" class="hide max-w-3xl mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide" id="quiz-topic">Tópico</span>
+                    <span class="text-slate-500 text-sm font-medium">Questão <span id="quiz-current-num">1</span> de <span id="quiz-total-num">10</span></span>
+                </div>
+                
+                <div class="glass-panel rounded-2xl p-6 md:p-8 mb-6">
+                    <p class="text-lg font-medium leading-relaxed mb-8 text-slate-800" id="quiz-question-text"></p>
+                    <div class="flex flex-col gap-3" id="quiz-options">
+                        <!-- Options injected via JS -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <button id="btn-confirm" onclick="app.confirmAnswer()" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition shadow-md">
+                        Confirmar Resposta
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW: FEEDBACK -->
+            <div id="view-feedback" class="hide max-w-3xl mx-auto">
+                <div id="feedback-header" class="rounded-t-2xl p-6 text-white font-bold flex items-center gap-3">
+                    <!-- Icon and Title injected -->
+                </div>
+                <div class="glass-panel rounded-b-2xl p-6 md:p-8 mb-6 border-t-0 shadow-lg">
+                    <h3 class="font-bold text-slate-800 mb-2 border-b pb-2">Gabarito Comentado</h3>
+                    <p class="text-slate-700 leading-relaxed" id="feedback-explanation"></p>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="app.nextQuestion()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl transition shadow-md flex items-center gap-2">
+                        Próxima Questão <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="hide">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold text-slate-800">Relatório de Desempenho</h2>
+                    <button onclick="app.showView('home')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 px-4 rounded-lg font-medium transition">Voltar ao Início</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <!-- Sessão Atual -->
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-slate-700 mb-4 text-center">Sessão Atual</h3>
+                        <div class="relative w-48 h-48">
+                            <canvas id="currentSessionChart"></canvas>
+                        </div>
+                        <p class="mt-4 text-sm font-medium text-slate-500" id="current-session-stats">0 Acertos | 0 Erros</p>
+                    </div>
+
+                    <!-- SWOT Analysis -->
+                    <div class="glass-panel rounded-2xl p-6 md:col-span-2 flex flex-col">
+                        <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2"><i data-lucide="target" class="w-5 h-5 text-blue-600"></i> Análise SWOT (Diagnóstico)</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                                <h4 class="font-bold text-green-800 flex items-center gap-1 mb-2"><i data-lucide="trending-up" class="w-4 h-4"></i> Pontos Fortes (>80%)</h4>
+                                <ul id="swot-strengths" class="text-sm text-green-700 space-y-1 list-disc pl-4"></ul>
+                            </div>
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <h4 class="font-bold text-red-800 flex items-center gap-1 mb-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Pontos de Atenção (<60%)</h4>
+                                <ul id="swot-weaknesses" class="text-sm text-red-700 space-y-1 list-disc pl-4"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Histórico Geral -->
+                <div class="glass-panel rounded-2xl p-6">
+                    <h3 class="font-bold text-slate-700 mb-4">Histórico Acumulado por Tópico</h3>
+                    <div class="w-full h-64">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: DATA MANAGEMENT -->
+            <div id="view-data" class="hide max-w-3xl mx-auto mt-10">
+                <div class="glass-panel rounded-2xl p-8">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2"><i data-lucide="database" class="w-6 h-6 text-blue-600"></i> Persistência de Dados</h2>
+                    <p class="text-slate-600 mb-6 text-sm">O chat reinicia e não guarda banco de dados. Para não perder seu progresso (e manter o algoritmo adaptativo funcionando), copie o código abaixo ao finalizar seus estudos. Na próxima vez, cole-o aqui e clique em "Carregar".</p>
+                    
+                    <textarea id="data-json" class="w-full h-48 p-4 border border-slate-300 rounded-xl font-mono text-sm mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Cole seu código JSON aqui..."></textarea>
+                    
+                    <div class="flex gap-4">
+                        <button onclick="app.exportData()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition flex justify-center items-center gap-2">
+                            <i data-lucide="copy" class="w-5 h-5"></i> Gerar e Copiar Código
+                        </button>
+                        <button onclick="app.importData()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition flex justify-center items-center gap-2">
+                            <i data-lucide="download" class="w-5 h-5"></i> Carregar Progresso
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- 1. QUESTION BANK (30 Questions, IBFC Style) ---
+        const questionBank = [
+            // LIMPE (4 Questões)
+            { id: 1, topic: "LIMPE", text: "De acordo com os princípios expressos na Constituição Federal de 1988 que regem a Administração Pública, a exigência de que o administrador público atue com retidão, ética e boa-fé, não se limitando a distinguir o legal do ilegal, mas também o honesto do desonesto, refere-se especificamente ao princípio da:", options: { a: "Legalidade.", b: "Impessoalidade.", c: "Moralidade.", d: "Publicidade.", e: "Eficiência." }, correct: "c", explanation: "O princípio da Moralidade exige do administrador não apenas o cumprimento estrito da lei, mas também atuação pautada na ética, probidade e boa-fé (distinguir o honesto do desonesto)." },
+            { id: 2, topic: "LIMPE", text: "A vedação ao nepotismo, sumulada pelo STF (Súmula Vinculante nº 13), decorre diretamente de quais princípios constitucionais expressos aplicáveis à Administração Pública?", options: { a: "Legalidade e Publicidade.", b: "Impessoalidade e Moralidade.", c: "Eficiência e Legalidade.", d: "Moralidade e Publicidade.", e: "Impessoalidade e Eficiência." }, correct: "b", explanation: "O STF firmou o entendimento de que a vedação ao nepotismo não exige lei formal, pois decorre diretamente dos princípios constitucionais da Impessoalidade (evitar favorecimentos pessoais) e Moralidade (ética na gestão pública)." },
+            { id: 3, topic: "LIMPE", text: "Acerca do princípio da Impessoalidade, assinale a alternativa que apresenta uma de suas vertentes consagradas na doutrina e jurisprudência:", options: { a: "A necessidade de publicação dos atos em diário oficial para que produzam efeitos jurídicos.", b: "A obrigação de a Administração Pública buscar o melhor resultado com o menor custo possível.", c: "A proibição de que conste nome, símbolo ou imagem que caracterize promoção pessoal de autoridades em publicidade de atos governamentais.", d: "A subordinação estrita do agente público aos ditames fixados previamente pelo Poder Legislativo.", e: "A exigência de concurso público apenas para cargos de provimento em comissão." }, correct: "c", explanation: "O art. 37, §1º da CF dispõe expressamente que a publicidade dos atos, programas e obras deverá ter caráter educativo, informativo ou de orientação social, dela não podendo constar nomes, símbolos ou imagens que caracterizem promoção pessoal de autoridades ou servidores, concretizando o princípio da Impessoalidade." },
+            { id: 4, topic: "LIMPE", text: "O princípio da Eficiência foi inserido no texto constitucional de forma expressa por meio de Emenda Constitucional. Assinale a alternativa que indica o marco normativo de sua introdução explícita no caput do art. 37 da Constituição Federal:", options: { a: "Emenda Constitucional nº 19/1998 (Reforma Administrativa).", b: "Constituição Federal originária de 1988.", c: "Emenda Constitucional nº 20/1998 (Reforma da Previdência).", d: "Emenda Constitucional nº 45/2004 (Reforma do Judiciário).", e: "Lei Federal nº 9.784/1999." }, correct: "a", explanation: "O princípio da Eficiência não estava previsto no texto original da CF/88. Ele foi incluído expressamente no caput do art. 37 pela Emenda Constitucional nº 19, de 1998 (Reforma Administrativa)." },
+            
+            // Lei 9.784/99 - Disposições, Direitos e Deveres (5)
+            { id: 5, topic: "L9784_Disposicoes", text: "Nos termos da Lei nº 9.784/99, que regula o processo administrativo no âmbito da Administração Pública Federal, é um DIREITO do administrado:", options: { a: "Exigir a edição de atos normativos em seu favor.", b: "Proceder com lealdade, urbanidade e boa-fé.", c: "Fazer-se assistir, obrigatoriamente, por advogado em todas as fases do processo.", d: "Ter ciência da tramitação dos processos administrativos em que tenha a condição de interessado, ter vista dos autos e obter cópias.", e: "Prestar informações que lhe forem solicitadas, independentemente de previsão legal." }, correct: "d", explanation: "A alternativa D reflete o inciso II do art. 3º da Lei 9.784/99. A alternativa B é um DEVER (art. 4º). A assistência por advogado é, em regra, facultativa (art. 3º, IV), conforme também dispõe a Súmula Vinculante 5 do STF." },
+            { id: 6, topic: "L9784_Disposicoes", text: "A Lei nº 9.784/99 enumera expressamente os princípios que a Administração Pública obedecerá em seus processos. Assinale a alternativa que NÃO apresenta um princípio expressamente listado no art. 2º da referida lei:", options: { a: "Finalidade.", b: "Motivação.", c: "Ampla defesa.", d: "Segurança jurídica.", e: "Hierarquia." }, correct: "e", explanation: "O art. 2º da Lei 9.784/99 cita os princípios da legalidade, finalidade, motivação, razoabilidade, proporcionalidade, moralidade, ampla defesa, contraditório, segurança jurídica, interesse público e eficiência. Hierarquia não é um princípio listado expressamente neste artigo." },
+            { id: 7, topic: "L9784_Disposicoes", text: "São DEVERES do administrado perante a Administração, segundo o art. 4º da Lei 9.784/99, EXCETO:", options: { a: "Expor os fatos conforme a verdade.", b: "Proceder com lealdade, urbanidade e boa-fé.", c: "Formular alegações e apresentar documentos antes da decisão, os quais serão objeto de consideração pelo órgão competente.", d: "Não agir de modo temerário.", e: "Prestar as informações que lhe forem solicitadas e colaborar para o esclarecimento dos fatos." }, correct: "c", explanation: "Formular alegações e apresentar documentos é um DIREITO do administrado (art. 3º, III), e não um dever." },
+            { id: 8, topic: "L9784_Disposicoes", text: "No que se refere à motivação dos atos administrativos (Lei 9.784/99), devem ser motivados, com indicação dos fatos e dos fundamentos jurídicos, os atos que:", options: { a: "Apenas neguem direitos aos administrados.", b: "Dispensem ou declarem a inexigibilidade de processo licitatório.", c: "Sejam de mero expediente interno.", d: "Aprovem o deferimento de férias de servidor sem ressalvas.", e: "Tenham natureza discricionária, sendo dispensada a motivação nos vinculados." }, correct: "b", explanation: "Conforme o art. 50, IV da Lei 9.784/99, os atos que dispensem ou declarem a inexigibilidade de processo licitatório devem ser motivados." },
+            { id: 9, topic: "L9784_Disposicoes", text: "Em relação aos critérios que devem ser observados nos processos administrativos (Lei 9.784/99), assinale a correta:", options: { a: "Adoção de formas simples, suficientes para propiciar adequado grau de certeza, segurança e respeito aos direitos dos administrados.", b: "Exigência rigorosa de ritos formais complexos em todas as etapas.", c: "Promoção de processos judiciais prévios para validação das decisões.", d: "Cobrança de despesas processuais em todos os recursos administrativos.", e: "Interpretação da norma administrativa com aplicação retroativa de nova interpretação para fatos já consumados." }, correct: "a", explanation: "A alternativa A é a literalidade do art. 2º, parágrafo único, inciso IX. A alternativa E está errada pois a lei veda a aplicação retroativa de nova interpretação (art. 2º, p. único, XIII)." },
+
+            // Lei 9.784/99 - Competência, Delegação e Avocação (6)
+            { id: 10, topic: "L9784_Competencia", text: "A competência é irrenunciável e se exerce pelos órgãos administrativos a que foi atribuída como própria. Segundo a Lei nº 9.784/99, NÃO podem ser objeto de delegação:", options: { a: "A edição de atos de caráter normativo, a decisão de recursos administrativos e as matérias de competência exclusiva do órgão ou autoridade.", b: "Os atos de mero expediente, a decisão de recursos e a edição de portarias internas.", c: "As matérias de competência exclusiva, os atos de mero expediente e a edição de resoluções conjuntas.", d: "A edição de atos de caráter normativo, os atos de delegação anterior e as respostas a requerimentos de certidões.", e: "A decisão de recursos administrativos, a aprovação de férias de subordinados e a edição de atos de caráter normativo." }, correct: "a", explanation: "Cai muito na IBFC! Macete CENoRA (Competência Exclusiva, Normativo, Recurso Administrativo). Art. 13 da Lei 9.784/99: Não podem ser delegados: I - a edição de atos de caráter normativo; II - a decisão de recursos administrativos; III - as matérias de competência exclusiva do órgão ou autoridade." },
+            { id: 11, topic: "L9784_Competencia", text: "Sobre a delegação de competência (Lei 9.784/99), assinale a alternativa correta:", options: { a: "A delegação só pode ocorrer se houver subordinação hierárquica entre o órgão delegante e o delegado.", b: "O ato de delegação é irrevogável enquanto durar o prazo nele estabelecido.", c: "O ato de delegação especificará as matérias e poderes transferidos, os limites da atuação do delegado, a duração e os objetivos da delegação.", d: "As decisões adotadas por delegação devem mencionar explicitamente esta qualidade e considerar-se-ão editadas pelo delegante.", e: "A delegação não pode conter ressalva de exercício da atribuição delegada." }, correct: "c", explanation: "A alternativa C reflete o art. 14, §1º. A alternativa A está errada (não exige subordinação - art. 12). A B está errada (é revogável a qualquer tempo - art. 14, §2º). A D está errada (consideram-se editadas pelo delegado - art. 14, §3º)." },
+            { id: 12, topic: "L9784_Competencia", text: "Será permitida, em caráter excepcional e por motivos relevantes devidamente justificados, a avocação temporária de competência atribuída a órgão hierarquicamente inferior. Sobre a avocação, é correto afirmar:", options: { a: "Pode ser realizada por autoridade que não possua vínculo de hierarquia com o órgão avocado.", b: "É a regra no Direito Administrativo moderno para garantir o princípio da eficiência.", c: "Só é permitida de forma definitiva, visando a reestruturação do órgão.", d: "Depende de subordinação hierárquica entre as autoridades envolvidas.", e: "Pode ter por objeto matérias de competência exclusiva do órgão inferior." }, correct: "d", explanation: "A avocação (chamar para si) é excepcional, temporária, exige motivo relevante justificado e DEVE haver subordinação hierárquica (art. 15). Não cabe para competência exclusiva." },
+            { id: 13, topic: "L9784_Competencia", text: "Inexistindo competência legal específica, o processo administrativo deverá ser iniciado perante a autoridade de qual grau hierárquico?", options: { a: "De maior grau hierárquico.", b: "De menor grau hierárquico para decidir.", c: "Intermediário, a critério do administrador.", d: "Do chefe do Poder Executivo.", e: "Do Ministério Público." }, correct: "b", explanation: "Conforme o art. 17 da Lei 9.784/99: 'Inexistindo competência legal específica, o processo administrativo deverá ser iniciado perante a autoridade de menor grau hierárquico para decidir'." },
+            { id: 14, topic: "L9784_Competencia", text: "O ato de delegação de competência e sua revogação deverão ser:", options: { a: "Registrados apenas no processo administrativo em andamento.", b: "Publicados no meio oficial.", c: "Comunicados verbalmente ao servidor delegado.", d: "Aprovados previamente pelo Poder Legislativo.", e: "Referendados pelo Tribunal de Contas." }, correct: "b", explanation: "Segundo o art. 14 da Lei 9.784/99: 'O ato de delegação e sua revogação deverão ser publicados no meio oficial'." },
+            { id: 15, topic: "L9784_Competencia", text: "Um Prefeito Municipal deseja delegar a decisão de um recurso administrativo interposto por um servidor a um Secretário Municipal. Diante do exposto e com base na Lei 9.784/99 (aplicada subsidiariamente):", options: { a: "A delegação é perfeitamente válida, visando a celeridade.", b: "A delegação é nula, pois recurso administrativo é matéria indelegável.", c: "A delegação depende de autorização da Câmara Municipal.", d: "A delegação é possível se o Secretário for estável no serviço público.", e: "A delegação só seria vedada se o recurso fosse hierárquico impróprio." }, correct: "b", explanation: "Art. 13, II veda expressamente a delegação para a decisão de recursos administrativos." },
+
+            // Lei 9.784/99 - Impedimento e Suspeição (4)
+            { id: 16, topic: "L9784_Impedimento", text: "É caso de IMPEDIMENTO de atuar em processo administrativo o servidor ou autoridade que:", options: { a: "Tenha amizade íntima com um dos interessados.", b: "Tenha inimizade notória com o cônjuge do interessado.", c: "Esteja litigando judicialmente com o interessado.", d: "Tenha participado ou venha a participar como perito, testemunha ou representante.", e: "Apresente interesse indireto no resultado do processo." }, correct: "d", explanation: "As alternativas A, B e C são casos de SUSPEIÇÃO (art. 20). A alternativa D é caso de IMPEDIMENTO (situação objetiva que gera presunção absoluta de parcialidade), conforme art. 18, II." },
+            { id: 17, topic: "L9784_Impedimento", text: "A autoridade ou servidor que incorrer em impedimento deve:", options: { a: "Aguardar que o interessado argua o impedimento para então se manifestar.", b: "Comunicar o fato à autoridade competente, abstendo-se de atuar.", c: "Continuar atuando caso considere que será imparcial, justificando nos autos.", d: "Passar a atuar apenas como consultor no processo.", e: "Remeter o processo imediatamente ao Poder Judiciário." }, correct: "b", explanation: "Art. 19. A autoridade ou servidor que incorrer em impedimento deve comunicar o fato à autoridade competente, abstendo-se de atuar. A omissão caracteriza falta grave." },
+            { id: 18, topic: "L9784_Impedimento", text: "Pode ser arguida a suspeição de autoridade ou servidor que tenha amizade íntima ou inimizade notória com algum dos interessados ou com os respectivos:", options: { a: "Cônjuges, companheiros, parentes e afins até o terceiro grau.", b: "Cônjuges, companheiros, parentes e afins até o segundo grau.", c: "Amigos próximos e vizinhos.", d: "Cônjuges e parentes consanguíneos apenas em linha reta.", e: "Cônjuges, companheiros e parentes até o quarto grau." }, correct: "a", explanation: "Literalidade do art. 20: Pode ser arguida a suspeição de autoridade ou servidor que tenha amizade íntima ou inimizade notória com algum dos interessados ou com os respectivos cônjuges, companheiros, parentes e afins até o terceiro grau." },
+            { id: 19, topic: "L9784_Impedimento", text: "Sobre o recurso na decisão que julga a suspeição de um servidor, a Lei 9.784/99 prevê que o indeferimento de alegação de suspeição:", options: { a: "Comporta recurso imediato e com efeito suspensivo.", b: "Não comporta qualquer tipo de recurso.", c: "Poderá ser objeto de apelação ao interessado cível.", d: "Poderá ser objeto de recurso, sem efeito suspensivo.", e: "Exige mandado de segurança para ser revisto." }, correct: "d", explanation: "Conforme o art. 21 da Lei 9.784/99: 'O indeferimento de alegação de suspeição poderá ser objeto de recurso, sem efeito suspensivo'." },
+
+            // Lei 9.784/99 - Forma, Tempo, Comunicação (5)
+            { id: 20, topic: "L9784_Comunicacao", text: "Sobre a forma dos atos do processo administrativo, é correto afirmar (Lei 9.784/99):", options: { a: "Dependem de forma determinada em todos os casos, sob pena de nulidade absoluta.", b: "Não dependem de forma determinada senão quando a lei expressamente a exigir.", c: "Devem ser preferencialmente verbais para garantir a celeridade.", d: "Exigem sempre reconhecimento de firma em documentos apresentados.", e: "Devem ser redigidos manualmente pela autoridade." }, correct: "b", explanation: "O art. 22 consagra o princípio do informalismo ou formalismo moderado: 'Os atos do processo administrativo não dependem de forma determinada senão quando a lei expressamente a exigir'." },
+            { id: 21, topic: "L9784_Comunicacao", text: "Quanto à autenticação de documentos, a Lei 9.784/99 estabelece que a autenticação de cópia de documento:", options: { a: "Deve ser feita obrigatoriamente em cartório extrajudicial.", b: "Pode ser feita pelo próprio órgão administrativo.", c: "Só é válida se assinada pela autoridade máxima do órgão.", d: "Não é permitida no âmbito administrativo federal.", e: "Exige sempre a retenção do documento original." }, correct: "b", explanation: "Art. 22, §3º: 'A autenticação de cópia de documento cabe ao órgão administrativo', bastando a conferência com o original pelo servidor." },
+            { id: 22, topic: "L9784_Comunicacao", text: "A intimação do interessado para ciência de decisão ou a efetivação de diligências observará a antecedência mínima de:", options: { a: "3 (três) dias úteis quanto à data do comparecimento.", b: "5 (cinco) dias corridos quanto à data do comparecimento.", c: "15 (quinze) dias úteis.", d: "10 (dez) dias corridos.", e: "48 (quarenta e oito) horas." }, correct: "a", explanation: "Art. 26, §2º da Lei 9.784/99: 'A intimação observará a antecedência mínima de três dias úteis quanto à data de comparecimento'." },
+            { id: 23, topic: "L9784_Comunicacao", text: "Sobre o desatendimento da intimação, a Lei 9.784/99 estabelece que este fato:", options: { a: "Importa o reconhecimento da verdade dos fatos pela Administração.", b: "Gera a confissão presumida do interessado sobre os fatos imputados.", c: "Não importa o reconhecimento da verdade dos fatos, nem a renúncia a direito pelo administrado.", d: "Extingue o processo administrativo sem resolução do mérito.", e: "Determina a aplicação de multa automática por litigância de má-fé." }, correct: "c", explanation: "No processo administrativo impera o princípio da verdade material. Art. 27: 'O desatendimento da intimação não importa o reconhecimento da verdade dos fatos, nem a renúncia a direito pelo administrado'." },
+            { id: 24, topic: "L9784_Comunicacao", text: "Inexistindo disposição específica, os atos do órgão ou autoridade responsável pelo processo e dos administrados que dele participem devem ser praticados no prazo de:", options: { a: "3 (três) dias.", b: "5 (cinco) dias, salvo motivo de força maior.", c: "10 (dez) dias, improrrogáveis.", d: "15 (quinze) dias.", e: "30 (trinta) dias." }, correct: "b", explanation: "Art. 24 da Lei 9.784/99: 'Inexistindo disposição específica, os atos do órgão ou autoridade responsável pelo processo e dos administrados que dele participem devem ser praticados no prazo de cinco dias, salvo motivo de força maior'. (Nota: o prazo pode ser dilatado até o dobro, art. 24, p. único)." },
+
+            // Lei 9.784/99 - Anulação, Revogação e Convalidação (6)
+            { id: 25, topic: "L9784_Anulacao", text: "Com base na Lei 9.784/99 e na Súmula 473 do STF, a Administração deve ________ seus próprios atos, quando eivados de vício de legalidade, e pode ________ por motivo de conveniência ou oportunidade.", options: { a: "anular / revogá-los", b: "revogar / anulá-los", c: "convalidar / anulá-los", d: "suspender / anulá-los", e: "anular / convalidá-los" }, correct: "a", explanation: "Art. 53: 'A Administração deve anular seus próprios atos, quando eivados de vício de legalidade, e pode revogá-los por motivo de conveniência ou oportunidade, respeitados os direitos adquiridos'." },
+            { id: 26, topic: "L9784_Anulacao", text: "O direito da Administração de anular os atos administrativos de que decorram efeitos favoráveis para os destinatários decai em:", options: { a: "3 (três) anos, contados da data em que foram praticados, em qualquer hipótese.", b: "5 (cinco) anos, contados da data em que foram praticados, salvo comprovada má-fé.", c: "10 (dez) anos, contados da data em que foram praticados, salvo comprovada má-fé.", d: "5 (cinco) anos, contados do conhecimento do fato, mesmo com má-fé.", e: "A qualquer tempo, por se tratar de ato nulo que não gera direitos." }, correct: "b", explanation: "Art. 54 da Lei 9.784/99: 'O direito da Administração de anular os atos administrativos de que decorram efeitos favoráveis para os destinatários decai em cinco anos, contados da data em que foram praticados, salvo comprovada má-fé'." },
+            { id: 27, topic: "L9784_Anulacao", text: "A decisão que revoga um ato administrativo baseia-se em critérios de conveniência e oportunidade (mérito administrativo). Quanto aos seus efeitos jurídicos, a revogação opera efeitos:", options: { a: "Ex tunc (retroativos).", b: "Ex nunc (prospectivos/daqui para frente).", c: "Tanto ex tunc quanto ex nunc, a depender do caso.", d: "Meramente declaratórios de nulidade.", e: "Exclusivamente no âmbito penal." }, correct: "b", explanation: "A revogação incide sobre atos legais. Por isso, não desfaz os efeitos passados já produzidos legitimamente. Seus efeitos são 'ex nunc' (daqui para frente), respeitando os direitos adquiridos." },
+            { id: 28, topic: "L9784_Anulacao", text: "Em decisão na qual se evidencie não acarretarem lesão ao interesse público nem prejuízo a terceiros, os atos que apresentarem defeitos sanáveis poderão ser convalidados pela própria Administração. Sobre a convalidação, é correto afirmar:", options: { a: "É dever obrigatório da Administração em qualquer tipo de vício.", b: "Pode sanar vícios relativos ao motivo e à finalidade do ato.", c: "Produz efeitos ex tunc, retroagindo à data da prática do ato original.", d: "É o mesmo que revogação.", e: "Só pode ser feita mediante ordem do Poder Judiciário." }, correct: "c", explanation: "A convalidação (art. 55) é o saneamento de atos com defeitos sanáveis (geralmente competência e forma). Seu objetivo é 'salvar' o ato desde a origem, logo, possui efeitos retroativos (ex tunc)." },
+            { id: 29, topic: "L9784_Anulacao", text: "Considere que a Administração Pública, após 6 anos, descubra que concedeu uma licença baseada em documentação falsificada pelo beneficiário (comprovada má-fé). Neste caso, a Administração:", options: { a: "Não pode anular o ato, pois já se passou o prazo decadencial de 5 anos.", b: "Pode anular o ato a qualquer tempo, pois a má-fé afasta a decadência de 5 anos.", c: "Deve revogar o ato, pagando indenização ao beneficiário.", d: "Deve convalidar o ato em prestígio à segurança jurídica.", e: "Precisa de autorização judicial para anular o ato." }, correct: "b", explanation: "A regra da decadência em 5 anos protege a boa-fé e a segurança jurídica. Como houve comprovada má-fé, a Administração não está sujeita a esse prazo decadencial (exceção expressa do art. 54) e pode anular o ato." },
+            { id: 30, topic: "L9784_Anulacao", text: "Qual ato administrativo NÃO pode ser objeto de revogação?", options: { a: "Ato precário.", b: "Ato discricionário que perdeu a conveniência.", c: "Ato que já exauriu seus efeitos.", d: "Ato de autorização de uso de bem público.", e: "Ato de delegação de competência." }, correct: "c", explanation: "Não se pode revogar atos consumados (que exauriram seus efeitos), atos vinculados, atos que geraram direitos adquiridos, e atos que integram um procedimento. O ato precário e o discricionário são os alvos clássicos da revogação." }
+        ];
+
+        // --- 2. STATE MANAGEMENT ---
+        const appState = {
+            currentSession: {
+                questions: [], // Array of question objects for this session
+                currentIndex: 0,
+                correctCount: 0,
+                incorrectCount: 0
+            },
+            userData: {
+                correctlyAnsweredIds: [], // IDs of questions answered correctly (to exclude from future sessions)
+                history: [] // { topic, correct: boolean }
+            }
+        };
+
+        // --- 3. ICONS ---
+        lucide.createIcons();
+
+        // --- 4. APP LOGIC ---
+        const app = {
+            init() {
+                this.updateHomeMastery();
+            },
+
+            showView(viewId) {
+                document.getElementById('view-home').classList.add('hide');
+                document.getElementById('view-quiz').classList.add('hide');
+                document.getElementById('view-feedback').classList.add('hide');
+                document.getElementById('view-dashboard').classList.add('hide');
+                document.getElementById('view-data').classList.add('hide');
+
+                document.getElementById(`view-${viewId}`).classList.remove('hide');
+
+                if (viewId === 'dashboard') {
+                    this.renderDashboard();
+                }
+            },
+
+            updateHomeMastery() {
+                const total = questionBank.length;
+                const mastered = appState.userData.correctlyAnsweredIds.length;
+                const percentage = Math.round((mastered / total) * 100);
+                document.getElementById('home-mastery').innerText = `${percentage}%`;
+            },
+
+            startSession() {
+                // Adaptive Algorithm: Filter questions
+                let available = questionBank.filter(q => !appState.userData.correctlyAnsweredIds.includes(q.id));
+                
+                if (available.length === 0) {
+                    alert("Parabéns! Você já acertou e dominou todas as questões deste banco. Limpe seus dados (no menu Dados) para recomeçar o simulador do zero.");
+                    return;
+                }
+
+                // Shuffle available questions
+                available = available.sort(() => Math.random() - 0.5);
+                
+                // Limit session to max 10 questions or available
+                appState.currentSession.questions = available.slice(0, 10);
+                appState.currentSession.currentIndex = 0;
+                appState.currentSession.correctCount = 0;
+                appState.currentSession.incorrectCount = 0;
+
+                this.renderQuestion();
+                this.showView('quiz');
+            },
+
+            renderQuestion() {
+                const session = appState.currentSession;
+                const q = session.questions[session.currentIndex];
+                
+                document.getElementById('quiz-topic').innerText = q.topic.replace('L9784_', 'Lei 9.784 - ');
+                document.getElementById('quiz-current-num').innerText = session.currentIndex + 1;
+                document.getElementById('quiz-total-num').innerText = session.questions.length;
+                document.getElementById('quiz-question-text').innerText = q.text;
+
+                const optionsContainer = document.getElementById('quiz-options');
+                optionsContainer.innerHTML = '';
+
+                for (const [key, text] of Object.entries(q.options)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-option w-full text-left p-4 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-start gap-3 bg-white';
+                    btn.onclick = () => this.selectOption(key);
+                    btn.id = `opt-${key}`;
+                    
+                    btn.innerHTML = `
+                        <span class="font-bold text-slate-500 uppercase mt-0.5">${key})</span>
+                        <span class="text-slate-700">${text}</span>
+                    `;
+                    optionsContainer.appendChild(btn);
+                }
+
+                document.getElementById('btn-confirm').disabled = true;
+                this.selectedOption = null;
+                document.getElementById('view-feedback').classList.add('hide');
+            },
+
+            selectOption(key) {
+                this.selectedOption = key;
+                document.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('selected'));
+                document.getElementById(`opt-${key}`).classList.add('selected');
+                document.getElementById('btn-confirm').disabled = false;
+            },
+
+            confirmAnswer() {
+                const session = appState.currentSession;
+                const q = session.questions[session.currentIndex];
+                const isCorrect = this.selectedOption === q.correct;
+
+                // Disable all buttons
+                document.querySelectorAll('.btn-option').forEach(btn => btn.disabled = true);
+                document.getElementById('btn-confirm').disabled = true;
+
+                // Highlight correct/incorrect
+                document.getElementById(`opt-${q.correct}`).classList.add('correct');
+                if (!isCorrect) {
+                    document.getElementById(`opt-${this.selectedOption}`).classList.add('incorrect');
+                }
+
+                // Update Stats
+                if (isCorrect) {
+                    session.correctCount++;
+                    if (!appState.userData.correctlyAnsweredIds.includes(q.id)) {
+                        appState.userData.correctlyAnsweredIds.push(q.id);
+                    }
+                } else {
+                    session.incorrectCount++;
+                }
+
+                appState.userData.history.push({
+                    topic: q.topic,
+                    correct: isCorrect,
+                    date: new Date().toISOString()
+                });
+
+                this.updateHomeMastery();
+                this.renderFeedback(isCorrect, q.explanation);
+            },
+
+            renderFeedback(isCorrect, explanation) {
+                const header = document.getElementById('feedback-header');
+                if (isCorrect) {
+                    header.className = 'rounded-t-2xl p-6 text-white font-bold flex items-center gap-3 bg-green-500';
+                    header.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i> Parabéns! Você acertou.';
+                } else {
+                    header.className = 'rounded-t-2xl p-6 text-white font-bold flex items-center gap-3 bg-red-500';
+                    header.innerHTML = '<i data-lucide="x-circle" class="w-6 h-6"></i> Atenção! Resposta incorreta.';
+                }
+
+                document.getElementById('feedback-explanation').innerText = explanation;
+                document.getElementById('view-feedback').classList.remove('hide');
+                lucide.createIcons();
+                
+                // Scroll to feedback
+                document.getElementById('view-feedback').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            nextQuestion() {
+                appState.currentSession.currentIndex++;
+                if (appState.currentSession.currentIndex >= appState.currentSession.questions.length) {
+                    this.showView('dashboard');
+                } else {
+                    this.renderQuestion();
+                    window.scrollTo(0,0);
+                }
+            },
+
+            // --- DASHBOARD LOGIC ---
+            renderDashboard() {
+                const session = appState.currentSession;
+                document.getElementById('current-session-stats').innerText = `${session.correctCount} Acertos | ${session.incorrectCount} Erros`;
+                
+                this.renderCurrentChart(session.correctCount, session.incorrectCount);
+                this.renderHistoryChartAndSWOT();
+            },
+
+            renderCurrentChart(correct, incorrect) {
+                const ctx = document.getElementById('currentSessionChart');
+                if(this.currentChartInstance) this.currentChartInstance.destroy();
+                
+                if (correct === 0 && incorrect === 0) return;
+
+                this.currentChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Acertos', 'Erros'],
+                        datasets: [{
+                            data: [correct, incorrect],
+                            backgroundColor: ['#22c55e', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        cutout: '70%'
+                    }
+                });
+            },
+
+            renderHistoryChartAndSWOT() {
+                // Aggregate history by topic
+                const topicStats = {};
+                questionBank.forEach(q => {
+                    if (!topicStats[q.topic]) {
+                        topicStats[q.topic] = { total: 0, correct: 0 };
+                    }
+                });
+
+                appState.userData.history.forEach(h => {
+                    if (topicStats[h.topic]) {
+                        topicStats[h.topic].total++;
+                        if (h.correct) topicStats[h.topic].correct++;
+                    }
+                });
+
+                const labels = [];
+                const accuracyData = [];
+                const strengths = [];
+                const weaknesses = [];
+
+                for (const [topic, stats] of Object.entries(topicStats)) {
+                    let displayName = topic === 'LIMPE' ? 'Princípios (LIMPE)' : topic.replace('L9784_', '');
+                    labels.push(displayName);
+                    
+                    if (stats.total > 0) {
+                        const accuracy = Math.round((stats.correct / stats.total) * 100);
+                        accuracyData.push(accuracy);
+
+                        if (accuracy >= 80) strengths.push(`${displayName} (${accuracy}%)`);
+                        if (accuracy < 60) weaknesses.push(`${displayName} (${accuracy}%)`);
+                    } else {
+                        accuracyData.push(0);
+                    }
+                }
+
+                // Render Bar Chart
+                const ctx = document.getElementById('historyChart');
+                if(this.historyChartInstance) this.historyChartInstance.destroy();
+
+                this.historyChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '% de Acertos',
+                            data: accuracyData,
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, max: 100 } }
+                    }
+                });
+
+                // Render SWOT
+                const sList = document.getElementById('swot-strengths');
+                const wList = document.getElementById('swot-weaknesses');
+                
+                sList.innerHTML = strengths.length > 0 
+                    ? strengths.map(s => `<li>${s}</li>`).join('') 
+                    : '<li>Nenhum dado forte consolidado ainda.</li>';
+                
+                wList.innerHTML = weaknesses.length > 0 
+                    ? weaknesses.map(w => `<li>${w}</li>`).join('') 
+                    : '<li>Nenhum ponto crítico identificado.</li>';
+            },
+
+            // --- DATA PERSISTENCE ---
+            exportData() {
+                const dataStr = JSON.stringify(appState.userData);
+                document.getElementById('data-json').value = dataStr;
+                
+                // Copy to clipboard
+                const textarea = document.getElementById('data-json');
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Código copiado com sucesso! Guarde-o em um bloco de notas.');
+                } catch (err) {
+                    alert('Erro ao copiar. Por favor, copie o texto manualmente.');
+                }
+            },
+
+            importData() {
+                const dataStr = document.getElementById('data-json').value;
+                try {
+                    const parsed = JSON.parse(dataStr);
+                    if (parsed && Array.isArray(parsed.correctlyAnsweredIds) && Array.isArray(parsed.history)) {
+                        appState.userData = parsed;
+                        this.updateHomeMastery();
+                        alert('Progresso carregado com sucesso!');
+                        this.showView('home');
+                    } else {
+                        alert('Formato de código inválido.');
+                    }
+                } catch (e) {
+                    alert('Erro ao carregar os dados. Verifique se copiou o código inteiro corretamente.');
+                }
+            }
+        };
+
+        // Initialize App
+        window.onload = () => {
+            app.init();
+        };
+
+    </script>
+</body>
+</html>
