@@ -380,7 +380,7 @@
             { id: 45, type: 'rlm', text: "Uma dedução de relação arbitrária: Ana, Bia e Carla têm carros de cores diferentes (azul, branco, preto). Sabe-se que: I. Ana não tem o carro preto. II. O carro de Bia é azul. Logo, pode-se afirmar com certeza que o carro de Carla é:", options: ["Azul.", "Branco.", "Preto.", "Vermelho.", "Não é possível determinar."], answer: 2, feedback: "Gabarito: C. Se Bia é azul, sobram branco e preto. Como Ana NÃO é preto, Ana é branco. Sobra para Carla o carro Preto." },
             { id: 46, type: 'rlm', text: "Dizer que 'Se chove, então levo o guarda-chuva' é logicamente equivalente a:", options: ["Se não chove, não levo o guarda-chuva.", "Se levo o guarda-chuva, então chove.", "Chove e não levo o guarda-chuva.", "Se não levo o guarda-chuva, então não chove.", "Chove ou levo o guarda-chuva."], answer: 3, feedback: "Gabarito: D. Equivalência da condicional (Contrapositiva): inverte as duas proposições e nega ambas (A -> B é igual a ~B -> ~A)." },
             { id: 47, type: 'rlm', text: "A negação lógica da proposição 'João é professor e Maria é médica' é:", options: ["João não é professor e Maria não é médica.", "Se João não é professor, Maria não é médica.", "João não é professor ou Maria não é médica.", "João é professor ou Maria é médica.", "Nem João é professor nem Maria é médica."], answer: 2, feedback: "Gabarito: C. Lei de De Morgan: A negação do E vira OU, negando-se ambas as partes." },
-            { id: 48, type: 'rlm', text: "Em um tribunal, o réu X diz: 'Y é culpado'. O réu Y diz: 'Z é culpado'. O réu Z diz: 'Y está mentindo'. Sabendo que apenas um deles fala a verdade, quem é o inocente que falou a verdade?", options: ["X.", "Y.", "Z.", "Nenhum.", "Faltam dados."], answer: 2, feedback: "Gabarito: C. Se Y diz que Z é culpado e Z diz que Y mente, temos uma contradição. Um dos dois (Y ou Z) fala a verdade. Logo, X mente. Se X mente, Y não é culpado. Se Y mente e culpa Z, Z é inocente. Logo, quem fala a verdade é Z." },
+            { id: 48, type: 'rlm', text: "Em um tribunal, o réu X diz: 'Y é culpado'. O réu Y diz: 'Z é culpado'. O réu Z diz: 'Y está mentindo'. Sabendo que apenas um deles fala a verdade, quem é o inocente que falou a verdade?", options: ["X.", "Y.", "Z.", "Nenhum.", "Faltam dados."], answer: 1, feedback: "Gabarito: (O gabarito foi alterado manualmente a resposta mais lógica é a Y) C. Se Y diz que Z é culpado e Z diz que Y mente, temos uma contradição. Um dos dois (Y ou Z) fala a verdade. Logo, X mente. Se X mente, Y não é culpado. Se Y mente e culpa Z, Z é inocente. Logo, quem fala a verdade é Z." },
             
             // --- Fillers para atingir 60 com equilíbrio ---
             { id: 49, type: 'port', text: "Na frase 'Assiste-se a bons filmes neste cinema', o 'se' atua como:", options: ["Pronome reflexivo.", "Partícula apassivadora.", "Índice de indeterminação do sujeito.", "Conjunção integrante.", "Partícula expletiva."], answer: 2, feedback: "Gabarito: C. Verbo transitivo indireto (assistir no sentido de ver) + SE indica Sujeito Indeterminado. A oração fica na voz ativa e o verbo no singular." },
@@ -615,14 +615,18 @@
                         optsContainer.appendChild(btn);
                     });
 
-                    document.getElementById('feedback-area').classList.add('hidden');
+                    // LIMPEZA COMPLETA DE CLASSES PARA CORRIGIR O BUG DE SELEÇÃO:
+                    const fbArea = document.getElementById('feedback-area');
+                    fbArea.className = 'hidden mt-6 p-4 rounded-lg border bg-gray-50 transition-all';
+                    
                     document.getElementById('btn-action').innerText = "Confirmar";
                     document.getElementById('btn-action').onclick = app.exam.confirm;
                     document.getElementById('btn-action').disabled = true;
                 },
 
                 selectOption: (idx, el) => {
-                    if (document.getElementById('feedback-area').classList.contains('flex') || document.getElementById('feedback-area').classList.contains('block')) return; 
+                    // Verifica de forma segura se a questão já foi confirmada (se o feedback NÃO estiver escondido)
+                    if (!document.getElementById('feedback-area').classList.contains('hidden')) return;
 
                     document.querySelectorAll('.option-card').forEach(c => {
                         c.classList.remove('border-blue-600', 'bg-blue-50');
