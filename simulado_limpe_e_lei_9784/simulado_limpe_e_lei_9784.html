@@ -16,6 +16,13 @@
         .btn-option.correct { border-color: #22c55e; background-color: #f0fdf4; color: #166534; }
         .btn-option.incorrect { border-color: #ef4444; background-color: #fef2f2; color: #991b1b; }
         .hide { display: none !important; }
+        
+        /* AI Feature Styles */
+        .ai-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+        .ai-text-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .ai-border { position: relative; }
+        .ai-border::before { content: ""; position: absolute; inset: -2px; border-radius: 1rem; background: linear-gradient(135deg, #6366f1, #a855f7); z-index: -1; opacity: 0.3; }
+        .spin-slow { animation: spin 2s linear infinite; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col">
@@ -30,8 +37,10 @@
                     <p class="text-xs text-blue-200">Algoritmo Adaptativo Foco IBFC</p>
                 </div>
             </div>
+            <div> <a href="../raiz/index.html">BackHere </a></div>
             <div class="flex gap-4">
                 <button onclick="app.showView('home')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="home" class="w-4 h-4"></i> Início</button>
+                <button onclick="app.showView('dashboard')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Dashboard</button>
                 <button onclick="app.showView('data')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="save" class="w-4 h-4"></i> Dados</button>
             </div>
         </div>
@@ -47,12 +56,12 @@
                     <i data-lucide="brain-circuit" class="w-8 h-8"></i>
                 </div>
                 <h2 class="text-2xl font-bold mb-2">Treinamento Adaptativo</h2>
-                <p class="text-slate-600 mb-6">Foco na Lei 9.784/99 e LIMPE. O sistema memoriza seus acertos e repete apenas seus erros ou questões inéditas.</p>
+                <p class="text-slate-600 mb-6">Foco em CF/88 (Arts. 1 a 5) e Lei 9.784/99. O sistema memoriza seus acertos e repete apenas seus erros ou questões inéditas.</p>
                 
                 <div class="grid grid-cols-2 gap-4 mb-8">
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <p class="text-sm text-slate-500">Questões no Banco</p>
-                        <p class="text-2xl font-bold text-blue-600">30</p>
+                        <p class="text-2xl font-bold text-blue-600" id="total-questions">80</p>
                     </div>
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <p class="text-sm text-slate-500">Seu Domínio Atual</p>
@@ -60,20 +69,51 @@
                     </div>
                 </div>
 
-                <button onclick="app.startSession()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition flex justify-center items-center gap-2 shadow-lg hover:shadow-xl">
-                    <i data-lucide="play" class="w-5 h-5"></i> Iniciar Nova Sessão
-                </button>
+                <!-- NOVO: Resumo de Informações Carregadas -->
+                <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 mb-8 text-left shadow-sm">
+                    <h3 class="font-bold text-indigo-800 mb-4 flex items-center gap-2"><i data-lucide="pie-chart" class="w-5 h-5"></i> Resumo Global do seu Progresso</h3>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div class="bg-white p-3 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] md:text-xs text-indigo-600 font-bold uppercase tracking-wider">Respondidas</p>
+                            <p class="text-2xl font-black text-indigo-900" id="home-total-answered">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] md:text-xs text-green-600 font-bold uppercase tracking-wider">Acertos Globais</p>
+                            <p class="text-2xl font-black text-green-600" id="home-total-correct">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] md:text-xs text-red-600 font-bold uppercase tracking-wider">Erros Globais</p>
+                            <p class="text-2xl font-black text-red-600" id="home-total-incorrect">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <button onclick="app.startSession()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition flex justify-center items-center gap-2 shadow-lg hover:shadow-xl">
+                        <i data-lucide="play" class="w-5 h-5"></i> Iniciar Nova Sessão (10 Questões)
+                    </button>
+                    
+                    <button onclick="aiFeatures.generateDynamicQuestion()" id="btn-generate-ai" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-4 px-8 rounded-xl transition flex justify-center items-center gap-2 border border-indigo-200 shadow-sm hover:shadow-md relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-10 ai-gradient"></div>
+                        <i data-lucide="sparkles" class="w-5 h-5 text-purple-500"></i> ✨ Gerar Questão Inédita com IA
+                    </button>
+                </div>
             </div>
 
             <!-- VIEW: QUIZ -->
             <div id="view-quiz" class="hide max-w-3xl mx-auto">
                 <div class="flex justify-between items-center mb-4">
-                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide" id="quiz-topic">Tópico</span>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1" id="quiz-topic">
+                        Tópico
+                    </span>
                     <span class="text-slate-500 text-sm font-medium">Questão <span id="quiz-current-num">1</span> de <span id="quiz-total-num">10</span></span>
                 </div>
                 
-                <div class="glass-panel rounded-2xl p-6 md:p-8 mb-6">
-                    <p class="text-lg font-medium leading-relaxed mb-8 text-slate-800" id="quiz-question-text"></p>
+                <div class="glass-panel rounded-2xl p-6 md:p-8 mb-6 relative">
+                    <div id="ai-badge" class="hide absolute -top-3 -right-3 bg-purple-100 border border-purple-300 text-purple-800 text-xs font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                        ✨ Gerada por IA
+                    </div>
+                    <p class="text-lg font-medium leading-relaxed mb-8 text-slate-800 whitespace-pre-line" id="quiz-question-text"></p>
                     <div class="flex flex-col gap-3" id="quiz-options">
                         <!-- Options injected via JS -->
                     </div>
@@ -93,7 +133,20 @@
                 </div>
                 <div class="glass-panel rounded-b-2xl p-6 md:p-8 mb-6 border-t-0 shadow-lg">
                     <h3 class="font-bold text-slate-800 mb-2 border-b pb-2">Gabarito Comentado</h3>
-                    <p class="text-slate-700 leading-relaxed" id="feedback-explanation"></p>
+                    <p class="text-slate-700 leading-relaxed mb-6 whitespace-pre-line" id="feedback-explanation"></p>
+                    
+                    <!-- AI Tutor Section -->
+                    <div class="ai-border rounded-xl bg-white p-5 mt-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold ai-text-gradient flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i> Prof. IA (Tira-Dúvidas)</h4>
+                            <button onclick="aiFeatures.explainWithAI()" id="btn-ask-ai" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1">
+                                ✨ Explicar melhor
+                            </button>
+                        </div>
+                        <div id="ai-explanation-content" class="text-sm text-slate-600 hide">
+                            <!-- AI response injected here -->
+                        </div>
+                    </div>
                 </div>
                 <div class="flex justify-end">
                     <button onclick="app.nextQuestion()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl transition shadow-md flex items-center gap-2">
@@ -119,16 +172,25 @@
                         <p class="mt-4 text-sm font-medium text-slate-500" id="current-session-stats">0 Acertos | 0 Erros</p>
                     </div>
 
-                    <!-- SWOT Analysis -->
-                    <div class="glass-panel rounded-2xl p-6 md:col-span-2 flex flex-col">
-                        <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2"><i data-lucide="target" class="w-5 h-5 text-blue-600"></i> Análise SWOT (Diagnóstico)</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
-                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-                                <h4 class="font-bold text-green-800 flex items-center gap-1 mb-2"><i data-lucide="trending-up" class="w-4 h-4"></i> Pontos Fortes (>80%)</h4>
+                    <!-- NOVO: Desempenho Global (Junção de Sessões) -->
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-slate-700 mb-4 text-center">Histórico Global</h3>
+                        <div class="relative w-48 h-48">
+                            <canvas id="globalSessionChart"></canvas>
+                        </div>
+                        <p class="mt-4 text-sm font-medium text-slate-500" id="global-session-stats">0 Acertos | 0 Erros</p>
+                    </div>
+
+                    <!-- SWOT Analysis Ajustado -->
+                    <div class="glass-panel rounded-2xl p-6 md:col-span-1 flex flex-col">
+                        <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2"><i data-lucide="target" class="w-5 h-5 text-blue-600"></i> Análise SWOT</h3>
+                        <div class="flex flex-col gap-4 flex-grow">
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4 flex-1">
+                                <h4 class="font-bold text-green-800 flex items-center gap-1 mb-2"><i data-lucide="trending-up" class="w-4 h-4"></i> Fortes (>80%)</h4>
                                 <ul id="swot-strengths" class="text-sm text-green-700 space-y-1 list-disc pl-4"></ul>
                             </div>
-                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-                                <h4 class="font-bold text-red-800 flex items-center gap-1 mb-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Pontos de Atenção (<60%)</h4>
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex-1">
+                                <h4 class="font-bold text-red-800 flex items-center gap-1 mb-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Atenção (<60%)</h4>
                                 <ul id="swot-weaknesses" class="text-sm text-red-700 space-y-1 list-disc pl-4"></ul>
                             </div>
                         </div>
@@ -167,8 +229,146 @@
     </main>
 
     <script>
-        // --- 1. QUESTION BANK (30 Questions, IBFC Style) ---
-        const questionBank = [
+        // --- 0. GEMINI API CONFIGURATION ---
+        const apiKey = ""; // API Key is injected by the environment
+
+        const aiFeatures = {
+            async fetchWithRetry(url, options, retries = 5) {
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const res = await fetch(url, options);
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                        return await res.json();
+                    } catch (err) {
+                        if (i === retries - 1) throw err;
+                        await new Promise(r => setTimeout(r, delays[i]));
+                    }
+                }
+            },
+
+            async callGemini(prompt, isJson = false, systemContext = "") {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: systemContext || "Você é um professor de Direito e especialista em concursos públicos." }] }
+                };
+                
+                if (isJson) {
+                    payload.generationConfig = { responseMimeType: "application/json" };
+                }
+
+                const data = await this.fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            },
+
+            async explainWithAI() {
+                const session = appState.currentSession;
+                const q = session.questions[session.currentIndex];
+                const btn = document.getElementById('btn-ask-ai');
+                const contentDiv = document.getElementById('ai-explanation-content');
+                const isCorrect = app.selectedOption === q.correct;
+
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 spin-slow"></i> Pensando...`;
+                btn.disabled = true;
+                lucide.createIcons();
+                contentDiv.classList.remove('hide');
+                contentDiv.innerHTML = `<div class="animate-pulse flex gap-2"><div class="w-2 h-2 bg-purple-400 rounded-full"></div><div class="w-2 h-2 bg-purple-400 rounded-full"></div><div class="w-2 h-2 bg-purple-400 rounded-full"></div></div>`;
+
+                const systemContext = "Você é um Professor Sênior de Direito Administrativo e Constitucional famoso por sua didática incrível para concursos públicos da IBFC. Você usa analogias do dia a dia, mnemônicos e linguagem clara.";
+                const prompt = `
+                    O aluno respondeu uma questão sobre o tópico: ${q.topic}.
+                    Questão: "${q.text}"
+                    A resposta correta era a alternativa '${q.correct}': "${q.options[q.correct]}".
+                    O aluno escolheu a alternativa '${app.selectedOption}': "${q.options[app.selectedOption]}".
+                    O aluno ${isCorrect ? 'ACERTOU' : 'ERROU'}.
+                    A explicação técnica padrão do gabarito é: "${q.explanation}".
+                    
+                    Por favor, explique por que a alternativa correta é a correta (e se ele errou, por que a dele está errada). 
+                    Faça isso de forma **muito didática e simples**, focando em uma analogia fácil de lembrar ou um macete/mnemônico. Seja conciso (máximo 2 parágrafos). Evite jargões jurídicos desnecessários.
+                `;
+
+                try {
+                    const response = await this.callGemini(prompt, false, systemContext);
+                    const formattedResponse = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    contentDiv.innerHTML = `<p class="leading-relaxed border-l-4 border-purple-400 pl-3">${formattedResponse}</p>`;
+                    btn.innerHTML = `✨ Explicado com sucesso`;
+                } catch (error) {
+                    contentDiv.innerHTML = `<p class="text-red-500">Houve um erro ao contactar o Prof. IA. Tente novamente mais tarde.</p>`;
+                    btn.innerHTML = `✨ Tentar novamente`;
+                    btn.disabled = false;
+                }
+            },
+
+            async generateDynamicQuestion() {
+                const btn = document.getElementById('btn-generate-ai');
+                const weaknesses = app.getWeakestTopics();
+                let targetTopic = "Constituição Federal ou Lei 9.784/99";
+                if (weaknesses.length > 0) {
+                    targetTopic = weaknesses[0].replace('L9784_', 'Lei 9.784/99 - ').replace('CF88_', 'CF/88 - ');
+                }
+
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 text-purple-600 spin-slow"></i> <span class="text-purple-700">Criando questão inédita sobre ${targetTopic}...</span>`;
+                btn.disabled = true;
+                lucide.createIcons();
+
+                const systemContext = "Você é um examinador experiente da banca IBFC.";
+                const prompt = `
+                    Crie UMA (1) questão inédita de múltipla escolha (alternativas de A a E) de concurso público sobre o tema: "${targetTopic}".
+                    Estilo da banca IBFC: cobrança da literalidade da lei, enunciados com "Analise as afirmativas I, II, III" seguidos de alternativas combinadas.
+                    Nível: Médio a Difícil.
+                    Você DEVE retornar a resposta EXATAMENTE no seguinte formato JSON (e nada mais):
+                    {
+                        "topic": "IA - ${targetTopic}",
+                        "text": "Texto da questão aqui (use \\n para quebras de linha nas afirmativas)...",
+                        "options": {
+                            "a": "Alternativa A",
+                            "b": "Alternativa B",
+                            "c": "Alternativa C",
+                            "d": "Alternativa D",
+                            "e": "Alternativa E"
+                        },
+                        "correct": "letra correta",
+                        "explanation": "Explicação detalhada do gabarito"
+                    }
+                `;
+
+                try {
+                    const responseStr = await this.callGemini(prompt, true, systemContext);
+                    const newQuestion = JSON.parse(responseStr);
+                    newQuestion.id = 'ai_' + Date.now();
+                    newQuestion.isAI = true;
+
+                    questionBank.push(newQuestion);
+                    app.updateHomeMastery();
+
+                    appState.currentSession.questions = [newQuestion];
+                    appState.currentSession.currentIndex = 0;
+                    appState.currentSession.correctCount = 0;
+                    appState.currentSession.incorrectCount = 0;
+
+                    app.renderQuestion();
+                    app.showView('quiz');
+
+                } catch (error) {
+                    alert("Ocorreu um erro ao gerar a questão com a IA. Tente novamente.");
+                } finally {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
+            }
+        };
+        
+        // --- 1. QUESTION BANK (80 Questions total: 30 Old + 50 New IBFC Style) ---
+const questionBank = [
             // LIMPE (4 Questões)
             { id: 1, topic: "LIMPE", text: "De acordo com os princípios expressos na Constituição Federal de 1988 que regem a Administração Pública, a exigência de que o administrador público atue com retidão, ética e boa-fé, não se limitando a distinguir o legal do ilegal, mas também o honesto do desonesto, refere-se especificamente ao princípio da:", options: { a: "Legalidade.", b: "Impessoalidade.", c: "Moralidade.", d: "Publicidade.", e: "Eficiência." }, correct: "c", explanation: "O princípio da Moralidade exige do administrador não apenas o cumprimento estrito da lei, mas também atuação pautada na ética, probidade e boa-fé (distinguir o honesto do desonesto)." },
             { id: 2, topic: "LIMPE", text: "A vedação ao nepotismo, sumulada pelo STF (Súmula Vinculante nº 13), decorre diretamente de quais princípios constitucionais expressos aplicáveis à Administração Pública?", options: { a: "Legalidade e Publicidade.", b: "Impessoalidade e Moralidade.", c: "Eficiência e Legalidade.", d: "Moralidade e Publicidade.", e: "Impessoalidade e Eficiência." }, correct: "b", explanation: "O STF firmou o entendimento de que a vedação ao nepotismo não exige lei formal, pois decorre diretamente dos princípios constitucionais da Impessoalidade (evitar favorecimentos pessoais) e Moralidade (ética na gestão pública)." },
@@ -265,35 +465,9 @@
             { id: 79, topic: "L9784_Suspeicao", text: "Uma autoridade é casada com a sócia de um escritório de advocacia que está atuando num processo licitatório. Neste caso, a autoridade:", options: { a: "Não pode participar, por impedimento decorrente do cônjuge estar no processo (presunção absoluta de imparcialidade).", b: "Apenas é considerada suspeita, cabendo à parte provar o dano.", c: "Pode atuar desde que declare imparcialidade.", d: "Deve apenas abster-se de votar.", e: "Não se submete às regras da 9.784/99 pois licitação tem lei própria imune aos princípios do processo administrativo." }, correct: "a", explanation: "O cônjuge ser representante/advogado no processo configura causa objetiva de IMPEDIMENTO (art. 18, II)." },
             { id: 80, topic: "L9784_Disposicoes", text: "A Lei 9.784/99 impõe deveres de conduta ética aos servidores. Analise as assertivas e julgue a alternativa CORRETA que traz um comando expresso da lei aos órgãos/servidores:", options: { a: "É dever do servidor negar a prestação de informações se considerar o processo supérfluo.", b: "O órgão competente perante o qual tramita o processo administrativo determinará a intimação do interessado para ciência de decisão (dever de notificação).", c: "É proibida a aplicação da analogia nas decisões.", d: "A autoridade pode aplicar sanção sem defesa prévia se a prova for flagrante em vídeo.", e: "O servidor pode atuar com impessoalidade relativa se o processo for de colega de trabalho." }, correct: "b", explanation: "A assertiva B reflete o art. 26. As demais afrontam princípios basilares do direito administrativo: contraditório/ampla defesa, impessoalidade e oficialidade." },
     
+            { id: 81, topic: "CF88_Fundamentos", text: "A Constituição Federal de 1988 elenca, em seus primeiros artigos, os fundamentos, os objetivos fundamentais e os princípios nas relações internacionais da República Federativa do Brasil. Com base nisso, assinale a alternativa que apresenta, correta e respectivamente, um Fundamento e um Objetivo Fundamental:", options: { a: "A dignidade da pessoa humana / A soberania.", b: "A erradicação da pobreza / O pluralismo político.", c: "A cidadania / Construir uma sociedade livre, justa e solidária.", d: "A solução pacífica dos conflitos / A independência nacional.", e: "Garantir o desenvolvimento nacional / Os valores sociais do trabalho e da livre iniciativa." }, correct: "c", explanation: "Padrão IBFC: misturar fundamentos e objetivos. Fundamentos (Art. 1º): Soberania, Cidadania, Dignidade, Valores e Pluralismo (SoCiDiVaPlu). Objetivos (Art. 3º, verbos no infinitivo): Construir, Garantir, Erradicar e Promover (Conga Erra Pro). Portanto, Cidadania (Fundamento) e Construir uma sociedade... (Objetivo)."},
+            { id: 82, topic: "CF88_Principios", text: "Analise as afirmativas abaixo quanto aos princípios que regem o Brasil em suas relações internacionais (Art. 4º da CF/88):\n\nI. A concessão de asilo político.\nII. A prevalência dos direitos humanos.\nIII. A intervenção para solução de conflitos em países do Mercosul.\nIV. O repúdio ao terrorismo e ao racismo.\n\nEstão corretas as afirmativas:", options: {a: "I, II e IV, apenas.", b: "I, II, III e IV.", c: "II e IV, apenas.", d: "I e III, apenas.", e: "III e IV, apenas." }, correct: "a", explanation: "O item III está errado porque o Brasil rege-se pelo princípio da NÃO-INTERVENÇÃO e pela solução PACÍFICA dos conflitos nas relações internacionais, sem exceção militarista para o Mercosul no texto constitucional."},
             { 
-        id: 81, 
-        topic: "CF88_Fundamentos", 
-        text: "A Constituição Federal de 1988 elenca, em seus primeiros artigos, os fundamentos, os objetivos fundamentais e os princípios nas relações internacionais da República Federativa do Brasil. Com base nisso, assinale a alternativa que apresenta, correta e respectivamente, um Fundamento e um Objetivo Fundamental:", 
-        options: { 
-            a: "A dignidade da pessoa humana / A soberania.", 
-            b: "A erradicação da pobreza / O pluralismo político.", 
-            c: "A cidadania / Construir uma sociedade livre, justa e solidária.", 
-            d: "A solução pacífica dos conflitos / A independência nacional.", 
-            e: "Garantir o desenvolvimento nacional / Os valores sociais do trabalho e da livre iniciativa." 
-        }, 
-        correct: "c", 
-        explanation: "Padrão IBFC: misturar fundamentos e objetivos. Fundamentos (Art. 1º): Soberania, Cidadania, Dignidade, Valores e Pluralismo (SoCiDiVaPlu). Objetivos (Art. 3º, verbos no infinitivo): Construir, Garantir, Erradicar e Promover (Conga Erra Pro). Portanto, Cidadania (Fundamento) e Construir uma sociedade... (Objetivo)." 
-    },
-    { 
-        id: 82, 
-        topic: "CF88_Principios", 
-        text: "Analise as afirmativas abaixo quanto aos princípios que regem o Brasil em suas relações internacionais (Art. 4º da CF/88):\n\nI. A concessão de asilo político.\nII. A prevalência dos direitos humanos.\nIII. A intervenção para solução de conflitos em países do Mercosul.\nIV. O repúdio ao terrorismo e ao racismo.\n\nEstão corretas as afirmativas:", 
-        options: { 
-            a: "I, II e IV, apenas.", 
-            b: "I, II, III e IV.", 
-            c: "II e IV, apenas.", 
-            d: "I e III, apenas.", 
-            e: "III e IV, apenas." 
-        }, 
-        correct: "a", 
-        explanation: "O item III está errado porque o Brasil rege-se pelo princípio da NÃO-INTERVENÇÃO e pela solução PACÍFICA dos conflitos nas relações internacionais, sem exceção militarista para o Mercosul no texto constitucional." 
-    },
-    { 
         id: 83, 
         topic: "CF88_Direitos", 
         text: "De acordo com o Art. 5º da CF/88, no que tange aos direitos e garantias fundamentais, assinale a alternativa correta:", 
@@ -1391,17 +1565,18 @@
     }
         ];
 
+
         // --- 2. STATE MANAGEMENT ---
         const appState = {
             currentSession: {
-                questions: [], // Array of question objects for this session
+                questions: [],
                 currentIndex: 0,
                 correctCount: 0,
                 incorrectCount: 0
             },
             userData: {
-                correctlyAnsweredIds: [], // IDs of questions answered correctly (to exclude from future sessions)
-                history: [] // { topic, correct: boolean }
+                correctlyAnsweredIds: [],
+                history: []
             }
         };
 
@@ -1410,6 +1585,8 @@
 
         // --- 4. APP LOGIC ---
         const app = {
+            selectedOption: null,
+
             init() {
                 this.updateHomeMastery();
             },
@@ -1433,21 +1610,31 @@
                 const mastered = appState.userData.correctlyAnsweredIds.length;
                 const percentage = Math.round((mastered / total) * 100);
                 document.getElementById('home-mastery').innerText = `${percentage}%`;
+                document.getElementById('total-questions').innerText = total;
+
+                // NOVO: Atualizar Card de Resumo Global
+                let totalCorrect = 0;
+                let totalIncorrect = 0;
+                appState.userData.history.forEach(h => {
+                    if (h.correct) totalCorrect++;
+                    else totalIncorrect++;
+                });
+                
+                document.getElementById('home-total-answered').innerText = totalCorrect + totalIncorrect;
+                document.getElementById('home-total-correct').innerText = totalCorrect;
+                document.getElementById('home-total-incorrect').innerText = totalIncorrect;
             },
 
             startSession() {
-                // Adaptive Algorithm: Filter questions
                 let available = questionBank.filter(q => !appState.userData.correctlyAnsweredIds.includes(q.id));
                 
                 if (available.length === 0) {
-                    alert("Parabéns! Você já acertou e dominou todas as questões deste banco. Limpe seus dados (no menu Dados) para recomeçar o simulador do zero.");
+                    alert("Parabéns! Você já acertou e dominou todas as questões deste banco. Use o gerador de IA ou limpe seus dados para recomeçar.");
                     return;
                 }
 
-                // Shuffle available questions
                 available = available.sort(() => Math.random() - 0.5);
                 
-                // Limit session to max 10 questions or available
                 appState.currentSession.questions = available.slice(0, 10);
                 appState.currentSession.currentIndex = 0;
                 appState.currentSession.correctCount = 0;
@@ -1461,10 +1648,14 @@
                 const session = appState.currentSession;
                 const q = session.questions[session.currentIndex];
                 
-                document.getElementById('quiz-topic').innerText = q.topic.replace('L9784_', 'Lei 9.784 - ');
+                document.getElementById('quiz-topic').innerHTML = q.topic.replace('L9784_', 'Lei 9.784 - ').replace('CF88_', 'CF/88 - ');
                 document.getElementById('quiz-current-num').innerText = session.currentIndex + 1;
                 document.getElementById('quiz-total-num').innerText = session.questions.length;
                 document.getElementById('quiz-question-text').innerText = q.text;
+
+                const aiBadge = document.getElementById('ai-badge');
+                if (q.isAI) aiBadge.classList.remove('hide');
+                else aiBadge.classList.add('hide');
 
                 const optionsContainer = document.getElementById('quiz-options');
                 optionsContainer.innerHTML = '';
@@ -1485,6 +1676,10 @@
                 document.getElementById('btn-confirm').disabled = true;
                 this.selectedOption = null;
                 document.getElementById('view-feedback').classList.add('hide');
+                
+                document.getElementById('ai-explanation-content').classList.add('hide');
+                document.getElementById('btn-ask-ai').innerHTML = '✨ Explicar melhor';
+                document.getElementById('btn-ask-ai').disabled = false;
             },
 
             selectOption(key) {
@@ -1499,17 +1694,14 @@
                 const q = session.questions[session.currentIndex];
                 const isCorrect = this.selectedOption === q.correct;
 
-                // Disable all buttons
                 document.querySelectorAll('.btn-option').forEach(btn => btn.disabled = true);
                 document.getElementById('btn-confirm').disabled = true;
 
-                // Highlight correct/incorrect
                 document.getElementById(`opt-${q.correct}`).classList.add('correct');
                 if (!isCorrect) {
                     document.getElementById(`opt-${this.selectedOption}`).classList.add('incorrect');
                 }
 
-                // Update Stats
                 if (isCorrect) {
                     session.correctCount++;
                     if (!appState.userData.correctlyAnsweredIds.includes(q.id)) {
@@ -1543,7 +1735,6 @@
                 document.getElementById('view-feedback').classList.remove('hide');
                 lucide.createIcons();
                 
-                // Scroll to feedback
                 document.getElementById('view-feedback').scrollIntoView({ behavior: 'smooth' });
             },
 
@@ -1557,13 +1748,69 @@
                 }
             },
 
+            getWeakestTopics() {
+                const topicStats = {};
+                appState.userData.history.forEach(h => {
+                    if (!topicStats[h.topic]) topicStats[h.topic] = { total: 0, correct: 0 };
+                    topicStats[h.topic].total++;
+                    if (h.correct) topicStats[h.topic].correct++;
+                });
+
+                const weaknesses = [];
+                for (const [topic, stats] of Object.entries(topicStats)) {
+                    if (stats.total > 0) {
+                        const accuracy = Math.round((stats.correct / stats.total) * 100);
+                        if (accuracy < 60) weaknesses.push(topic);
+                    }
+                }
+                return weaknesses;
+            },
+
             // --- DASHBOARD LOGIC ---
             renderDashboard() {
                 const session = appState.currentSession;
                 document.getElementById('current-session-stats').innerText = `${session.correctCount} Acertos | ${session.incorrectCount} Erros`;
                 
                 this.renderCurrentChart(session.correctCount, session.incorrectCount);
+                this.renderGlobalChart(); // Adicionado chamada para o gráfico global
                 this.renderHistoryChartAndSWOT();
+                
+                lucide.createIcons(); // Recriar icones caso a aba seja acessada pelo menu
+            },
+
+            // NOVO: Renderizar Gráfico Global
+            renderGlobalChart() {
+                let correct = 0;
+                let incorrect = 0;
+                appState.userData.history.forEach(h => {
+                    if (h.correct) correct++;
+                    else incorrect++;
+                });
+
+                document.getElementById('global-session-stats').innerText = `${correct} Acertos | ${incorrect} Erros`;
+
+                const ctx = document.getElementById('globalSessionChart');
+                if(this.globalChartInstance) this.globalChartInstance.destroy();
+                
+                if (correct === 0 && incorrect === 0) return;
+
+                this.globalChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Acertos Globais', 'Erros Globais'],
+                        datasets: [{
+                            data: [correct, incorrect],
+                            backgroundColor: ['#16a34a', '#dc2626'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        cutout: '70%'
+                    }
+                });
             },
 
             renderCurrentChart(correct, incorrect) {
@@ -1592,7 +1839,6 @@
             },
 
             renderHistoryChartAndSWOT() {
-                // Aggregate history by topic
                 const topicStats = {};
                 questionBank.forEach(q => {
                     if (!topicStats[q.topic]) {
@@ -1613,7 +1859,7 @@
                 const weaknesses = [];
 
                 for (const [topic, stats] of Object.entries(topicStats)) {
-                    let displayName = topic === 'LIMPE' ? 'Princípios (LIMPE)' : topic.replace('L9784_', '');
+                    let displayName = topic === 'LIMPE' ? 'Princípios (LIMPE)' : topic.replace('L9784_', '').replace('CF88_', 'CF/88 ').replace('IA - ', '');
                     labels.push(displayName);
                     
                     if (stats.total > 0) {
@@ -1627,7 +1873,6 @@
                     }
                 }
 
-                // Render Bar Chart
                 const ctx = document.getElementById('historyChart');
                 if(this.historyChartInstance) this.historyChartInstance.destroy();
 
@@ -1649,7 +1894,6 @@
                     }
                 });
 
-                // Render SWOT
                 const sList = document.getElementById('swot-strengths');
                 const wList = document.getElementById('swot-weaknesses');
                 
@@ -1667,7 +1911,6 @@
                 const dataStr = JSON.stringify(appState.userData);
                 document.getElementById('data-json').value = dataStr;
                 
-                // Copy to clipboard
                 const textarea = document.getElementById('data-json');
                 textarea.select();
                 try {
