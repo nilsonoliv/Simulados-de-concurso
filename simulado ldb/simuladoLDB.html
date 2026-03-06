@@ -43,6 +43,7 @@
                     <h1 class="text-xl font-bold tracking-wide">Simulador LDB <span class="text-yellow-400">| IBFC</span></h1>
                     <p class="text-xs text-slate-400">Foco SEC/BA - Nível Médio</p>
                 </div>
+                <div><a href="../raiz/index.html">BackHere</a></div>
             </div>
             <div class="hidden md:block text-right">
                 <p class="text-sm text-slate-300">Questão Atual</p>
@@ -53,11 +54,11 @@
         <!-- Navigation Tabs -->
         <div class="bg-slate-800">
             <div class="max-w-7xl mx-auto px-4 flex gap-1">
-                <button onclick="switchTab('simulado')" id="btn-simulado" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-yellow-400 text-yellow-400 hover:bg-slate-700 transition-colors">
-                    <i class="fa-solid fa-pen-to-square mr-2"></i>Simulado
+                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-yellow-400 text-yellow-400 hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-chart-pie mr-2"></i>Início & Dashboard
                 </button>
-                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-                    <i class="fa-solid fa-chart-pie mr-2"></i>Dashboard & SWOT
+                <button onclick="switchTab('simulado')" id="btn-simulado" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-pen-to-square mr-2"></i>Simulado
                 </button>
                 <button onclick="switchTab('dados')" id="btn-dados" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
                     <i class="fa-solid fa-database mr-2"></i>Salvar/Carregar
@@ -70,55 +71,19 @@
     <main class="flex-1 overflow-y-auto p-4 md:p-6 relative">
         <div class="max-w-5xl mx-auto h-full">
 
-            <!-- TAB: SIMULADO -->
-            <div id="simulado" class="tab-content active h-full flex flex-col">
-                <!-- Barra de Progresso da Sessão -->
-                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
-                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            <!-- TAB: DASHBOARD (TELA INICIAL) -->
+            <div id="dashboard" class="tab-content active">
+                <!-- Banner de Ação Principal -->
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-blue-600 rounded-xl p-6 shadow-lg text-white">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-1">Visão Geral do seu Progresso</h2>
+                        <p class="text-blue-100 text-sm">Acompanhe suas métricas e inicie um novo ciclo de estudos.</p>
+                    </div>
+                    <button onclick="requestNewSimulation()" class="mt-4 md:mt-0 bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-8 py-3 rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Iniciar Novo Simulado
+                    </button>
                 </div>
 
-                <!-- Card da Questão -->
-                <div id="quiz-container" class="bg-white rounded-xl shadow-md border border-slate-200 p-6 md:p-8 flex-1 flex flex-col">
-                    
-                    <div class="flex justify-between items-start mb-4">
-                        <span id="topic-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-blue-200">Educação Básica</span>
-                        <span class="text-xs text-slate-500 font-mono">ID: <span id="q-id">001</span></span>
-                    </div>
-
-                    <h2 id="question-text" class="text-lg md:text-xl font-semibold text-slate-800 mb-6 leading-relaxed">
-                        Carregando questão...
-                    </h2>
-
-                    <!-- Opções -->
-                    <div id="options-container" class="space-y-3 mb-6 flex-1 overflow-y-auto pr-2">
-                        <!-- Options injected by JS -->
-                    </div>
-
-                    <!-- Feedback Area (Hidden by default) -->
-                    <div id="feedback-area" class="hidden mb-6 p-4 rounded-lg border-l-4 bg-slate-50">
-                        <div class="flex items-start gap-3">
-                            <i id="feedback-icon" class="fa-solid fa-circle-check mt-1 text-lg"></i>
-                            <div>
-                                <h3 id="feedback-title" class="font-bold text-sm mb-1">Resposta Correta!</h3>
-                                <p id="feedback-text" class="text-sm text-slate-600 leading-relaxed"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex justify-between items-center pt-4 border-t border-slate-100 mt-auto">
-                        <button id="btn-confirm" onclick="checkAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold shadow transition-transform active:scale-95 w-full md:w-auto">
-                            Confirmar Resposta
-                        </button>
-                        <button id="btn-next" onclick="nextQuestion()" class="hidden bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-lg font-semibold shadow transition-transform active:scale-95 w-full md:w-auto">
-                            Próxima Questão <i class="fa-solid fa-arrow-right ml-2"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: DASHBOARD -->
-            <div id="dashboard" class="tab-content">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <!-- Sessão Atual -->
                     <div class="bg-white p-6 rounded-xl shadow border border-slate-200">
@@ -128,9 +93,12 @@
                         </div>
                         <div class="mt-4 text-center">
                             <span class="text-sm text-slate-500">Total Respondido: <b id="dash-total">0</b></span>
-                            <div class="flex justify-center gap-4 mt-2">
+                            <div class="flex justify-center gap-4 mt-2 mb-2">
                                 <span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i><span id="dash-correct">0</span></span>
                                 <span class="text-red-500 font-bold"><i class="fa-solid fa-xmark mr-1"></i><span id="dash-wrong">0</span></span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100">
+                                <span class="text-xs text-blue-600 font-semibold" id="dash-bank-mastery">0 de 60 questões dominadas (Banco)</span>
                             </div>
                         </div>
                     </div>
@@ -168,30 +136,30 @@
                 </div>
             </div>
 
-            <!-- TAB: DADOS (PERSISTÊNCIA) -->
-            <div id="dados" class="tab-content">
-                <div class="bg-white p-6 md:p-8 rounded-xl shadow border border-slate-200 max-w-3xl mx-auto">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">Gerenciar Progresso</h3>
-                    <p class="text-slate-600 mb-6 text-sm">
-                        Como esta aplicação roda em uma sessão temporária, você precisa salvar seus dados manualmente para manter o histórico acumulado.
-                    </p>
+            <!-- TAB: SIMULADO -->
+            <div id="simulado" class="tab-content h-full flex flex-col">
+                
+                <!-- Tela de Espera do Simulado -->
+                <div id="start-screen" class="h-full flex flex-col items-center justify-center text-center p-6 hidden">
+                    <div class="bg-white p-8 rounded-xl shadow-md border border-slate-200 max-w-lg w-full">
+                        <i class="fa-solid fa-graduation-cap text-5xl text-blue-600 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Pronto para treinar?</h2>
+                        <p class="text-slate-600 mb-6" id="start-summary">Você possui questões disponíveis para o próximo simulado.</p>
+                        <button onclick="requestNewSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95 w-full">
+                            <i class="fa-solid fa-play mr-2"></i> Gerar Simulado
+                        </button>
+                    </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Exportar -->
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Salvar (Exportar)</label>
-                            <p class="text-xs text-slate-500 mb-2">Copie o código abaixo e guarde em um bloco de notas.</p>
-                            <textarea id="export-area" readonly class="w-full h-32 p-3 text-xs font-mono bg-slate-100 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                            <button onclick="exportData()" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-semibold transition-colors">
-                                <i class="fa-solid fa-copy mr-2"></i>Gerar Código & Copiar
-                            </button>
-                        </div>
+                <!-- Barra de Progresso da Sessão -->
+                <div id="progress-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-6 hidden">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
 
-                        <!-- Importar -->
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Carregar (Importar)</label>
-                            <p class="text-xs text-slate-500 mb-2">Cole seu código antigo aqui para restaurar estatísticas.</p>
-                            <textarea id="import-area" class="w-full h-32 p-3 text-xs font-mono bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500" placeholder='Cole seu JSON aqui...'></textarea>
+                <!-- Card da Questão -->
+                <div id="quiz-container" class="bg-white rounded-xl shadow-md border border-slate-200 p-6 md:p-8 flex-1 flex flex-col hidden">
+                    
+                    <div class="flex justify-between items-start mb-4">
                             <button onclick="importData()" class="mt-2 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-semibold transition-colors">
                                 <i class="fa-solid fa-file-import mr-2"></i>Carregar Dados
                             </button>
@@ -203,6 +171,28 @@
 
         </div>
     </main>
+
+    <!-- Modal de Confirmação (Questões Insuficientes) -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 transform transition-all">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-yellow-100 rounded-full mb-4">
+                <i class="fa-solid fa-triangle-exclamation text-xl text-yellow-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-center text-slate-800 mb-2">Questões Insuficientes</h3>
+            <p class="text-center text-slate-600 mb-6">
+                Você já dominou todas as questões disponíveis! Quantidade atual insuficiente para um novo simulado.<br><br>
+                Deseja <b>reiniciar as questões</b> (zerar o filtro de acertos) ou <b>cancelar</b> e voltar ao início?
+            </p>
+            <div class="flex flex-col md:flex-row justify-center gap-3">
+                <button onclick="cancelReset()" class="w-full px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="confirmReset()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow transition-colors">
+                    Reiniciar Questões
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- JS Application Logic -->
     <script>
@@ -627,6 +617,426 @@
                 ],
                 correct: 2,
                 explanation: "Baseado nos PCNs e interpretação do Art. 26 (currículos), esses temas são tratados de forma transversal e integradora."
+            },
+            {
+                id: 31,
+                topic: "Princípios da Educação",
+                text: "A respeito dos princípios e fins da educação nacional previstos no Art. 3º da LDB, analise as afirmativas abaixo e dê valores Verdadeiro (V) ou Falso (F).\n( ) Igualdade de condições para o acesso e permanência na escola.\n( ) Coexistência de instituições públicas e privadas de ensino.\n( ) Gratuidade do ensino público em estabelecimentos oficiais, extensiva obrigatoriamente às instituições privadas mediante bolsas.\n( ) Valorização do profissional da educação escolar.\nAssinale a alternativa que apresenta a sequência correta de cima para baixo.",
+                options: [
+                    "A) V, V, F, V.",
+                    "B) V, V, V, V.",
+                    "C) F, V, F, V.",
+                    "D) V, F, V, F.",
+                    "E) V, V, F, F."
+                ],
+                correct: 0,
+                explanation: "Art. 3º. A gratuidade do ensino público se dá APENAS em estabelecimentos oficiais (inciso IV). A lei não obriga extensão de gratuidade à rede privada mediante bolsas nesse artigo de princípios."
+            },
+            {
+                id: 32,
+                topic: "Dever do Estado",
+                text: "De acordo com o Art. 4º da LDB, o dever do Estado com educação escolar pública será efetivado mediante a garantia de, EXCETO:",
+                options: [
+                    "A) Educação básica obrigatória e gratuita dos 4 aos 17 anos de idade.",
+                    "B) Educação infantil gratuita às crianças de até 5 anos de idade.",
+                    "C) Atendimento educacional especializado gratuito aos educandos com deficiência, transtornos globais do desenvolvimento e altas habilidades ou superdotação, exclusivamente na rede regular de ensino.",
+                    "D) Acesso público e gratuito aos ensinos fundamental e médio para todos os que não os concluíram na idade própria.",
+                    "E) Vaga na escola pública de educação infantil ou de ensino fundamental mais próxima de sua residência a toda criança a partir do dia em que completar 4 anos de idade."
+                ],
+                correct: 2,
+                explanation: "Art. 4º, III. O AEE deve ser oferecido PREFERENCIALMENTE na rede regular de ensino, e não 'exclusivamente'. Pegadinha clássica da IBFC."
+            },
+            {
+                id: 33,
+                topic: "Acesso à Educação",
+                text: "O acesso à educação básica obrigatória é direito público subjetivo. Considere as afirmativas I, II e III sobre o tema:\nI. O não oferecimento do ensino obrigatório pelo Poder Público, ou sua oferta irregular, importa responsabilidade da autoridade competente.\nII. É dever exclusivo do Estado recensear anualmente as crianças e adolescentes em idade escolar, sendo vedada a participação da sociedade civil.\nIII. Comprovada a negligência da autoridade competente para garantir o oferecimento do ensino obrigatório, ela poderá ser imputada por crime de responsabilidade.\nEstão corretas as afirmativas:",
+                options: [
+                    "A) I e II apenas.",
+                    "B) I e III apenas.",
+                    "C) II e III apenas.",
+                    "D) Apenas a I.",
+                    "E) I, II e III."
+                ],
+                correct: 1,
+                explanation: "Art. 5º, § 1º, inciso I diz que o poder público deve recensear 'em articulação com a sociedade civil'. Portanto, a afirmativa II está errada ao dizer 'vedada a participação'."
+            },
+            {
+                id: 34,
+                topic: "Incumbências da União",
+                text: "Dentre as incumbências da União estabelecidas no Art. 9º da LDB, cabe a ela:",
+                options: [
+                    "A) Assumir o transporte escolar dos alunos da rede estadual.",
+                    "B) Baixar normas complementares para os sistemas estaduais e municipais de ensino.",
+                    "C) Estabelecer, em colaboração com os Estados, o Distrito Federal e os Municípios, competências e diretrizes para a educação infantil, o ensino fundamental e o ensino médio.",
+                    "D) Oferecer a educação infantil em creches e pré-escolas, e, com prioridade, o ensino fundamental.",
+                    "E) Autorizar, reconhecer, credenciar, supervisionar e avaliar, respectivamente, os cursos das instituições de educação superior de todos os sistemas (estaduais e municipais)."
+                ],
+                correct: 2,
+                explanation: "Art. 9º, inciso IV. A alternativa A é do Estado; D é do Município; E está incorreta porque a União avalia seu próprio sistema (o sistema federal e as IES privadas em geral), não os sistemas estaduais/municipais de forma exclusiva."
+            },
+            {
+                id: 35,
+                topic: "Incumbências dos Estados",
+                text: "Sobre as incumbências dos Estados (Art. 10 da LDB), analise as afirmativas I, II e III:\nI. Organizar, manter e desenvolver os órgãos e instituições oficiais dos seus sistemas de ensino.\nII. Assumir o transporte escolar dos alunos da rede municipal.\nIII. Assegurar o ensino fundamental e oferecer, com prioridade, o ensino médio a todos que o demandarem.\nEstão corretas:",
+                options: [
+                    "A) I e II apenas.",
+                    "B) I e III apenas.",
+                    "C) II e III apenas.",
+                    "D) Apenas a III.",
+                    "E) I, II e III."
+                ],
+                correct: 1,
+                explanation: "Art. 10. A afirmativa II está errada, pois os Estados assumem o transporte da rede ESTADUAL (Inciso VII). Quem assume o da rede municipal é o Município."
+            },
+            {
+                id: 36,
+                topic: "Incumbências dos Municípios",
+                text: "Os Municípios incumbir-se-ão de (Art. 11 da LDB), EXCETO:",
+                options: [
+                    "A) Organizar, manter e desenvolver os órgãos e instituições oficiais dos seus sistemas de ensino.",
+                    "B) Exercer ação redistributiva em relação às suas escolas.",
+                    "C) Baixar normas complementares para o seu sistema de ensino.",
+                    "D) Autorizar, credenciar e supervisionar os estabelecimentos do seu sistema de ensino.",
+                    "E) Assegurar o ensino fundamental e oferecer, com prioridade, o ensino médio."
+                ],
+                correct: 4,
+                explanation: "Art. 11. O Município oferece a educação infantil e, com prioridade, o ENSINO FUNDAMENTAL. Oferecer ensino médio com prioridade é incumbência do Estado (Art. 10)."
+            },
+            {
+                id: 37,
+                topic: "Incumbências das Escolas",
+                text: "Segundo o Art. 12 da LDB, os estabelecimentos de ensino, respeitadas as normas comuns e as do seu sistema de ensino, terão a incumbência de:\nI. Elaborar e executar sua proposta pedagógica.\nII. Administrar seu pessoal e seus recursos materiais e financeiros.\nIII. Assegurar o cumprimento dos dias letivos e horas-aula estabelecidas.\nIV. Informar pai e mãe, conviventes ou não com seus filhos, sobre a frequência e rendimento dos alunos.\nSão verdadeiras:",
+                options: [
+                    "A) I e II apenas.",
+                    "B) I, II e III apenas.",
+                    "C) III e IV apenas.",
+                    "D) I e IV apenas.",
+                    "E) I, II, III e IV."
+                ],
+                correct: 4,
+                explanation: "Todas as afirmativas são literais do Art. 12 da LDB (incisos I, II, III e VII)."
+            },
+            {
+                id: 38,
+                topic: "Incumbências dos Docentes",
+                text: "Analise as atribuições abaixo e assinale aquela que NÃO corresponde a uma incumbência dos docentes (Art. 13 da LDB):",
+                options: [
+                    "A) Participar da elaboração da proposta pedagógica do estabelecimento de ensino.",
+                    "B) Elaborar e cumprir plano de trabalho, segundo a proposta pedagógica do estabelecimento de ensino.",
+                    "C) Prover meios para a recuperação dos alunos de menor rendimento.",
+                    "D) Zelar pela aprendizagem dos alunos.",
+                    "E) Notificar ao Conselho Tutelar do Município a relação dos alunos que apresentem quantidade de faltas acima de 30% do percentual permitido."
+                ],
+                correct: 4,
+                explanation: "Art. 12, inciso VIII. Notificar o Conselho Tutelar é atribuição do ESTABELECIMENTO DE ENSINO (a escola/direção), e não uma incumbência direta do docente prevista no Art. 13."
+            },
+            {
+                id: 39,
+                topic: "Gestão Democrática",
+                text: "Os sistemas de ensino definirão as normas da gestão democrática do ensino público na educação básica, de acordo com as suas peculiaridades e conforme os seguintes princípios (Art. 14):\nI. Participação dos profissionais da educação na elaboração do projeto pedagógico da escola.\nII. Participação das comunidades escolar e local em conselhos escolares ou equivalentes.\nIII. Eleição direta para diretores de escola em todas as redes privadas de ensino.\nEstão corretas as afirmativas:",
+                options: [
+                    "A) I apenas.",
+                    "B) I e II apenas.",
+                    "C) II e III apenas.",
+                    "D) I e III apenas.",
+                    "E) I, II e III."
+                ],
+                correct: 1,
+                explanation: "Art. 14. A LDB define gestão democrática para o ensino PÚBLICO. A afirmativa III cita 'redes privadas', o que torna o item falso."
+            },
+            {
+                id: 40,
+                topic: "Composição da Educação",
+                text: "A LDB (Art. 21) determina que a educação escolar compõe-se de Educação Básica e Educação Superior. É correto afirmar que a Educação Básica é estruturada nas seguintes etapas:",
+                options: [
+                    "A) Creche, pré-escola e ensino fundamental.",
+                    "B) Ensino fundamental, ensino médio e educação superior.",
+                    "C) Educação infantil, ensino fundamental e ensino médio.",
+                    "D) Ensino fundamental e ensino médio, exclusivamente.",
+                    "E) Educação infantil, educação especial e educação de jovens e adultos."
+                ],
+                correct: 2,
+                explanation: "Art. 21, inciso I. A educação básica é formada pela educação infantil, ensino fundamental e ensino médio. (Atenção: EJA e Especial são modalidades, não etapas)."
+            },
+            {
+                id: 41,
+                topic: "Regras Comuns (Carga Horária)",
+                text: "A educação básica, nos níveis fundamental e médio, será organizada de acordo com diversas regras comuns. Assinale a alternativa INCORRETA quanto ao Art. 24 da LDB:",
+                options: [
+                    "A) A carga horária mínima anual será de oitocentas horas para o ensino fundamental e para o ensino médio.",
+                    "B) O calendário escolar deverá adequar-se às peculiaridades locais, sem reduzir o número de horas letivas previsto na LDB.",
+                    "C) O controle de frequência fica a cargo da escola, exigida a frequência mínima de 75% do total de horas letivas para aprovação.",
+                    "D) A classificação em qualquer série ou etapa, exceto a primeira do ensino fundamental, pode ser feita independentemente de escolarização anterior, mediante avaliação.",
+                    "E) Os estudos de recuperação são obrigatórios apenas ao final do ano letivo, vedada a recuperação paralela."
+                ],
+                correct: 4,
+                explanation: "Art. 24, V, 'e'. A LDB diz exatamente o oposto: os estudos de recuperação são de preferência PARALELOS ao período letivo."
+            },
+            {
+                id: 42,
+                topic: "Currículo (Base Nacional)",
+                text: "Conforme o Art. 26 da LDB, os currículos da educação infantil, do ensino fundamental e do ensino médio devem ter base nacional comum. Sobre a parte diversificada, é correto afirmar que:",
+                options: [
+                    "A) É facultativa e deve ser definida exclusivamente pelo Ministério da Educação.",
+                    "B) Deve complementar a base comum, exigida pelas características regionais e locais da sociedade, da cultura, da economia e dos educandos.",
+                    "C) Substitui a base nacional comum em municípios com baixo Índice de Desenvolvimento da Educação Básica (IDEB).",
+                    "D) É composta apenas pelo ensino de uma língua estrangeira moderna.",
+                    "E) Não é aplicável à Educação Infantil."
+                ],
+                correct: 1,
+                explanation: "Art. 26, caput. A parte diversificada é obrigatória e deve refletir as características locais e regionais."
+            },
+            {
+                id: 43,
+                topic: "História Afro-Brasileira",
+                text: "O Art. 26-A estabelece a obrigatoriedade do estudo da história e cultura afro-brasileira e indígena. Julgue as afirmativas (V ou F):\n( ) É obrigatório nos estabelecimentos de ensino fundamental e de ensino médio, públicos e privados.\n( ) Os conteúdos serão ministrados no âmbito de todo o currículo escolar, em especial nas áreas de educação artística e de literatura e história brasileiras.\n( ) A obrigatoriedade não abrange o estudo da cultura indígena, apenas a afro-brasileira.\nAssinale a sequência correta:",
+                options: [
+                    "A) V, V, F.",
+                    "B) V, V, V.",
+                    "C) F, V, F.",
+                    "D) V, F, V.",
+                    "E) F, F, F."
+                ],
+                correct: 0,
+                explanation: "A terceira afirmativa é Falsa porque a Lei 11.645/2008 alterou o art. 26-A para incluir expressamente a história e cultura INDÍGENA, junto com a afro-brasileira."
+            },
+            {
+                id: 44,
+                topic: "Educação Infantil (Avaliação)",
+                text: "A respeito da Educação Infantil, assinale a alternativa que contraria as regras estipuladas no Art. 31 da LDB:",
+                options: [
+                    "A) A avaliação far-se-á mediante acompanhamento e registro do desenvolvimento das crianças.",
+                    "B) A avaliação na educação infantil tem o objetivo de selecionar os alunos aptos para a promoção ao ensino fundamental.",
+                    "C) A carga horária mínima anual é de 800 horas, distribuída por um mínimo de 200 dias de trabalho educacional.",
+                    "D) O atendimento à criança deve ser de, no mínimo, 4 horas diárias para o turno parcial.",
+                    "E) Exige-se o controle de frequência pela instituição de educação pré-escolar, com frequência mínima de 60%."
+                ],
+                correct: 1,
+                explanation: "Art. 31, inciso I. A avaliação na educação infantil é SEM o objetivo de promoção, mesmo para o acesso ao ensino fundamental."
+            },
+            {
+                id: 45,
+                topic: "Ensino Fundamental (Matrícula)",
+                text: "O Ensino Fundamental obrigatório, com duração de 9 (nove) anos, gratuito na escola pública, tem por objetivo a formação básica do cidadão. O ingresso inicia-se aos:",
+                options: [
+                    "A) 5 anos de idade.",
+                    "B) 6 anos de idade.",
+                    "C) 7 anos de idade.",
+                    "D) 4 anos de idade.",
+                    "E) 8 anos de idade."
+                ],
+                correct: 1,
+                explanation: "Art. 32. O ensino fundamental obrigatório, com duração de 9 (nove) anos, gratuito na escola pública, iniciando-se aos 6 (seis) anos de idade..."
+            },
+            {
+                id: 46,
+                topic: "Ensino Médio (Itinerários)",
+                text: "Com as recentes alterações da LDB (Novo Ensino Médio), o currículo do ensino médio será composto pela Base Nacional Comum Curricular e por itinerários formativos. Qual das alternativas abaixo NÃO corresponde a um itinerário formativo listado no Art. 36?",
+                options: [
+                    "A) Linguagens e suas tecnologias.",
+                    "B) Matemática e suas tecnologias.",
+                    "C) Ciências da natureza e suas tecnologias.",
+                    "D) Formação técnica e profissional.",
+                    "E) Ensino religioso e teologia aplicada."
+                ],
+                correct: 4,
+                explanation: "Art. 36. Os itinerários são: linguagens, matemática, ciências da natureza, ciências humanas e sociais aplicadas, e formação técnica e profissional. Ensino religioso não é itinerário."
+            },
+            {
+                id: 47,
+                topic: "Educação Profissional",
+                text: "A Educação Profissional Técnica de Nível Médio, quando oferecida na forma ARTICULADA com o ensino médio (Art. 36-C), pode ser de duas formas. Quais são elas?",
+                options: [
+                    "A) Integrada e Subsequente.",
+                    "B) Integrada e Concomitante.",
+                    "C) Concomitante e Subsequente.",
+                    "D) Integrada e Profissionalizante.",
+                    "E) Presencial e a Distância."
+                ],
+                correct: 1,
+                explanation: "Art. 36-C. A educação profissional técnica articulada com o ensino médio será: I - integrada (mesma instituição e matrícula única); II - concomitante (instituições distintas ou mesma instituição com matrículas distintas)."
+            },
+            {
+                id: 48,
+                topic: "EJA (Idades)",
+                text: "A Educação de Jovens e Adultos (EJA) terá cursos e exames supletivos. Analise as idades mínimas (Art. 38):\nI. Nível de conclusão do ensino fundamental: maiores de 15 anos.\nII. Nível de conclusão do ensino médio: maiores de 18 anos.\nIII. Nível de conclusão do ensino superior: maiores de 21 anos.\nEstão corretas as afirmativas:",
+                options: [
+                    "A) I e II apenas.",
+                    "B) I e III apenas.",
+                    "C) II e III apenas.",
+                    "D) Todas estão corretas.",
+                    "E) Apenas a I está correta."
+                ],
+                correct: 0,
+                explanation: "Art. 38, § 1º. Não há 'exame supletivo para nível superior' previsto nas idades do EJA na LDB. Apenas fundamental (15+) e médio (18+)."
+            },
+            {
+                id: 49,
+                topic: "Educação Especial",
+                text: "Em relação à Educação Especial (Art. 58 e 59), assinale a alternativa INCORRETA:",
+                options: [
+                    "A) Entende-se por educação especial a modalidade oferecida preferencialmente na rede regular de ensino.",
+                    "B) Haverá, quando necessário, serviços de apoio especializado, na escola regular, para atender às peculiaridades da clientela de educação especial.",
+                    "C) O atendimento educacional será feito em classes, escolas ou serviços especializados, sempre que as condições dos alunos não permitirem a integração nas classes comuns de ensino regular.",
+                    "D) O ensino especial tem início obrigatório a partir do Ensino Fundamental, não sendo aplicável à Educação Infantil.",
+                    "E) Os sistemas de ensino assegurarão currículos, métodos, técnicas e recursos educativos específicos para atender às necessidades desses educandos."
+                ],
+                correct: 3,
+                explanation: "Art. 58, § 3º. A oferta de educação especial, dever constitucional do Estado, tem início na EDUCAÇÃO INFANTIL (de 0 a 6 anos - redação original/atualizada)."
+            },
+            {
+                id: 50,
+                topic: "Educação Bilíngue de Surdos",
+                text: "O Art. 60-A trata da Educação Bilíngue de Surdos. Essa modalidade tem como primeira e segunda línguas, respectivamente:",
+                options: [
+                    "A) Língua Portuguesa escrita e Libras.",
+                    "B) Libras e Língua Portuguesa escrita.",
+                    "C) Libras e Inglês.",
+                    "D) Língua Portuguesa oral e Libras.",
+                    "E) Libras e Sistema Braille."
+                ],
+                correct: 1,
+                explanation: "Art. 60-A. Educação bilíngue de surdos... em que a Língua Brasileira de Sinais (Libras) seja considerada primeira língua e a língua portuguesa escrita seja considerada a segunda língua."
+            },
+            {
+                id: 51,
+                topic: "Profissionais da Educação",
+                text: "São considerados profissionais da educação escolar básica (Art. 61), EXCETO:",
+                options: [
+                    "A) Professores habilitados em nível médio ou superior para a docência.",
+                    "B) Trabalhadores com diploma de pedagogia, com habilitação em administração ou inspeção educacional.",
+                    "C) Trabalhadores com diploma de curso técnico ou superior em área pedagógica ou afim.",
+                    "D) Profissionais com notório saber para ministrar conteúdos exclusivamente na formação técnica e profissional do ensino médio.",
+                    "E) Pais de alunos que compõem a Associação de Pais e Mestres (APM), com poder de docência substitutiva."
+                ],
+                correct: 4,
+                explanation: "Art. 61. Pais de alunos não são categorizados legalmente como 'profissionais da educação' do quadro escolar, independentemente da APM."
+            },
+            {
+                id: 52,
+                topic: "Formação de Docentes",
+                text: "Segundo o Art. 62, a formação de docentes para atuar na educação básica far-se-á em nível superior, em curso de licenciatura plena. A LDB admite, como formação mínima para atuar na educação infantil e nos 5 primeiros anos do ensino fundamental:",
+                options: [
+                    "A) Formação em nível médio, na modalidade Normal.",
+                    "B) Qualquer diploma de nível médio concluído.",
+                    "C) Formação superior em bacharelado sem complementação pedagógica.",
+                    "D) Ensino Fundamental completo com notório saber.",
+                    "E) Apenas diploma de Pedagogia stricto sensu."
+                ],
+                correct: 0,
+                explanation: "Art. 62. '...admitida, como formação mínima para o exercício do magistério na educação infantil e nos 5 (cinco) primeiros anos do ensino fundamental, a oferecida em nível médio, na modalidade Normal.'"
+            },
+            {
+                id: 53,
+                topic: "Recursos Financeiros (MDE)",
+                text: "No que tange aos Recursos Financeiros, o Art. 69 define que a União aplicará, anualmente, nunca menos de X, e os Estados, o Distrito Federal e os Municípios Y, da receita resultante de impostos na manutenção e desenvolvimento do ensino. X e Y correspondem, respectivamente, a:",
+                options: [
+                    "A) 15% e 20%.",
+                    "B) 18% e 25%.",
+                    "C) 10% e 25%.",
+                    "D) 25% e 18%.",
+                    "E) 18% e 30%."
+                ],
+                correct: 1,
+                explanation: "Art. 69. A União aplicará, anualmente, nunca menos de dezoito por cento (18%), e os Estados, o Distrito Federal e os Municípios vinte e cinco por cento (25%)."
+            },
+            {
+                id: 54,
+                topic: "Despesas de Ensino (Art. 70)",
+                text: "Considerar-se-ão como despesas de manutenção e desenvolvimento do ensino as realizadas com vistas à consecução dos objetivos básicos das instituições educacionais de todos os níveis, compreendendo as que se destinam a, EXCETO:",
+                options: [
+                    "A) Remuneração e aperfeiçoamento do pessoal docente e demais profissionais da educação.",
+                    "B) Aquisição, manutenção, construção e conservação de instalações e equipamentos necessários ao ensino.",
+                    "C) Realização de atividades-meio necessárias ao funcionamento dos sistemas de ensino.",
+                    "D) Formação de quadros especiais para a administração pública, sejam militares ou civis, inclusive diplomáticos.",
+                    "E) Aquisição de material didático-escolar e manutenção de programas de transporte escolar."
+                ],
+                correct: 3,
+                explanation: "Art. 71, inciso III. Programas suplementares de formação para outras áreas do serviço público (militares, diplomas) NÃO são considerados despesas de MDE."
+            },
+            {
+                id: 55,
+                topic: "Não Constituem MDE (Art. 71)",
+                text: "NÃO constituirão despesas de manutenção e desenvolvimento do ensino as realizadas com:\nI. Pesquisa, quando não vinculada às instituições de ensino.\nII. Subvenção a instituições públicas de caráter puramente desportivo.\nIII. Programas suplementares de alimentação e assistência médico-odontológica, farmacêutica e psicológica.\nEstão corretas as afirmativas:",
+                options: [
+                    "A) I e II apenas.",
+                    "B) II e III apenas.",
+                    "C) I e III apenas.",
+                    "D) I, II e III.",
+                    "E) Nenhuma das alternativas."
+                ],
+                correct: 3,
+                explanation: "Art. 71, incisos I, IV e IV. Todas essas despesas são expressamente proibidas de serem contabilizadas como Manutenção e Desenvolvimento do Ensino (MDE)."
+            },
+            {
+                id: 56,
+                topic: "Transporte Escolar (Rateio)",
+                text: "A LDB estipula que o transporte escolar é dividido entre os entes federados. Sobre isso é correto afirmar que:",
+                options: [
+                    "A) A União é responsável pelo transporte escolar de todos os alunos da rede pública.",
+                    "B) Os Estados assumem o transporte da rede municipal e os Municípios da rede estadual.",
+                    "C) O Estado assume o transporte dos alunos da rede estadual, e o Município assume o dos alunos da rede municipal.",
+                    "D) O Município é responsável exclusivo por todo o transporte escolar em sua jurisdição geográfica.",
+                    "E) O transporte escolar não é dever do Estado, sendo considerado programa suplementar pago pelos pais."
+                ],
+                correct: 2,
+                explanation: "Arts. 10 (inciso VII) e 11 (inciso VI). O Estado transporta a rede estadual e o Município a rede municipal."
+            },
+            {
+                id: 57,
+                topic: "Atendimento Especializado",
+                text: "De acordo com o Art. 59, os sistemas de ensino assegurarão aos educandos com deficiência, transtornos globais do desenvolvimento e altas habilidades, EXCETO:",
+                options: [
+                    "A) Currículos, métodos, técnicas e recursos educativos específicos.",
+                    "B) Terminalidade específica para aqueles que não puderem atingir o nível exigido para a conclusão do ensino fundamental.",
+                    "C) Aceleração para concluir em menor tempo o programa escolar para os superdotados.",
+                    "D) Professores com especialização adequada em nível médio ou superior, para atendimento especializado, bem como professores do ensino regular capacitados para a integração.",
+                    "E) Certificação automática de conclusão do ensino médio ao completar 18 anos, independentemente do aproveitamento."
+                ],
+                correct: 4,
+                explanation: "Art. 59. Não existe previsão legal na LDB de 'certificação automática' por idade para alunos da educação especial."
+            },
+            {
+                id: 58,
+                topic: "Frequência vs Aprovação",
+                text: "Sobre o controle de frequência e aprovação no ensino fundamental e médio (Art. 24), analise:\nI. A carga horária mínima anual é de 800 horas.\nII. A frequência mínima exigida para aprovação é de 75% do total de horas letivas.\nIII. O aluno com excelente rendimento escolar, porém com frequência de 50%, deve ser aprovado pelo Conselho de Classe.\nAssinale a opção correta:",
+                options: [
+                    "A) Somente I está correta.",
+                    "B) Somente II está correta.",
+                    "C) I e II estão corretas.",
+                    "D) II e III estão corretas.",
+                    "E) I, II e III estão corretas."
+                ],
+                correct: 2,
+                explanation: "Art. 24, I e VI. A afirmativa III é falsa pois a frequência de 75% é critério legal obrigatório para aprovação (exceto em regimes EAD específicos ou compensações de ausência autorizadas em lei, mas não por deliberação arbitrária do conselho para 50%)."
+            },
+            {
+                id: 59,
+                topic: "Educação Infantil (Múltipla Escolha)",
+                text: "De acordo com a LDB, a Educação Infantil será organizada de acordo com as seguintes regras comuns, EXCETO:",
+                options: [
+                    "A) Avaliação mediante acompanhamento e registro do desenvolvimento das crianças, sem o objetivo de promoção.",
+                    "B) Carga horária mínima anual de 800 horas, distribuída por um mínimo de 200 dias de trabalho educacional.",
+                    "C) Atendimento à criança de, no mínimo, 4 horas diárias para o turno parcial e de 7 horas para a jornada integral.",
+                    "D) Controle de frequência pela instituição pré-escolar, exigida a frequência mínima de 75% do total de horas.",
+                    "E) Frequência mínima de 60% do total de horas para crianças da pré-escola."
+                ],
+                correct: 3,
+                explanation: "Art. 31, IV. A exigência de frequência mínima na pré-escola é de sessenta por cento (60%), e não 75% (regra do ensino fundamental/médio)."
+            },
+            {
+                id: 60,
+                topic: "Ensino a Distância",
+                text: "Sobre o ensino a distância (EaD) na Educação Básica, conforme o Art. 32, § 4º, é correto afirmar:",
+                options: [
+                    "A) O ensino fundamental será presencial, sendo o ensino a distância utilizado como complementação da aprendizagem ou em situações emergenciais.",
+                    "B) O ensino médio noturno deve ser ofertado prioritariamente na modalidade a distância.",
+                    "C) A Educação Infantil permite 50% de sua carga horária na modalidade EaD.",
+                    "D) A União proíbe qualquer tipo de EaD para jovens menores de 18 anos.",
+                    "E) O ensino a distância na educação básica é regido por leis estaduais próprias, sem supervisão da União."
+                ],
+                correct: 0,
+                explanation: "Art. 32, § 4º. O ensino fundamental será presencial, podendo o EAD ser usado como complementação ou situação de emergência."
             }
         ];
 
@@ -641,21 +1051,78 @@
 
         let userHistory = {
             sessions: [], // { date, score, total }
-            topicStats: {} // { "TopicName": { correct: 0, total: 0 } }
+            topicStats: {}, // { "TopicName": { correct: 0, total: 0 } }
+            correctQuestions: [] // NOVO: Guarda IDs das questões acertadas (Sistema Adaptativo)
         };
 
         // --- INIT ---
         window.onload = () => {
-            initSession();
+            // Inicializa array de acertos caso seja um usuário sem esse campo
+            if (!userHistory.correctQuestions) userHistory.correctQuestions = [];
+            
             renderChartCurrent();
             renderChartHistory();
             updateSWOT();
+            updateMasteryUI();
+            updateStartScreenUI();
+            
+            // Inicia na aba Dashboard (Tela Inicial)
+            switchTab('dashboard');
         };
 
-        function initSession() {
-            // Shuffle and pick 30
-            const shuffled = [...questionBank].sort(() => 0.5 - Math.random());
-            currentSession.questions = shuffled.slice(0, 30);
+        function updateStartScreenUI() {
+            const available = questionBank.length - (userHistory.correctQuestions ? userHistory.correctQuestions.length : 0);
+            const summaryEl = document.getElementById("start-summary");
+            if (summaryEl) {
+                summaryEl.innerHTML = `Você possui <span class="font-bold text-blue-600">${available}</span> questões não dominadas para o seu próximo simulado.`;
+            }
+        }
+
+        function requestNewSimulation() {
+            if (!userHistory.correctQuestions) userHistory.correctQuestions = [];
+            const availableQuestions = questionBank.filter(q => !userHistory.correctQuestions.includes(q.id));
+
+            // Se não houver questões suficientes (zero), exibe o modal
+            if (availableQuestions.length === 0) {
+                document.getElementById("reset-modal").classList.remove("hidden");
+            } else {
+                startSimulation(availableQuestions);
+            }
+        }
+
+        function confirmReset() {
+            // Reinicia todas as questões (classificadas como não usadas)
+            userHistory.correctQuestions = [];
+            document.getElementById("reset-modal").classList.add("hidden");
+            
+            updateMasteryUI();
+            updateStartScreenUI();
+            
+            // Inicia o simulado imediatamente com o banco completo
+            requestNewSimulation();
+        }
+
+        function cancelReset() {
+            document.getElementById("reset-modal").classList.add("hidden");
+            // Retorna à tela inicial (Dashboard)
+            switchTab('dashboard');
+            updateStartScreenUI();
+        }
+
+        function startSimulation(availableQuestions) {
+            // Muda para a aba simulado se não estiver lá
+            switchTab('simulado');
+
+            // Atualiza UI para mostrar o Quiz e ocultar a tela inicial da aba
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("quiz-container").classList.remove("hidden");
+            document.getElementById("progress-container").classList.remove("hidden");
+
+            // Embaralha e seleciona até 30
+            const shuffled = availableQuestions.sort(() => 0.5 - Math.random());
+            const numQuestions = Math.min(30, shuffled.length);
+            currentSession.questions = shuffled.slice(0, numQuestions);
+            
             currentSession.currentIndex = 0;
             currentSession.answers = {};
             currentSession.totalAnswered = 0;
@@ -664,11 +1131,12 @@
             loadQuestion(0);
             updateProgressBar();
             
-            // Reset UI
+            // Reset UI dos botões e feedback
             document.getElementById("btn-confirm").classList.remove("hidden");
             document.getElementById("btn-next").classList.add("hidden");
             document.getElementById("feedback-area").classList.add("hidden");
             resetChartCurrent();
+            updateMasteryUI();
         }
 
         // --- CORE QUIZ LOGIC ---
@@ -768,7 +1236,14 @@
 
             // Update State
             currentSession.totalAnswered++;
-            if (isCorrect) currentSession.totalCorrect++;
+            if (isCorrect) {
+                currentSession.totalCorrect++;
+                // Filtro Adaptativo: Registra a questão acertada
+                if (!userHistory.correctQuestions) userHistory.correctQuestions = [];
+                if (!userHistory.correctQuestions.includes(currentQ.id)) {
+                    userHistory.correctQuestions.push(currentQ.id);
+                }
+            }
             currentSession.answers[currentQ.id] = isCorrect;
 
             // Update Global Stats
@@ -776,6 +1251,7 @@
 
             // Update Dash UI
             updateDashboardUI();
+            updateMasteryUI();
 
             // Switch Buttons
             document.getElementById("btn-confirm").classList.add("hidden");
@@ -793,8 +1269,13 @@
                 // End of Session
                 alert(`Simulado Finalizado! Você acertou ${currentSession.totalCorrect} de ${currentSession.questions.length}.`);
                 saveSessionToHistory();
+                
+                // Limpa a UI de quiz e volta para a tela inicial
+                document.getElementById("quiz-container").classList.add("hidden");
+                document.getElementById("progress-container").classList.add("hidden");
+                updateStartScreenUI();
+                
                 switchTab('dashboard');
-                // Ideally prompt to restart
             }
         }
 
@@ -804,6 +1285,15 @@
         }
 
         // --- ANALYTICS & DASHBOARD ---
+
+        function updateMasteryUI() {
+            const totalBank = questionBank.length;
+            const mastered = userHistory.correctQuestions ? userHistory.correctQuestions.length : 0;
+            const dashTotalEl = document.getElementById("dash-bank-mastery");
+            if(dashTotalEl) {
+                dashTotalEl.innerText = `${mastered} de ${totalBank} questões dominadas (Banco)`;
+            }
+        }
 
         function updateHistoryStats(topic, isCorrect) {
             if (!userHistory.topicStats[topic]) {
@@ -956,14 +1446,19 @@
                 
                 // Validate structure roughly
                 if (!parsed.sessions || !parsed.topicStats) throw new Error("Formato inválido");
+                
+                // Adiciona suporte a arquivos antigos exportados antes da atualização
+                if (!parsed.correctQuestions) parsed.correctQuestions = [];
 
                 userHistory = parsed;
                 msg.innerText = "Dados carregados com sucesso!";
                 msg.className = "text-xs mt-2 text-center h-4 font-bold text-green-600";
                 
-                // Refresh Charts
+                // Refresh Charts & UI
                 renderChartHistory();
                 updateSWOT();
+                updateMasteryUI();
+                updateStartScreenUI();
                 alert("Histórico recuperado com sucesso!");
                 
             } catch (e) {
