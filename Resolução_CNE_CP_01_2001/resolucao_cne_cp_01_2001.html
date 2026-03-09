@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Simulador Adaptativo SEC/BA - IBFC</title>
+    <!-- <style>
+        
+    </style> -->
+</head>
+<body>
+
+    <!-- SIDEBAR DE NAVEGAÇÃO -->
+    <nav class="sidebar">
+        <h2><a href="../raiz/index.html">SEC/BA Simulador</a></h2>
+        <button class="nav-btn active" onclick="navigate('home')">🏠 Início</button>
+        <button class="nav-btn" onclick="navigate('simulado')">📝 Simulado</button>
+        <button class="nav-btn" onclick="navigate('dashboard')">📊 Dashboard</button>
+        <button class="nav-btn" onclick="navigate('salvar')">💾 Dados (JSON)</button>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+        
+        <!-- PÁGINA: HOME -->
+        <section id="home" class="page active">
+            <div class="card" style="text-align: center; padding: 50px 20px;">
+                <h1 style="color: var(--primary); margin-bottom: 15px;">Simulador Adaptativo IBFC</h1>
+                <p style="color: var(--text-muted); margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                    Foco exclusivo na <strong>Resolução CNE/CP 01/2021</strong>. O algoritmo prioriza as questões que tem maior dificuldade, garantindo um estudo de alta eficiência para a SEC/BA.
+                </p>
+                
+                <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 40px; flex-wrap: wrap;">
+                    <div style="background: #e0f2fe; padding: 20px; border-radius: var(--radius); width: 200px;">
+                        <div style="font-size: 2rem; color: var(--secondary); font-weight: bold;" id="home-total-answered">0</div>
+                        <div style="font-size: 0.9rem; color: var(--text-muted);">Questões Resolvidas</div>
+                    </div>
+                    <div style="background: #f0fdf4; padding: 20px; border-radius: var(--radius); width: 200px;">
+                        <div style="font-size: 2rem; color: var(--success); font-weight: bold;" id="home-accuracy">0%</div>
+                        <div style="font-size: 0.9rem; color: var(--text-muted);">Precisão Global</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success" style="font-size: 1.2rem; padding: 15px 40px;" onclick="initSimuladoSession()">
+                    ▶ Iniciar Novo Ciclo (20 Questões)
+                </button>
+            </div>
+        </section>
+
+        <!-- PÁGINA: SIMULADO -->
+        <section id="simulado" class="page">
+            <div class="card" id="simulado-container">
+                <!-- Status da Sessão -->
+                <div class="question-header">
+                    <span id="session-progress">Questão 1 de 20</span>
+                    <span id="question-topic" style="font-weight: 600; color: var(--primary);">Tópico</span>
+                </div>
+                
+                <!-- Enunciado -->
+                <div class="question-statement" id="question-text">
+                    Carregando questão...
+                </div>
+                
+                <!-- Alternativas -->
+                <ul class="options-list" id="options-container">
+                    <!-- Geradas dinamicamente via JS -->
+                </ul>
+
+                <!-- Ações -->
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                    <button class="btn" id="btn-submit-answer" onclick="checkAnswer()">Confirmar Resposta</button>
+                    <button class="btn btn-secondary" id="btn-next-question" style="display: none;" onclick="nextQuestion()">Próxima Questão ➔</button>
+                </div>
+
+                <!-- Feedback Comentado -->
+                <div class="feedback-box" id="feedback-container">
+                    <div class="feedback-title" id="feedback-title">Resultado</div>
+                    <p id="feedback-text">Comentário da questão aparecerá aqui.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- PÁGINA: DASHBOARD -->
+        <section id="dashboard" class="page">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Desempenho Geral</h2>
+                <div class="dashboard-grid">
+                    <!-- Gráfico Geral -->
+                    <div class="stat-card">
+                        <h3>Taxa de Acerto</h3>
+                        <div class="chart-container">
+                            <div class="donut-chart" id="main-chart" style="--p: 0%;">
+                                <div class="donut-inner">
+                                    <span id="chart-percentage">0%</span>
+                                    <span>Acertos</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;" id="chart-details">0 Corretas / 0 Erradas</p>
+                    </div>
+
+                    <!-- Resumo -->
+                    <div class="stat-card" style="display: flex; flex-direction: column; justify-content: center; gap: 20px;">
+                        <div style="background: var(--bg-color); padding: 15px; border-radius: var(--radius); border-left: 4px solid var(--secondary);">
+                            <h4 style="margin-bottom: 5px;">Progresso do Edital</h4>
+                            <p id="edital-progress">0 de 80 questões exploradas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matriz SWOT / Desempenho por Tópico -->
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Análise Diagnóstica (Por Tópicos)</h2>
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
+                    O algoritmo classifica os seus <strong>Pontos Fortes</strong> (≥ 80% de acerto) e <strong>Pontos de Atenção</strong> (< 60% de acerto).
+                </p>
+                <div class="swot-grid">
+                    <div class="swot-box swot-strong">
+                        <h4>🎯 Pontos Fortes (>80%)</h4>
+                        <ul class="swot-list" id="swot-fortes">
+                            <li>Sem dados suficientes.</li>
+                        </ul>
+                    </div>
+                    <div class="swot-box swot-weak">
+                        <h4>⚠️ Pontos de Atenção (<60%)</h4>
+                        <ul class="swot-list" id="swot-fracos">
+                            <li>Sem dados suficientes.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PÁGINA: SALVAR/CARREGAR DADOS -->
+        <section id="salvar" class="page">
+            <div class="card">
+                <h2 style="margin-bottom: 15px;">Persistência de Dados (Offline)</h2>
+                <p style="margin-bottom: 20px; color: var(--text-muted); line-height: 1.5;">
+                    Para guardar o seu progresso ou transferir para outro dispositivo, copie o código gerado abaixo. 
+                    Para restaurar os seus dados, cole o código previamente salvo e clique em "Importar".
+                </p>
+                
+                <textarea id="data-io" placeholder="Cole aqui o seu código JSON para restaurar os dados..."></textarea>
+                
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn" onclick="exportData()">📤 Gerar Código (Exportar)</button>
+                    <button class="btn btn-outline" onclick="importData()">📥 Importar Código</button>
+                    <button class="btn btn-danger" onclick="promptClearData()" style="margin-left: auto;">🗑 Apagar Histórico</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL CUSTOMIZADO (Sistema de Avisos) -->
+    <div class="modal-overlay" id="custom-modal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="modal-title">Aviso</h3>
+            <p class="modal-message" id="modal-msg">Mensagem do modal</p>
+            <div class="modal-actions" id="modal-buttons">
+                <!-- Botões gerados via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS / LÓGICA DA APLICAÇÃO -->
+   <!--  <script>
+    
+    </script>-->
+    
+    <script src="script.js" ></script>
+</body>
+</html>
