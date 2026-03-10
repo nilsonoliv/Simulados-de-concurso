@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo IBFC - SEC/BA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+
+        /* Estilização da barra de rolagem */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+        /* Gráfico de rosca em CSS puro (Dashboard) */
+        .chart-container {
+            position: relative; width: 160px; height: 160px; border-radius: 50%;
+            background: conic-gradient(var(--chart-color, #4f46e5) var(--p, 0%), #e5e7eb 0deg);
+            display: flex; align-items: center; justify-content: center; box-shadow: inset 0px 0px 10px rgba(0,0,0,0.05);
+        }
+        .chart-inner {
+            width: 120px; height: 120px; background-color: #ffffff; border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        /* Animações e transições de interface */
+        .option-label { transition: all 0.2s; cursor: pointer; }
+        .option-radio:checked + .option-content { border-color: #4f46e5; background-color: #eef2ff; }
+        .correct-answer { border-color: #10b981 !important; background-color: #d1fae5 !important; }
+        .wrong-answer { border-color: #ef4444 !important; background-color: #fee2e2 !important; }
+
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- MENU LATERAL (Sidebar) -->
+    <nav class="bg-indigo-900 text-white w-full md:w-64 flex-shrink-0 flex flex-col shadow-xl z-10">
+        <div class="p-6">
+            <h1 class="text-xl font-bold tracking-tight"><a href="../raiz/index.html" class="text-white hover:text-indigo-300">SEC/BA Simulado</a></h1>
+            <p class="text-indigo-300 text-xs mt-1">Lei 13.182/14 & Res. 03/2025</p>
+        </div>
+        <div class="flex md:flex-col overflow-x-auto md:overflow-visible px-4 md:px-0 gap-2 md:gap-0 pb-2 md:pb-0">
+            <button onclick="mudarAba('simulado')" id="tab-simulado" class="tab-btn w-full text-left px-6 py-3 hover:bg-indigo-800 transition-colors bg-indigo-800 border-l-4 border-indigo-400 font-medium whitespace-nowrap">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg> Treinamento
+            </button>
+            <button onclick="mudarAba('dashboard')" id="tab-dashboard" class="tab-btn w-full text-left px-6 py-3 hover:bg-indigo-800 transition-colors border-l-4 border-transparent text-indigo-200 whitespace-nowrap">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg> Dashboard
+            </button>
+            <button onclick="mudarAba('dados')" id="tab-dados" class="tab-btn w-full text-left px-6 py-3 hover:bg-indigo-800 transition-colors border-l-4 border-transparent text-indigo-200 whitespace-nowrap">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Backup de Dados
+            </button>
+        </div>
+        <div class="mt-auto p-6 hidden md:block">
+            <div class="bg-indigo-800 p-4 rounded-lg">
+                <p class="text-xs text-indigo-200 uppercase font-semibold">Filtro Inteligente</p>
+                <p class="text-xs mt-1 text-indigo-100">Foco total nas questões erradas e nas inéditas (não respondidas).</p>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 relative">
+        
+        <!-- TELA 1: SIMULADO -->
+        <section id="view-simulado" class="max-w-4xl mx-auto hidden">
+            <!-- Setup do Ciclo -->
+            <div id="cycle-setup" class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Novo Ciclo de Treinamento</h2>
+                <p class="text-gray-600 mb-8 max-w-lg mx-auto">O filtro adaptativo isolará 20 questões. Serão priorizadas as questões que você <strong>errou</strong> e as que <strong>ainda não respondeu</strong>.</p>
+                <button onclick="tentarIniciarCiclo()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    Iniciar Ciclo IBFC
+                </button>
+            </div>
+
+            <!-- Área da Questão -->
+            <div id="question-container" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="bg-indigo-100 text-indigo-800 text-sm font-semibold px-3 py-1 rounded-full" id="q-topic">Tópico</span>
+                    <span class="text-sm font-medium text-gray-500" id="q-progress">Questão 1 de 20</span>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8 mb-6">
+                    <p class="text-lg text-gray-800 mb-6 font-medium leading-relaxed" id="q-text">Texto da questão</p>
+                    <div class="space-y-3" id="q-options"></div>
+                </div>
+
+                <div id="feedback-container" class="hidden bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 border-l-4">
+                    <h3 class="text-lg font-bold mb-2 flex items-center" id="feedback-title"></h3>
+                    <p class="text-gray-700 text-sm leading-relaxed" id="feedback-comment"></p>
+                </div>
+
+                <div class="flex justify-end mt-4">
+                    <button id="btn-confirm" onclick="confirmarResposta()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow disabled:opacity-50 disabled:cursor-not-allowed">
+                        Confirmar Resposta
+                    </button>
+                    <button id="btn-next" onclick="avancarQuestao()" class="hidden bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg shadow">
+                        Próxima Questão &#8594;
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA 2: DASHBOARD -->
+        <section id="view-dashboard" class="max-w-6xl mx-auto hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Métricas de Desempenho</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-6">Aproveitamento</h3>
+                    <div class="chart-container" id="main-chart" style="--p: 0%; --chart-color: #4f46e5;">
+                        <div class="chart-inner">
+                            <span class="text-3xl font-bold text-gray-800" id="main-percentage">0%</span>
+                            <span class="text-xs text-gray-500 mt-1" id="main-fraction">0/0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center space-y-6 md:col-span-2">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="text-sm text-gray-500 font-medium">Questões Resolvidas</p>
+                            <p class="text-2xl font-bold text-gray-800" id="stat-total">0</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="text-sm text-gray-500 font-medium">Ciclos Concluídos</p>
+                            <p class="text-2xl font-bold text-gray-800" id="stat-cycles">0</p>
+                        </div>
+                        <div class="p-4 bg-green-50 rounded-lg border border-green-100">
+                            <p class="text-sm text-green-600 font-medium">Acertos</p>
+                            <p class="text-2xl font-bold text-green-700" id="stat-correct">0</p>
+                        </div>
+                        <div class="p-4 bg-red-50 rounded-lg border border-red-100">
+                            <p class="text-sm text-red-600 font-medium">Erros (Foco)</p>
+                            <p class="text-2xl font-bold text-red-700" id="stat-wrong">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA 3: DADOS -->
+        <section id="view-dados" class="max-w-3xl mx-auto hidden">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Persistência de Dados</h2>
+                <p class="text-gray-600 mb-8 text-sm">Exporte ou importe seu progresso para continuar estudando em outro dispositivo.</p>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Código JSON (Backup)</label>
+                    <textarea id="json-data" rows="8" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-700 bg-gray-50" placeholder="Cole aqui seu código de backup..."></textarea>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="exportarDados()" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-lg flex justify-center items-center">Gerar Backup</button>
+                    <button onclick="importarDados()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg flex justify-center items-center">Restaurar Dados</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL CUSTOMIZADO (Bug corrigido: Removida a classe opacity-0 para garantir visibilidade) -->
+    <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm" onclick="fecharModal()"></div>
+        <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8 max-w-sm w-full mx-4 relative z-10 transform transition-all" id="modal-content">
+            <div id="modal-icon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4"></div>
+            <h3 class="text-lg font-bold text-gray-900 text-center mb-2" id="modal-title">Título</h3>
+            <p class="text-sm text-gray-600 text-center mb-6" id="modal-message">Mensagem.</p>
+            <div class="flex gap-3 justify-center" id="modal-actions"></div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS - ORGANIZADOS E COMENTADOS -->
+    <script>
+        // =========================================================================
+        // 1. BANCO DE QUESTÕES
+        // =========================================================================
+        
+        // ---> COLE AQUI A VARIÁVEL const questionBank = [ ... ]; COM AS SUAS QUESTÕES <---
+        // Substitua a linha abaixo pelo seu bloco completo de questões que está no VS Code.
+        const questionBank = [
+                        // --- Lei 13.182/2014 ---
+            { id: 1, topic: 'Disposições Preliminares', text: 'Segundo o Art. 2º da Lei nº 13.182/2014, é dever do Estado garantir a igualdade de oportunidades nas esferas:', options: ['A) Política, econômica, empresarial e cultural.', 'B) Política, econômica, social e cultural.', 'C) Política, social, esportiva e religiosa.', 'D) Exclusivamente econômica e cultural.', 'E) Política, religiosa e filantrópica.'], answer: 1, comment: 'Gabarito B. Participação nas esferas política, econômica, social e cultural.' },
+            { id: 2, topic: 'Disposições Preliminares', text: 'Para efeitos do Estatuto da Igualdade Racial, considera-se "população negra":', options: ['A) Apenas as pessoas pretas.', 'B) Pessoas com ascendência comprovada.', 'C) O conjunto de pessoas que se autodeclaram pretas e pardas.', 'D) Todo baiano.', 'E) Comunidades quilombolas.'], answer: 2, comment: 'Gabarito C. Pretos e pardos.' },
+            { id: 3, topic: 'Saúde', text: 'Qual destas NÃO é uma diretriz de saúde na Lei 13.182/14?', options: ['A) Fomento a pesquisas.', 'B) Privatização do atendimento às doenças falciformes.', 'C) Quesito cor nos formulários.', 'D) Saúde integral da mulher negra.', 'E) Valorização de práticas tradicionais.'], answer: 1, comment: 'Gabarito B. Privatização não é diretriz. O foco é no SUS.' },
+            { id: 4, topic: 'Educação', text: 'Conforme o Art. 12, o ensino de História da África é:', options: ['A) Facultativo no fundamental.', 'B) Obrigatório no fundamental e médio, públicos e privados.', 'C) Obrigatório só na rede pública.', 'D) Extracurricular.', 'E) Só no ensino superior.'], answer: 1, comment: 'Gabarito B. Obrigatório em ambas as redes, fundamental e médio.' },
+            { id: 5, topic: 'Trabalho', text: 'Para contratação de estagiários na Administração Estadual, o percentual mínimo reservado para a população negra é:', options: ['A) 10%', 'B) 20%', 'C) 30%', 'D) 40%', 'E) 50%'], answer: 2, comment: 'Gabarito C. 30% para estágios.' },
+            { id: 6, topic: 'Financiamento', text: 'Fundo específico para as políticas de igualdade racial:', options: ['A) FECR.', 'B) Fundo de Promoção da Igualdade Racial.', 'C) FUNCEP.', 'D) Fundo de Proteção Social.', 'E) Fundo Histórico.'], answer: 1, comment: 'Gabarito B. Fundo de Promoção da Igualdade Racial.' },
+            { id: 7, topic: 'Intolerância Religiosa', text: 'O Estado deve garantir proteção aos locais de culto, sendo expresso:', options: ['A) Exclusão de símbolos afro.', 'B) Livre exercício de cultos de matriz africana.', 'C) Cadastro em delegacias.', 'D) Restrição de horários.', 'E) Fiscalização policial prévia.'], answer: 1, comment: 'Gabarito B. Proteção e liberdade aos cultos de matriz africana.' },
+            { id: 8, topic: 'Acesso à Terra', text: 'Sobre os quilombos, o Estado da Bahia:', options: ['A) Indenizará e realocará.', 'B) Concederá uso precário.', 'C) Reconhecerá propriedade definitiva emitindo títulos.', 'D) Desapropriará para reforma agrária.', 'E) Manterá a terra como pública.'], answer: 2, comment: 'Gabarito C. Reconhecimento de propriedade definitiva.' },
+            { id: 9, topic: 'Comunicação', text: 'Em peças publicitárias do Estado, a população negra deve participar:', options: ['A) Exclusivamente.', 'B) Proporcionalmente à sua representatividade no Estado.', 'C) Mínimo de 10%.', 'D) Só no Dia da Consciência.', 'E) Minoritariamente.'], answer: 1, comment: 'Gabarito B. Participação proporcional.' },
+            { id: 10, topic: 'Concursos', text: 'Percentual de cotas em concursos da Administração Estadual da Bahia:', options: ['A) 10%', 'B) 20%', 'C) 30%', 'D) 40%', 'E) 50%'], answer: 2, comment: 'Gabarito C. 30% para concursos públicos no Estado.' },
+            { id: 11, topic: 'Ações Afirmativas', text: 'A Lei 13.182/14 define "ações afirmativas" como:', options: ['A) Punições aplicadas a empresas que praticam racismo institucional.', 'B) Programas e medidas especiais adotados pelo Estado e iniciativa privada para correção das desigualdades.', 'C) Cotas exclusivas para o setor privado.', 'D) Ações judiciais de reparação por danos morais.', 'E) Doações filantrópicas obrigatórias.'], answer: 1, comment: 'Gabarito B. Definição literal de ações afirmativas contida no Art. 3º, VI.' },
+            { id: 12, topic: 'Educação - Livros Didáticos', text: 'De acordo com o Estatuto da Igualdade Racial (BA), no tocante aos materiais didáticos, o Estado deve:', options: ['A) Adotar materiais importados padronizados.', 'B) Proibir a circulação de livros com temática religiosa nas escolas públicas.', 'C) Fomentar a produção de material didático-pedagógico que valorize a cultura e religiosidade de matriz africana.', 'D) Retirar a história europeia da matriz curricular.', 'E) Exigir que a família custeie os materiais específicos.'], answer: 2, comment: 'Gabarito C. Fomento a materiais que promovam a diversidade e quebrem estereótipos.' },
+            { id: 13, topic: 'Mercado de Trabalho', text: 'Sobre as políticas de trabalho e emprego, analise (V) ou (F): ( ) O Estado deve criar programas de capacitação técnica. ( ) É proibido o fomento ao empreendedorismo negro. ( ) A inserção da mulher negra no mercado de trabalho formal deve ser priorizada.', options: ['A) V, F, V.', 'B) V, V, F.', 'C) F, F, V.', 'D) V, F, F.', 'E) F, V, V.'], answer: 0, comment: 'Gabarito A. (V) Fomento a capacitação. (F) O empreendedorismo deve ser estimulado (microempreendedores). (V) Mulher negra tem atenção especial.' },
+            { id: 14, topic: 'Cultura e Patrimônio', text: 'A Capoeira e o seu ofício de mestre, no Estado da Bahia, são legalmente reconhecidos como:', options: ['A) Esporte de combate proibido em ambiente escolar.', 'B) Manifestação cultural afro-brasileira e patrimônio cultural imaterial.', 'C) Patrimônio material do Governo Federal exclusivo.', 'D) Manifestação lúdica sem vínculo histórico.', 'E) Prática paramilitar extinta.'], answer: 1, comment: 'Gabarito B. Reconhecida no Art. 21 como patrimônio imaterial da Bahia.' },
+            { id: 15, topic: 'Segurança Pública', text: 'No combate ao racismo institucional nas abordagens policiais, o Estado promoverá:', options: ['A) A criação de batalhões compostos apenas por negros.', 'B) A isenção de investigação para agentes públicos em serviço.', 'C) A capacitação em Relações Raciais e Direitos Humanos para os servidores da segurança pública.', 'D) O fim do patrulhamento em bairros periféricos.', 'E) A substituição da polícia militar pela polícia civil.'], answer: 2, comment: 'Gabarito C. A capacitação em direitos humanos e diversidade é diretriz permanente na segurança (Art. 48).' },
+            { id: 16, topic: 'Gestão Democrática', text: 'A formulação e avaliação das políticas de promoção da igualdade racial na Bahia devem contar com:', options: ['A) Decisão unilateral do Governador.', 'B) A participação exclusiva de ONGs internacionais.', 'C) A participação da sociedade civil, garantindo o controle social.', 'D) Votação popular no legislativo para cada projeto.', 'E) Avaliação sigilosa do Ministério Público.'], answer: 2, comment: 'Gabarito C. O princípio da gestão democrática exige a participação e o controle social.' },
+            { id: 17, topic: 'Doença Falciforme', text: 'A Lei 13.182/14 cita nominalmente uma doença genética com prevalência na população negra, garantindo atenção integral. Qual é a doença?', options: ['A) Malária.', 'B) Febre Amarela.', 'C) Doença Falciforme.', 'D) Hanseníase.', 'E) Diabetes Tipo 1.'], answer: 2, comment: 'Gabarito C. A Doença Falciforme tem alta incidência e possui diretrizes específicas no Estatuto.' },
+            { id: 18, topic: 'Esporte e Lazer', text: 'A política estadual de esporte voltada à população negra tem como principal objetivo:', options: ['A) O alto rendimento olímpico internacional.', 'B) A inclusão social e a valorização da identidade cultural afro-brasileira.', 'C) A segregação de modalidades por grupo étnico.', 'D) A privatização dos estádios de futebol.', 'E) Apenas o lazer de crianças até 12 anos.'], answer: 1, comment: 'Gabarito B. Foco na inclusão social e afirmação identitária.' },
+            { id: 19, topic: 'Direitos da Mulher Negra', text: 'O Estatuto adota uma visão "interseccional", definindo expressamente a assimetria que acentua a distância social baseada em:', options: ['A) Idade e Escolaridade.', 'B) Desigualdade de Gênero e Raça.', 'C) Renda e Localização geográfica.', 'D) Religião e Profissão.', 'E) Estado Civil e Orientação Sexual.'], answer: 1, comment: 'Gabarito B. O Art. 3º conceitua "desigualdade de gênero e raça", protegendo a mulher negra.' },
+            { id: 20, topic: 'Acesso à Habitação', text: 'Nos programas habitacionais promovidos pelo Estado da Bahia, quem terá atenção especial?', options: ['A) Mulheres negras chefes de família.', 'B) Servidores públicos estaduais efetivos.', 'C) Apenas idosos com mais de 70 anos.', 'D) Famílias com renda superior a 10 salários.', 'E) Homens solteiros recém-empregados.'], answer: 0, comment: 'Gabarito A. Atenção especial à mulher negra provedora e chefe de família.' },
+
+            // --- Resolução 03/2025 ---
+            { id: 21, topic: 'Res. 03/2025 - Matrícula', text: 'A Res. 03/2025 (SEC/BA) disciplina a matrícula. Analise (V) ou (F): ( ) Vedada recusa por falta de documento. ( ) Pode indeferir aluno especial sem laudo. ( ) Renovação é automática sem confirmação.', options: ['A) V, F, F.', 'B) V, V, F.', 'C) F, F, V.', 'D) V, F, V.', 'E) F, V, F.'], answer: 0, comment: 'Gabarito A. (V) Falta de documento não impede. (F) Proibido recusar por falta de laudo. (F) Renovação exige confirmação.' },
+            { id: 22, topic: 'Res. 03/2025 - Escrituração Escolar', text: 'Sobre escrituração escolar: I. Diário não admite rasura. II. Histórico só se emite no fim do Ensino Médio. III. Incineração independe de temporalidade. Estão corretas:', options: ['A) I, apenas.', 'B) I e II.', 'C) II e III.', 'D) I e III.', 'E) Todas.'], answer: 0, comment: 'Gabarito A. I está correta. II e III são falsas (histórico emite-se em transferências; descarte obedece tabela).' },
+            { id: 23, topic: 'Res. 03/2025 - Calendário Escolar', text: 'Assinale a alternativa INCORRETA sobre o calendário anual:', options: ['A) Mínimo de 200 dias letivos e 800 horas.', 'B) Dias de prova final contam como dias letivos.', 'C) Conselho participativo não conta se dispensar alunos.', 'D) Datas cívicas com atividade contam.', 'E) Jornada noturna pode ser flexibilizada.'], answer: 1, comment: 'Gabarito B. Dias de exames finais NÃO entram no cálculo de dias letivos (LDB).' },
+            { id: 24, topic: 'Res. 03/2025 - Frequência', text: 'Aluno solicitou abono de falta por motivo religioso. A escola deve:', options: ['A) Abonar incondicionalmente.', 'B) Informar que não há abono, mas oferecer prestação alternativa.', 'C) Abonar só com atestado do líder.', 'D) Reprovar automaticamente.', 'E) Diretor apagar a falta do sistema.'], answer: 1, comment: 'Gabarito B. Falta religiosa não é "abonada", o registro fica, mas recebe prestação alternativa (Lei 13.796/19).' },
+            { id: 25, topic: 'Res. 03/2025 - Transferência', text: 'Se o Histórico não ficar pronto na hora da transferência, a secretaria deve:', options: ['A) Reter o aluno.', 'B) Expedir Declaração Provisória de Transferência.', 'C) Esperar o ano seguinte.', 'D) Cobrar taxa de urgência.', 'E) Emitir só o Diário.'], answer: 1, comment: 'Gabarito B. Rotina padrão IBFC: emitir Declaração Provisória.' },
+            { id: 26, topic: 'Res. 03/2025 - EJA', text: 'Sobre a EJA: ( ) Idade mínima do Ensino Médio é 18 anos. ( ) Isento de controle de frequência. ( ) Avaliação reconhece saberes informais.', options: ['A) V, F, V.', 'B) V, V, F.', 'C) F, F, V.', 'D) V, F, F.', 'E) F, V, V.'], answer: 0, comment: 'Gabarito A. EM EJA exige 18 anos e tem controle de frequência (75%).' },
+            { id: 27, topic: 'Res. 03/2025 - Conselho de Classe', text: 'O Conselho de Classe na rede estadual:', options: ['A) Veda participação de estudantes.', 'B) É apenas um órgão homologatório sem poder de mudança.', 'C) Possui caráter consultivo e deliberativo, propondo intervenções pedagógicas.', 'D) Tem decisões irrecorríveis.', 'E) Reúne-se apenas no último dia letivo.'], answer: 2, comment: 'Gabarito C. O Conselho analisa o processo pedagógico globalmente e delibera.' },
+            { id: 28, topic: 'Res. 03/2025 - Reclassificação', text: 'A Reclassificação de alunos NÃO ocorre em caso de:', options: ['A) Defasagem idade-série comprovada.', 'B) Avanço por altas habilidades/superdotação.', 'C) Transferência de aluno vindo de escola estrangeira não compatível.', 'D) Aluno reprovado que apresenta atestado médico de 30 dias.', 'E) Avanço de aprendizagem demonstrado por avaliação específica do conselho.'], answer: 3, comment: 'Gabarito D. Atestado justifica ausência, não aprova automaticamente por reclassificação.' },
+            { id: 29, topic: 'Res. 03/2025 - Arquivo Escolar', text: 'A "Ficha Individual do Estudante" tem como finalidade primordial na escrituração:', options: ['A) Registrar a ocorrência de indisciplina em sala.', 'B) Consolidar os resultados de rendimento e frequência ao final de cada período letivo.', 'C) Substituir o Histórico Escolar em universidades.', 'D) Controlar o recebimento de merenda.', 'E) Servir de ata de reunião de pais.'], answer: 1, comment: 'Gabarito B. É o documento base que aglutina as notas anuais para futuro histórico.' },
+            { id: 30, topic: 'Res. 03/2025 - Avaliação', text: 'Conforme a regulamentação educacional, a avaliação escolar deve ter prevalência dos aspectos:', options: ['A) Quantitativos sobre os qualitativos.', 'B) Somativos do exame final sobre a aprendizagem contínua.', 'C) Qualitativos sobre os quantitativos e dos resultados ao longo do período sobre os de provas finais.', 'D) Punitivos para manter a disciplina em sala.', 'E) Classificatórios excludentes em detrimento do diagnóstico.'], answer: 2, comment: 'Gabarito C. Reprodução literal da Lei de Diretrizes e Bases e Resolução Estadual.' },
+            { id: 31, topic: 'Res. 03/2025 - Rotinas de Secretaria', text: 'A emissão de Histórico Escolar contendo rasuras, mesmo que rubricadas, é considerada:', options: ['A) Prática recomendada para economizar papel.', 'B) Procedimento padrão tolerado na rede pública.', 'C) Infração administrativa, pois documentos de fé pública que certificam escolaridade não admitem rasura ou corretivo líquido.', 'D) Correta, desde que feita com caneta vermelha.', 'E) Facultativa a depender da decisão do Diretor.'], answer: 2, comment: 'Gabarito C. Documento certificador rasurado perde a fé pública/validade.' },
+            { id: 32, topic: 'Res. 03/2025 - Inclusão Escolar', text: 'Ao receber um aluno com Deficiência Visual no ato da matrícula, o Técnico Administrativo deve:', options: ['A) Recusar a matrícula até que a escola tenha piso tátil e professores de Braille contratados.', 'B) Matricular o estudante compulsoriamente na modalidade EJA.', 'C) Efetivar a matrícula no ensino regular e acionar a coordenação para o Plano de Atendimento Educacional Especializado (AEE).', 'D) Exigir declaração de curatela judicial.', 'E) Cobrar taxa adicional para compra de material adaptado.'], answer: 2, comment: 'Gabarito C. A matrícula no ensino regular é incondicional. O AEE ocorre no contraturno.' },
+            { id: 33, topic: 'Res. 03/2025 - Gestão Democrática', text: 'Sobre o Projeto Político-Pedagógico (PPP), julgue (V) ou (F): ( ) Deve ser elaborado isoladamente pelo Diretor. ( ) Norteia a gestão administrativa, financeira e pedagógica da escola. ( ) Deve estar engavetado na secretaria em sigilo.', options: ['A) F, V, F.', 'B) V, V, F.', 'C) F, F, V.', 'D) V, F, F.', 'E) F, V, V.'], answer: 0, comment: 'Gabarito A. (F) É construído coletivamente. (V) Norteia a escola. (F) É público.' },
+            { id: 34, topic: 'Res. 03/2025 - Censo Escolar', text: 'A importância da exatidão dos dados inseridos no Sistema de Gestão Escolar (SGE) e exportados para o Censo Escolar reside no fato de que:', options: ['A) Define os nomes das ruas do bairro da escola.', 'B) Serve apenas para controle de férias dos professores.', 'C) Impacta diretamente o cálculo dos repasses de verbas federais (Fundeb, Merenda, Transporte) e formulação de políticas públicas.', 'D) Isenta a escola de realizar reuniões de pais.', 'E) Substitui a emissão física de certificados.'], answer: 2, comment: 'Gabarito C. O Censo Escolar rege o financiamento da educação básica no país.' },
+            { id: 35, topic: 'Res. 03/2025 - Nome Social', text: 'A Resolução garante o uso do Nome Social para estudantes travestis e transexuais. A secretaria deve adotar a seguinte postura:', options: ['A) Exigir que o estudante comprove cirurgia de redesignação sexual.', 'B) Utilizar o nome social nos registros rotineiros (diário de classe, boletim), mantendo o nome civil no histórico legal final.', 'C) Ignorar o pedido até a maioridade do aluno.', 'D) Impedir o uso de banheiros de acordo com a identidade de gênero.', 'E) Alterar definitivamente o nome civil no cartório à revelia da família.'], answer: 1, comment: 'Gabarito B. O Nome Social é usado na rotina acadêmica diária, preservando a dignidade.' },
+            { id: 36, topic: 'Res. 03/2025 - Classificação', text: 'Um adolescente sem escolaridade anterior comprovada busca matrícula. A escola deve aplicar o processo de:', options: ['A) Reclassificação Compulsória.', 'B) Progressão Parcial.', 'C) Classificação, mediante avaliação de competências, para posicioná-lo na série/etapa mais adequada ao seu desenvolvimento.', 'D) Transferência Ex Officio.', 'E) Matrícula exclusiva no 1º ano do Ensino Fundamental.'], answer: 2, comment: 'Gabarito C. Classificação (Art. 24 da LDB) serve exatamente para posicionar alunos sem documentação ou fora da idade regular.' },
+            { id: 37, topic: 'Res. 03/2025 - Progressão Parcial', text: 'O regime de Progressão Parcial (dependência) caracteriza-se por:', options: ['A) Reprovar o aluno em todas as matérias se ele perder em uma.', 'B) Permitir o avanço de série com disciplinas pendentes, respeitada a sequência curricular e o limite fixado no regimento.', 'C) Aprovação automática sem necessidade de repor as aulas perdidas.', 'D) Transferência compulsória para outra unidade escolar.', 'E) Redução da carga horária anual do aluno.'], answer: 1, comment: 'Gabarito B. É a popular "dependência", permitindo o avanço mediante cumprimento da pendência no contraturno.' },
+            { id: 38, topic: 'Res. 03/2025 - Arquivo Escolar (Temporalidade)', text: 'Documentos como pastas individuais, históricos emitidos, atas de resultados finais e livros de registro de certificados são considerados de guarda:', options: ['A) Temporária (1 ano).', 'B) Descartável após a informatização.', 'C) Permanente, não devendo ser incinerados ou descartados, pois compõem a vida funcional e acadêmica histórica.', 'D) Temporária (5 anos) para evitar acúmulo.', 'E) Facultativa, a depender da Direção.'], answer: 2, comment: 'Gabarito C. A vida escolar do cidadão possui guarda PERMANENTE segundo as leis de arquivo.' },
+            { id: 39, topic: 'Res. 03/2025 - Acesso de Informação', text: 'A luz da LGPD e das rotinas administrativas, se uma empresa de cursos pré-vestibulares pedir acesso à lista de contatos dos alunos formandos, o Técnico Administrativo deve:', options: ['A) Fornecer a lista para beneficiar os alunos.', 'B) Vender a lista e destinar os recursos à escola.', 'C) Negar o fornecimento, pois os dados pessoais dos estudantes são protegidos por lei e não podem ser compartilhados com terceiros sem consentimento específico.', 'D) Fornecer apenas os telefones residenciais.', 'E) Exigir que a empresa pague uma taxa no boleto do Estado.'], answer: 2, comment: 'Gabarito C. A proteção de dados (LGPD) e o ECA vedam o compartilhamento de dados de alunos para fins comerciais de terceiros.' },
+            { id: 40, topic: 'Res. 03/2025 - Certificação', text: 'O certificado de conclusão do Ensino Médio expedido por uma escola da rede estadual adquire fé pública e validade nacional através da aposição de:', options: ['A) Assinatura eletrônica não certificada do aluno.', 'B) Carimbo do grêmio estudantil.', 'C) Assinatura conjunta e identificação da autoridade escolar (Diretor) e do responsável pela escrituração (Secretário Escolar).', 'D) Selo holográfico do Ministério da Educação (MEC) importado.', 'E) Autenticação exclusiva em cartório eleitoral.'], answer: 2, comment: 'Gabarito C. A fé pública emana da chancela oficial (assinatura + carimbo identificatório) da direção e da secretaria da escola.' },
+           
+            // --- LEI 13.182/2014 (Fase Final - IDs 41 a 70) ---
+            { id: 41, topic: 'Saúde', text: 'No que tange ao direito à saúde da população negra, a Lei Estadual nº 13.182/14 prevê a obrigatoriedade da inclusão do quesito cor ou raça. Essa obrigatoriedade aplica-se:', options: ['A) Apenas aos atestados de óbito.', 'B) Exclusivamente aos formulários de triagem neonatal.', 'C) Em todos os formulários e registros de informação em saúde do Estado.', 'D) Apenas na rede de saúde privada.', 'E) De forma facultativa aos pacientes maiores de 18 anos.'], answer: 2, comment: 'Gabarito C. O Art. 6º, III, torna obrigatória a inclusão e o preenchimento do quesito cor/raça em todos os formulários dos sistemas de informação em saúde.' },
+            { id: 42, topic: 'Mercado de Trabalho', text: 'O Estatuto prevê o estímulo à contratação de jovens negros no mercado de trabalho. Analise as afirmativas: I. O Estado deve criar linhas de crédito exclusivas para jovens negros que queiram estudar no exterior. II. O Sistema Estadual de Emprego desenvolverá ações para promover a inclusão de jovens e mulheres negras no mercado formal. III. Fica assegurada aos jovens negros a reserva de, no mínimo, 30% das vagas de estágio na Administração Estadual. Estão corretas:', options: ['A) I e II.', 'B) II e III.', 'C) I e III.', 'D) Apenas II.', 'E) I, II e III.'], answer: 1, comment: 'Gabarito B. A afirmativa I é falsa (não há previsão de crédito para estudo no exterior na lei, o crédito foca no microempreendedor local). As afirmativas II e III são literais da lei (Arts. 38 e 42).' },
+            { id: 43, topic: 'Segurança Pública', text: 'Em relação às políticas de segurança pública e a atuação policial, a Lei 13.182/14 veda expressamente:', options: ['A) A abordagem de suspeitos em áreas quilombolas.', 'B) O patrulhamento noturno em locais de culto de matriz africana.', 'C) O uso de estereótipos raciais e preconceitos como critério de suspeição preventiva (perfilamento racial).', 'D) A prisão em flagrante de indivíduos autodeclarados negros sem autorização de um conselho.', 'E) O uso de algemas em qualquer cidadão.'], answer: 2, comment: 'Gabarito C. O Art. 48, II, veda o perfilamento racial, combatendo o racismo institucional nas abordagens.' },
+            { id: 44, topic: 'Comunicação', text: 'Sobre a participação da população negra nos meios de comunicação, julgue (V) ou (F): ( ) A Administração Pública Estadual exigirá das agências de publicidade o respeito à imagem da população negra, evitando estereótipos. ( ) É proibida a contratação de profissionais não negros em campanhas do Governo. ( ) A produção de peças publicitárias deve garantir a participação de negros proporcionalmente à sua representatividade na Bahia.', options: ['A) V, F, V.', 'B) V, V, F.', 'C) F, F, V.', 'D) V, F, F.', 'E) F, V, V.'], answer: 0, comment: 'Gabarito A. Não há proibição de profissionais não negros (F), mas sim a garantia de proporcionalidade (V) e respeito à imagem evitando estereótipos (V).' },
+            { id: 45, topic: 'Acesso à Terra', text: 'No âmbito da política de regularização fundiária, o Estado da Bahia reconhece a propriedade definitiva aos remanescentes das comunidades dos quilombos. Essa titulação tem a característica legal de ser:', options: ['A) Alienável após 5 anos.', 'B) Penhorável para o pagamento de dívidas rurais.', 'C) Inalienável, impenhorável e imprescritível.', 'D) Revogável a qualquer tempo pelo Governador.', 'E) Restrita apenas ao usufruto, pertencendo a terra ao Estado.'], answer: 2, comment: 'Gabarito C. Como garantia de proteção territorial, os títulos quilombolas são inalienáveis (não podem ser vendidos), impenhoráveis e imprescritíveis (Art. 30).' },
+            { id: 46, topic: 'Financiamento', text: 'A Lei 13.182/14 prevê um fundo para suportar financeiramente as ações de igualdade racial. Qual a fonte de recursos que NÃO é compatível com esse fundo?', options: ['A) Dotações orçamentárias anuais do Estado.', 'B) Doações e legados de pessoas físicas ou jurídicas.', 'C) Multas arrecadadas por infrações de trânsito em todo o Estado.', 'D) Repasses de convênios do Governo Federal.', 'E) Rendas oriundas da aplicação financeira de seus próprios recursos.'], answer: 2, comment: 'Gabarito C. Multas de trânsito não compõem, por lei, o Fundo de Promoção da Igualdade Racial. As demais são fontes válidas (Art. 54).' },
+            { id: 47, topic: 'Intolerância Religiosa', text: 'O Estatuto institui o mês da Consciência Negra e o Dia Estadual de Combate à Intolerância Religiosa. O enfrentamento à intolerância religiosa deve ser executado mediante atuação conjunta do Estado com:', options: ['A) O Tribunal de Justiça.', 'B) O Conselho de Desenvolvimento da Comunidade Negra e demais órgãos da sociedade civil.', 'C) Exclusivamente a Defensoria Pública.', 'D) A bancada evangélica da Assembleia Legislativa.', 'E) O Ministério das Relações Exteriores.'], answer: 1, comment: 'Gabarito B. A lei prevê a gestão democrática, integrando órgãos da sociedade civil e o Conselho específico na formulação destas políticas (Art. 28).' },
+            { id: 48, topic: 'Mulher Negra', text: 'Considerando a vulnerabilidade múltipla, a Lei 13.182/14 preconiza atenção especial à mulher negra em várias áreas. Qual das opções reflete uma ação NÃO prevista ou equivocada no texto da lei?', options: ['A) Enfrentamento da violência doméstica.', 'B) Inserção no mercado de trabalho e ascensão funcional.', 'C) Isenção automática de todos os tributos estaduais para mulheres negras chefes de família.', 'D) Qualificação da atenção à gestante negra para reduzir a mortalidade materna.', 'E) Prioridade e atenção especial nos programas de habitação popular.'], answer: 2, comment: 'Gabarito C. A lei garante atenção e prioridade nos programas (habitação, saúde, trabalho), mas NÃO estabelece isenção fiscal tributária indiscriminada.' },
+            { id: 49, topic: 'Disposições Preliminares', text: 'De acordo com a Lei 13.182/2014, o conceito de "Racismo Institucional" é definido como:', options: ['A) O crime praticado por indivíduos contra instituições públicas.', 'B) O fracasso coletivo de uma organização em prover um serviço profissional e adequado às pessoas por causa de sua cor, cultura ou origem étnica.', 'C) A segregação de bairros residenciais promovida pelo mercado imobiliário.', 'D) A ausência de servidores públicos negros nos cargos de chefia do Executivo.', 'E) O ato de censurar obras literárias de matriz africana nas escolas.'], answer: 1, comment: 'Gabarito B. Este é o conceito exato de racismo institucional (Art. 3º, VII), focando no "fracasso coletivo da organização" em atender sem discriminação.' },
+            { id: 50, topic: 'Educação', text: 'Segundo o Art. 17, as políticas estaduais fomentarão o acesso e a permanência de estudantes negros na educação básica, superior e na educação:', options: ['A) Privada de alto custo.', 'B) Profissional e Tecnológica.', 'C) Militar exclusiva.', 'D) Infantil em período integral obrigatoriamente.', 'E) Domiciliar (homeschooling).'], answer: 1, comment: 'Gabarito B. A lei foca a expansão de acesso na Educação Profissional e Tecnológica, garantindo inserção no mercado de trabalho especializado.' },
+            { id: 51, topic: 'Concursos Públicos', text: 'Na aplicação da reserva de vagas de 30% em concursos públicos, caso haja fração no cálculo matemático do número de vagas, a Lei 13.182/14 determina que:', options: ['A) A fração será sempre arredondada para o número inteiro inferior.', 'B) A fração será ignorada, valendo apenas os números inteiros.', 'C) O arredondamento será para o número inteiro superior, caso a fração seja igual ou maior a 0,5 (meio).', 'D) Será criado um cadastro de reserva exclusivo com a fração.', 'E) O cálculo será refeito reduzindo a cota para 20%.'], answer: 2, comment: 'Gabarito C. Art. 49, § 2º: A fração é arredondada para cima se for igual ou maior que 0,5, garantindo efetividade à ação afirmativa.' },
+            { id: 52, topic: 'Cultura', text: 'O poder público estadual garantirá o registro e a proteção dos terreiros de candomblé e outros locais de culto de matriz africana, reconhecendo-os como:', options: ['A) Propriedades federais de segurança nacional.', 'B) Patrimônio cultural material e imaterial do Estado da Bahia.', 'C) Áreas de livre comércio.', 'D) Locais de entretenimento turístico de controle privado.', 'E) Reservas ambientais intocáveis.'], answer: 1, comment: 'Gabarito B. A lei assegura a preservação dos terreiros como patrimônio cultural material e imaterial (Art. 20).' },
+            { id: 53, topic: 'Trabalho - Estágio', text: 'O percentual de 30% reservado para jovens negros estagiários aplica-se a:', options: ['A) Apenas à Secretaria de Educação (SEC).', 'B) Todo o setor privado do Estado da Bahia.', 'C) Exclusivamente a empresas terceirizadas.', 'D) À Administração Direta e Indireta do Estado da Bahia.', 'E) Apenas a estudantes do ensino superior.'], answer: 3, comment: 'Gabarito D. A cota de 30% para estágio abrange toda a Administração Direta e Indireta do Estado (Art. 42).' },
+            { id: 54, topic: 'Saúde - Povos Tradicionais', text: 'No campo da saúde, as ações voltadas para os povos e comunidades tradicionais de matriz africana (Povos de Terreiro) devem observar:', options: ['A) A conversão compulsória à medicina alopática.', 'B) O respeito, reconhecimento e valorização dos seus saberes e práticas tradicionais de saúde.', 'C) A interdição sanitária preventiva de seus cultos.', 'D) O isolamento hospitalar.', 'E) A cobrança de taxas pelos atendimentos fitoterápicos.'], answer: 1, comment: 'Gabarito B. O Estatuto integra os saberes tradicionais, exigindo respeito e valorização por parte do SUS estadual (Art. 8º).' },
+            { id: 55, topic: 'Esporte', text: 'Para fins de promoção da igualdade, a distribuição de recursos públicos estaduais para a prática esportiva deve:', options: ['A) Ser idêntica para todas as confederações esportivas.', 'B) Priorizar esportes originários da Europa.', 'C) Contemplar as manifestações desportivas e lúdicas de matriz africana e comunidades quilombolas.', 'D) Excluir modalidades que utilizem instrumentos de percussão.', 'E) Destinar-se inteiramente ao futebol profissional.'], answer: 2, comment: 'Gabarito C. O financiamento esportivo deve democratizar o acesso e garantir fomento às práticas desportivas e de lazer de matriz africana (Art. 23).' },
+            { id: 56, topic: 'Acesso à Justiça', text: 'O Estado da Bahia apoiará iniciativas da sociedade civil voltadas para a defesa dos direitos da população negra. Para casos de discriminação, o Estado deverá manter e estruturar centros de referência especializados vinculados:', options: ['A) À iniciativa privada.', 'B) Aos municípios exclusivamente.', 'C) Às Defensorias Públicas e Secretarias de Direitos Humanos/Promoção da Igualdade.', 'D) Aos cartórios de registro civil.', 'E) Às agências de publicidade.'], answer: 2, comment: 'Gabarito C. O combate à discriminação pressupõe acesso à justiça e acolhimento através das estruturas de direitos humanos do Estado.' },
+            { id: 57, topic: 'Disposições Preliminares', text: 'Qual princípio abaixo NÃO faz parte do rol estabelecido pelo Art. 4º da Lei Estadual 13.182/14?', options: ['A) Respeito à dignidade da pessoa humana e ao pluralismo.', 'B) Participação e controle social.', 'C) Transversalidade, descentralização e gestão democrática.', 'D) Supremacia da iniciativa privada na condução de políticas raciais.', 'E) Reparação dos danos decorrentes da discriminação e do racismo.'], answer: 3, comment: 'Gabarito D. A iniciativa privada participa, mas não tem "supremacia" na condução das políticas, que são dever do Estado e da sociedade (Art. 4º).' },
+            { id: 58, topic: 'Educação Superior', text: 'As políticas afirmativas de cotas raciais para acesso às Universidades Estaduais da Bahia (UNEB, UEFS, UESC, UESB) previstas na lei devem sofrer:', options: ['A) Revogação imediata após 5 anos.', 'B) Acompanhamento e avaliação periódica do seu impacto e alcance.', 'C) Privatização após a formação da primeira turma.', 'D) Congelamento de matrículas nos cursos de medicina.', 'E) Auditoria exclusiva por órgãos internacionais.'], answer: 1, comment: 'Gabarito B. Toda política afirmativa de cotas deve passar por acompanhamento e avaliação contínua do Estado e da sociedade (Art. 18).' },
+            { id: 59, topic: 'Acesso à Terra - Contextos Urbanos', text: 'A Lei 13.182/14, ao tratar das comunidades quilombolas, reconhece que seus territórios podem estar localizados em:', options: ['A) Áreas exclusivamente rurais e isoladas.', 'B) Áreas urbanas e periurbanas apenas, sem direitos rurais.', 'C) Contextos rurais, urbanos e periurbanos, garantindo a todos a regularização fundiária.', 'D) Áreas litorâneas turísticas de posse da Marinha.', 'E) Condomínios fechados da capital.'], answer: 2, comment: 'Gabarito C. A lei é moderna e reconhece que muitos quilombos na Bahia foram "engolidos" pela urbanização, garantindo regularização também nos contextos urbanos e periurbanos.' },
+            { id: 60, topic: 'Intolerância Religiosa - Órgãos de Proteção', text: 'No caso de uma invasão ou ataque a um Terreiro de Candomblé, a Lei 13.182 prevê a responsabilização civil e criminal. Qual o nome da estrutura delegada estadual especializada na investigação desses crimes na Bahia (conhecimento correlato cobrado pela IBFC)?', options: ['A) DEAM (Delegacia Especial de Atendimento à Mulher).', 'B) DRE (Delegacia de Repressão a Entorpecentes).', 'C) CORE (Coordenadoria de Operações Racionais).', 'D) Coordenação Especializada de Repressão aos Crimes de Intolerância e Discriminação.', 'E) DEIC (Delegacia de Investigações Criminais).'], answer: 3, comment: 'Gabarito D. Questão de conhecimento transversal. O Estado mantém núcleos/coordenações nas polícias civis específicos para crimes de racismo e intolerância (Centro de Referência Nelson Mandela, etc).' },
+            { id: 61, topic: 'Trabalho - Compras Públicas', text: 'Para promover a igualdade racial no setor privado, o Governo do Estado da Bahia poderá adotar qual medida nas licitações públicas?', options: ['A) Isentar de licitação as empresas de donos brancos.', 'B) Estabelecer cláusulas que exijam das empresas contratadas a execução de ações de promoção da igualdade racial ou contratação proporcional.', 'C) Proibir empresas estrangeiras de participar.', 'D) Cobrar taxa de racismo reverso.', 'E) Permitir a contratação apenas de cooperativas quilombolas para qualquer obra civil.'], answer: 1, comment: 'Gabarito B. Art. 43. O Estado usa seu poder de compra para exigir dos terceirizados posturas afirmativas (contratação de negros nas empresas contratadas).' },
+            { id: 62, topic: 'Educação - Currículo', text: 'O ensino da Cultura Afro-Brasileira, além de conteúdos de história, deve abranger:', options: ['A) Apenas a culinária colonial.', 'B) O ensino religioso obrigatório em matriz africana.', 'C) O estudo da contribuição do povo negro nas áreas social, econômica e política pertinentes à história do Brasil e da Bahia.', 'D) A memorização de dialetos africanos.', 'E) A substituição da literatura portuguesa pela literatura angolana.'], answer: 2, comment: 'Gabarito C. O currículo deve focar no resgate das reais contribuições em todas as áreas do desenvolvimento nacional (Art. 12).' },
+            { id: 63, topic: 'Concursos - Critérios de Desempate', text: 'A política de cotas de 30% em concursos não anula outros direitos. O candidato negro concorre concomitantemente:', options: ['A) Apenas às vagas reservadas.', 'B) Às vagas reservadas e às vagas de ampla concorrência, de acordo com a sua classificação.', 'C) Apenas às vagas para pessoas com deficiência.', 'D) Às vagas reservadas, mas com redução salarial de 10%.', 'E) Somente se comprovar renda familiar inferior a 2 salários mínimos.'], answer: 1, comment: 'Gabarito B. Princípio básico de ações afirmativas em concursos. Se a nota do cotista for suficiente para a ampla concorrência, ele passa na ampla, abrindo vaga na cota.' },
+            { id: 64, topic: 'Segurança Pública - Dados Raciais', text: 'Para monitorar a violência, a Lei 13.182/14 exige que os órgãos de segurança pública (polícias, sistema prisional):', options: ['A) Omitam a raça/cor em boletins de ocorrência para evitar racismo.', 'B) Incluam o quesito cor/raça em todos os registros de ocorrência, inquéritos e autos de prisão.', 'C) Questionem a cor apenas das vítimas, não dos suspeitos.', 'D) Classifiquem toda a população carcerária como parda.', 'E) Proíbam a coleta de dados demográficos.'], answer: 1, comment: 'Gabarito B. A coleta de dados com o quesito cor/raça é obrigatória para formulação de estatísticas e mapas da violência (Art. 48, § único).' },
+            { id: 65, topic: 'Comunicação e Rádio', text: 'Nas concessões ou financiamentos de rádios comunitárias no Estado da Bahia, deve-se:', options: ['A) Vedar programas voltados à cultura negra.', 'B) Fomentar e garantir espaço para a valorização da cultura afro-brasileira e enfrentamento do racismo.', 'C) Exigir que toquem apenas música instrumental.', 'D) Cobrar impostos em dobro se houver programas sobre quilombos.', 'E) Exigir que os locutores sejam exclusivamente funcionários públicos.'], answer: 1, comment: 'Gabarito B. O rádio comunitário e as mídias devem ser fomentados como ferramentas de valorização cultural (Art. 46).' },
+            { id: 66, topic: 'Saúde - Sangue', text: 'O Estatuto aborda campanhas e exames de triagem na saúde. Em relação às doenças geneticamente determinadas prevalentes na população negra (como a anemia falciforme), a política estadual deverá:', options: ['A) Realizar testes genéticos sem o consentimento familiar nas escolas.', 'B) Garantir aconselhamento genético e o teste do pezinho de forma ampla e universal.', 'C) Encaminhar os pacientes para tratamento apenas no exterior.', 'D) Ignorar as especificidades genéticas no planejamento do SUS.', 'E) Custear planos de saúde privados para os pacientes.'], answer: 1, comment: 'Gabarito B. Aconselhamento genético e diagnóstico precoce (teste do pezinho ampliado) são prioridades para a doença falciforme (Art. 7º).' },
+            { id: 67, topic: 'Intolerância Religiosa - Sanções', text: 'Com base nas legislações antirracismo (que embasam o Estatuto Baiano), a prática, a indução ou o incitamento ao preconceito de raça ou de religião constituem:', options: ['A) Infrações civis punidas com multa leve.', 'B) Crimes inafiançáveis e imprescritíveis, sujeitos a pena de reclusão.', 'C) Contravenções penais prescritíveis em 2 anos.', 'D) Faltas administrativas apenas.', 'E) Atos amparados pela liberdade de expressão absoluta.'], answer: 1, comment: 'Gabarito B. A Constituição Federal define que a prática do racismo (o que inclui intolerância étnico-religiosa) é crime inafiançável e imprescritível.' },
+            { id: 68, topic: 'Ações Afirmativas - Definição de Raça', text: 'Em caso de suspeita de fraude na autodeclaração para uso das cotas raciais de 30% em um concurso do Estado da Bahia, o candidato:', options: ['A) Será absolvido automaticamente se possuir algum avô negro.', 'B) Estará sujeito à avaliação por uma Comissão de Heteroidentificação, pautada em critérios fenotípicos (aparência física).', 'C) Deverá apresentar um teste de DNA.', 'D) Será submetido à votação popular.', 'E) Perderá o direito de fazer concursos no Brasil para sempre.'], answer: 1, comment: 'Gabarito B. O critério validado pelo STF e leis estaduais para coibir fraudes é a fenotipia, avaliada por comissão específica no concurso (heteroidentificação).' },
+            { id: 69, topic: 'Educação - Formação de Professores', text: 'O Estado implementará programas de formação continuada para professores da rede pública com o intuito de capacitá-los para:', options: ['A) O ensino da História da Europa Clássica.', 'B) A educação financeira e mercado de ações.', 'C) A implementação da Lei de Ensino de História e Cultura Afro-Brasileira, desconstruindo estereótipos em sala de aula.', 'D) O ensino exclusivo de línguas mortas.', 'E) O treino esportivo de alto rendimento.'], answer: 2, comment: 'Gabarito C. O Art. 16 impõe a formação e capacitação dos professores para efetiva aplicação da lei nas escolas.' },
+            { id: 70, topic: 'Avaliação Final Lei 13.182', text: 'Julgue a frase: "O Estatuto da Igualdade Racial do Estado da Bahia transfere as responsabilidades de reparação histórica exclusivamente para o Governo Federal, eximindo o Estado de custos orçamentários." A afirmação é:', options: ['A) Totalmente verdadeira.', 'B) Parcialmente verdadeira, exime apenas os municípios.', 'C) Totalmente falsa, pois a lei define que é dever do Estado da Bahia e da sociedade garantir essa igualdade e prevê fundos orçamentários estaduais próprios.', 'D) Verdadeira apenas no que tange a indenizações.', 'E) Certa, pois o Estado não arrecada impostos para este fim.'], answer: 2, comment: 'Gabarito C. A Lei 13.182/14 assume a responsabilidade para o Estado da Bahia, inclusive criando o Fundo Estadual para custear essas políticas.' },
+
+            // --- RESOLUÇÃO Nº 03/2025 - SEC/BA (Foco Técnico Administrativo - IDs 71 a 85) ---
+            { id: 71, topic: 'Res. 03/2025 - Matrícula e Idade', text: 'Sobre o ingresso e seriação, de acordo com as diretrizes do Ensino Fundamental na rede pública, a criança para ingressar no 1º ano deve ter 6 anos completos até a data de:', options: ['A) 31 de dezembro do ano anterior.', 'B) 31 de março do ano em que ocorrer a matrícula.', 'C) 01 de fevereiro, data do início das aulas.', 'D) O dia do seu aniversário.', 'E) 30 de junho do ano da matrícula.'], answer: 1, comment: 'Gabarito B. O Corte Etário estipulado nacionalmente e seguido nas resoluções estaduais é 31 de março (Res. CNE/CEB 02/2018 e normativas da SEC/BA).' },
+            { id: 72, topic: 'Res. 03/2025 - Expedição de Documentos', text: 'O aluno "X" pediu transferência no mês de agosto. A escola possui um prazo regulamentar para emitir o Histórico Escolar definitivo. Durante o período de espera, a secretaria deve emitir uma Declaração Provisória que, como regra geral na administração escolar, tem validade de:', options: ['A) 5 dias úteis.', 'B) 10 dias corridos.', 'C) 30 a 60 dias, a depender de norma regimental, para não prejudicar o aluno.', 'D) 1 ano letivo completo.', 'E) Prazo indeterminado.'], answer: 2, comment: 'Gabarito C. A declaração provisória garante matrícula imediata na escola de destino, com prazo médio de 30-60 dias para entrega do histórico original.' },
+            { id: 73, topic: 'Res. 03/2025 - Atos da Secretaria', text: 'Em relação às Atas de Resultados Finais, o Técnico Administrativo deve atentar-se ao fato de que:', options: ['A) Podem ser assinadas apenas com certificação digital simples.', 'B) Devem ser lavradas, encadernadas (se não digitais) e assinadas OBRIGATORIAMENTE por todos os professores, Diretor e Secretário Escolar.', 'C) A rasura é tolerada caso haja carimbo por cima.', 'D) Ficam em posse do professor de Matemática.', 'E) São destruídas a cada 5 anos.'], answer: 1, comment: 'Gabarito B. As atas são os documentos cabais de comprovação do ano letivo; exigem a assinatura de todo o conselho para validar os resultados.' },
+            { id: 74, topic: 'Res. 03/2025 - Diário de Classe', text: 'Analise (V) ou (F) sobre o preenchimento do Diário de Classe Eletrónico (SGE): ( ) A senha de acesso do professor pode ser cedida ao técnico administrativo para "agilizar" o lançamento de faltas. ( ) O Técnico pode corrigir notas lançadas erroneamente pelo professor se solicitado verbalmente. ( ) O diário de classe é documento de valor legal comprobatório de carga horária e assiduidade.', options: ['A) F, F, V.', 'B) V, V, F.', 'C) F, V, V.', 'D) V, F, V.', 'E) F, F, F.'], answer: 0, comment: 'Gabarito A. Senhas são INTRANSFERÍVEIS (F). O Técnico não pode alterar notas sem processo/ata formal e assinatura do regente (F). O diário tem valor legal (V).' },
+            { id: 75, topic: 'Res. 03/2025 - Busca Ativa', text: 'Quando um aluno apresenta faltas injustificadas que ultrapassem o limite de 30% do percentual permitido em lei, a secretaria e a direção da escola devem obrigatoriamente acionar qual órgão como parte da Busca Ativa?', options: ['A) O Ministério Público Federal e a Polícia Militar.', 'B) Apenas a Secretaria de Assistência Social.', 'C) O Conselho Tutelar do município, visando resguardar o direito à educação.', 'D) O Juizado de Pequenas Causas.', 'E) Apenas os avós do aluno.'], answer: 2, comment: 'Gabarito C. O Estatuto da Criança e do Adolescente (ECA) e a LDB exigem notificação ao Conselho Tutelar quando faltas e evasão atingem limites preocupantes (acima de 30% do teto).' },
+            { id: 76, topic: 'Res. 03/2025 - Arquivo Passivo', text: 'No vocabulário da rotina escolar, "Arquivo Inativo" ou "Arquivo Morto" refere-se a:', options: ['A) Documentos de alunos que faleceram.', 'B) Documentos destruídos por cupins ou enchentes.', 'C) Conjunto de documentos de ex-alunos (transferidos, desistentes ou concluintes) que não têm mais movimentação diária, mas cuja guarda é obrigatória.', 'D) Equipamentos de informática estragados da secretaria.', 'E) Diários de classe de professores aposentados aguardando queima.'], answer: 2, comment: 'Gabarito C. O arquivo passivo/morto contém a vida acadêmica concluída; apesar de "inativo" no dia a dia, sua conservação é obrigatória e permanente.' },
+            { id: 77, topic: 'Res. 03/2025 - Sigilo (LGPD)', text: 'O Diretor de uma faculdade privada solicita ao Técnico Administrativo de uma escola estadual as notas do Ensino Médio de 10 alunos matriculados recentemente, por e-mail institucional não oficial. O Técnico deve:', options: ['A) Enviar os dados, pois trata-se de cooperação educacional.', 'B) Solicitar o pagamento de taxa para envio das informações.', 'C) Negar o envio dos históricos por e-mail, exigindo requisição formal oficial ou autorização expressa dos titulares (ou responsáveis), protegendo os dados sob a LGPD.', 'D) Encaminhar o e-mail para a Secretaria de Educação e esquecer o assunto.', 'E) Enviar um print do SGE sem os nomes dos alunos.'], answer: 2, comment: 'Gabarito C. Dados de histórico e vida escolar são dados sensíveis. A transferência para instituições privadas exige protocolo rigoroso (histórico original via aluno ou requisição formal interinstitucional).' },
+            { id: 78, topic: 'Res. 03/2025 - Equivalência de Estudos', text: 'Um estudante brasileiro que cursou o 2º ano do Ensino Médio no Japão retorna à Bahia. Para matricular-se no 3º ano, o seu documento estrangeiro precisará de:', options: ['A) Tradução juramentada e processo de Equivalência de Estudos para certificar o valor legal na rede de ensino do Brasil.', 'B) Apenas uma assinatura do Diretor da nova escola.', 'C) Descarte total e realização de provas de todo o Ensino Médio no Brasil.', 'D) Revalidação direta no Supremo Tribunal Federal.', 'E) Pagamento de multa por evasão escolar internacional.'], answer: 0, comment: 'Gabarito A. Documentos de estudos feitos no exterior devem passar por tradução juramentada e processo formal de "Equivalência" pelo Conselho ou Escola autorizada.' },
+            { id: 79, topic: 'Res. 03/2025 - Aproveitamento de Estudos', text: 'O "Aproveitamento de Estudos" difere da "Equivalência". O Aproveitamento destina-se a alunos que:', options: ['A) Estudaram fora do país.', 'B) Já cursaram e foram aprovados em disciplinas ou componentes curriculares idênticos, em instituições legalizadas no Brasil, podendo ser dispensados de cursá-las novamente.', 'C) Têm mais de 60 anos e desejam diploma automático.', 'D) Foram reprovados por falta e querem recuperar a nota.', 'E) Compraram diplomas em instituições não reconhecidas.'], answer: 1, comment: 'Gabarito B. Aproveitamento é a dispensa de disciplina já cursada com êxito (ex: o aluno mudou de curso técnico e o novo curso tem a mesma disciplina de Português).' },
+            { id: 80, topic: 'Res. 03/2025 - Certificação do ENCCEJA', text: 'Para o candidato ser certificado no Ensino Médio através dos exames supletivos nacionais (como ENCCEJA ou antigo ENEM), ao solicitar o diploma na escola certificadora da rede estadual, ele deverá comprovar ter a idade mínima de:', options: ['A) 15 anos completos.', 'B) 16 anos completos.', 'C) 18 anos completos.', 'D) 21 anos completos.', 'E) Qualquer idade, desde que alcance a nota mínima.'], answer: 2, comment: 'Gabarito C. A LDB e as normas estaduais exigem 18 anos completos na data da primeira prova do exame para emissão do certificado do Ensino Médio.' },
+            { id: 81, topic: 'Res. 03/2025 - Recuperação Paralela', text: 'De acordo com a normativa da SEC/BA, a recuperação paralela de estudos é um direito do estudante. A responsabilidade do Técnico Administrativo neste processo é:', options: ['A) Dar as aulas de reforço aos sábados.', 'B) Elaborar as provas de recuperação.', 'C) Garantir o correto lançamento e escrituração das notas de recuperação no sistema (SGE), refletindo a substituição da nota caso seja superior à original.', 'D) Decidir quem reprova ou aprova após a prova.', 'E) Excluir o aluno do diário se ele não comparecer à recuperação.'], answer: 2, comment: 'Gabarito C. O Técnico atua na operação e gestão documental; ele não executa a parte pedagógica, mas garante a integridade da escrituração das notas.' },
+            { id: 82, topic: 'Res. 03/2025 - Gestão de Vagas', text: 'No processo informatizado de Matrícula da Rede Estadual da Bahia (SAC Digital/Sistema), quando a demanda por vagas supera a capacidade física de uma Unidade Escolar, a legislação determina que:', options: ['A) As vagas sejam leiloadas financeiramente.', 'B) Se adote processo de sorteio público eletrônico auditável e transparente.', 'C) O Diretor escolha os alunos por meio de entrevistas de perfil econômico.', 'D) Os primeiros a chegarem na fila da rua na madrugada tenham o direito.', 'E) Os alunos mais velhos sejam preteridos automaticamente.'], answer: 1, comment: 'Gabarito B. Em respeito à impessoalidade, o Estado utiliza sorteios eletrônicos transparentes quando a demanda é maior que a oferta de vagas.' },
+            { id: 83, topic: 'Res. 03/2025 - Progressão Parcial (Limites)', text: 'Embora a dependência (Progressão Parcial) seja permitida, há regras de limites. O que ocorre com o aluno que acumula dependências ALÉM do limite máximo de disciplinas fixado no Regimento Escolar?', options: ['A) Ele avança de série, mas é obrigado a pagar taxas extras.', 'B) Ele é reclassificado para EJA compulsoriamente.', 'C) Ele não avança de série; ficará retido na série atual, cursando apenas os componentes nos quais não logrou êxito ou cursando o ano integralmente, conforme norma do regimento.', 'D) Ele perde o direito de estudar em escola pública.', 'E) O professor deve arredondar as notas faltantes para aprová-lo.'], answer: 2, comment: 'Gabarito C. Estourado o limite da progressão parcial (geralmente 2 ou 3 matérias), o aluno sofre a retenção (reprovação) na série.' },
+            { id: 84, topic: 'Res. 03/2025 - Carga Horária Estágio', text: 'Para a emissão do Diploma de Técnico de Nível Médio (Educação Profissional), se o currículo do curso exigir "Estágio Curricular Obrigatório", a secretaria escolar só poderá expedir o diploma após:', options: ['A) O aluno pagar a taxa de emissão no Banco do Brasil.', 'B) Apenas a aprovação em todas as disciplinas teóricas.', 'C) A comprovação formal, relatórios e certificação do cumprimento total da carga horária de estágio exigida na matriz.', 'D) O aluno atingir 21 anos de idade.', 'E) A publicação no Diário Oficial da União.'], answer: 2, comment: 'Gabarito C. O Estágio Obrigatório é pré-requisito legal e curricular. Sem cumpri-lo, o curso não está concluído e o diploma não pode ser emitido.' },
+            { id: 85, topic: 'Res. 03/2025 - Ocorrências e Atendimento', text: 'Situação de Rotina (IBFC): Um ex-aluno comparece à secretaria escolar solicitando um documento com urgência, ofendendo em voz alta e desrespeitando os servidores. A conduta técnica mais adequada e baseada nos preceitos do servidor público deve ser:', options: ['A) Ofender o usuário de volta e rasgar os seus documentos.', 'B) Chamar imediatamente a polícia e recusar para sempre o atendimento.', 'C) Manter a urbanidade, registrar a ocorrência se houver ameaça, mas garantir as vias legais para que ele tenha acesso ao documento oficial através de requerimento e prazo regimental, acionando a direção para mediação.', 'D) Emitir o documento em 5 minutos para se livrar do problema, mesmo descumprindo o fluxo normal e a ordem de pedidos.', 'E) Reter a carteira de identidade do cidadão até ele pedir desculpas.'], answer: 2, comment: 'Gabarito C. O Código de Ética e os preceitos do serviço público exigem urbanidade (educação e equilíbrio) e cumprimento da legalidade/impessoalidade. O servidor não usa de vingança, nem fura a fila administrativa, ele submete ao fluxo, buscando a direção e a autoridade caso a integridade física esteja ameaçada.' },
+            
+            // --- RESOLUÇÃO Nº 03/2025 - SEC/BA (Fase Final - Rotinas de Secretaria - IDs 86 a 130) ---
+            { id: 86, topic: 'Res. 03/2025 - Matrícula Sem Documentos', text: 'Segundo as normas de escrituração, se um aluno requerer matrícula na rede estadual, mas não possuir o Histórico Escolar ou qualquer documento de transferência no momento, a escola deve:', options: ['A) Negar a matrícula até que o documento seja apresentado.', 'B) Matricular o aluno e dar um prazo regimental (geralmente 30 a 60 dias) para a apresentação dos documentos, podendo submetê-lo a teste de classificação se o documento não chegar.', 'C) Inserir o aluno obrigatoriamente na EJA.', 'D) Emitir um histórico falso provisório.', 'E) Encaminhar o aluno para a rede municipal.'], answer: 1, comment: 'Gabarito B. O direito à educação é inalienável. A matrícula é feita condicionalmente e, na falta definitiva do documento, procede-se à Classificação (LDB Art. 24).' },
+            { id: 87, topic: 'Res. 03/2025 - Registo de Frequência', text: 'Analise as assertivas sobre a escrituração da frequência: I. O atestado médico abona (apaga) as faltas do estudante no diário de classe. II. Alunos amparados por regime de exercícios domiciliares por motivo de saúde (Decreto-Lei 1.044/69) têm as suas faltas justificadas no sistema. III. A aprovação exige, no mínimo, 75% de frequência do total de horas letivas, salvo amparo legal específico. Estão corretas:', options: ['A) I e II.', 'B) II e III.', 'C) I e III.', 'D) Apenas III.', 'E) I, II e III.'], answer: 1, comment: 'Gabarito B. A assertiva I é falsa (clássica pegadinha da IBFC). Atestado NÃO abona falta, ele JUSTIFICA a falta para evitar reprovação ou permite exercícios domiciliares. O registo da ausência física mantém-se.' },
+            { id: 88, topic: 'Res. 03/2025 - Reclassificação Prática', text: 'O processo de Reclassificação permite posicionar o aluno na série adequada ao seu desenvolvimento. Este processo NÃO se aplica a:', options: ['A) Alunos com defasagem idade-série.', 'B) Alunos transferidos do exterior sem comprovação exata de série.', 'C) Alunos com altas habilidades/superdotação (avanço escolar).', 'D) Alunos reprovados por nota no ano letivo anterior na mesma escola que desejam "pular" a retenção.', 'E) Alunos sem comprovação formal de escolaridade anterior.'], answer: 3, comment: 'Gabarito D. A reclassificação não serve para anular uma reprovação legítima sofrida pelo aluno na própria rede de ensino. Serve para adequar distorções.' },
+            { id: 89, topic: 'Res. 03/2025 - Conservação de Arquivo', text: 'O acervo documental da secretaria é dividido em arquivo ativo e inativo (passivo). São considerados documentos de guarda permanente, NÃO podendo ser eliminados ou incinerados:', options: ['A) Os diários de classe de 2 anos atrás.', 'B) As justificações de faltas e bilhetes de pais.', 'C) As Atas de Resultados Finais e os Livros de Registo de Diplomas/Certificados.', 'D) As provas bimestrais dos alunos.', 'E) As requisições de material de limpeza.'], answer: 2, comment: 'Gabarito C. Atas de resultados e registos de certificação comprovam a vida escolar do cidadão para sempre; logo, têm guarda permanente.' },
+            { id: 90, topic: 'Res. 03/2025 - Diário de Classe Eletrónico', text: 'Com a informatização da Secretaria (SGE), o Diário de Classe passou a ser eletrónico. É competência e responsabilidade do Técnico Administrativo em relação ao Diário Eletrónico:', options: ['A) Lançar as notas das provas no lugar dos professores.', 'B) Fornecer a sua própria senha para os professores acederem ao sistema.', 'C) Fazer o acompanhamento, o suporte técnico básico e cobrar os prazos de preenchimento por parte dos docentes, zelando pela integridade do sistema.', 'D) Apagar faltas de alunos a pedido da Direção.', 'E) Avaliar qualitativamente o conteúdo ministrado pelo professor no sistema.'], answer: 2, comment: 'Gabarito C. O técnico administra o sistema, gere os prazos e garante que os professores alimentem o SGE corretamente, sem usurpar a função docente de lançar as notas/faltas.' },
+            { id: 91, topic: 'Res. 03/2025 - EJA - Estrutura', text: 'No Estado da Bahia, a Educação de Jovens e Adultos (EJA) está estruturada em módulos/etapas. O ingresso no Ensino Fundamental da EJA e no Ensino Médio da EJA exige, respetivamente, as seguintes idades mínimas completas:', options: ['A) 14 anos e 17 anos.', 'B) 15 anos e 18 anos.', 'C) 16 anos e 21 anos.', 'D) 15 anos e 17 anos.', 'E) 18 anos e 21 anos.'], answer: 1, comment: 'Gabarito B. Regra de ouro da LDB cobrada pela IBFC: EJA Fundamental exige 15 anos; EJA Médio exige 18 anos completos.' },
+            { id: 92, topic: 'Res. 03/2025 - Expedição de Certificados', text: 'De acordo com as normas de escrituração escolar, a primeira via do Histórico Escolar e do Certificado de Conclusão de Curso expedida pela unidade escolar pública é:', options: ['A) Gratuita apenas para alunos comprovadamente carenciados.', 'B) Sujeita à cobrança de taxa de expediente estipulada pelo Estado.', 'C) Gratuita e isenta de qualquer taxa para todos os concluintes, sendo direito do aluno.', 'D) Emitida apenas mediante solicitação via advogado.', 'E) Retida caso o aluno não tenha devolvido livros à biblioteca.'], answer: 2, comment: 'Gabarito C. A emissão de documentos de vida escolar em instituições públicas é um serviço público gratuito. A retenção por dívidas ou falta de devolução de livros é prática ilegal.' },
+            { id: 93, topic: 'Res. 03/2025 - Ética e Sigilo', text: 'Um membro do Conselho Tutelar comparece à secretaria escolar exigindo ver a ficha disciplinar e as notas de um aluno menor de idade que está sob medida protetiva. A atitude correta do servidor da secretaria é:', options: ['A) Negar o acesso, alegando que apenas o juiz tem essa prerrogativa.', 'B) Fornecer imediatamente as informações solicitadas, pois o Conselho Tutelar tem prerrogativa legal de acesso para defesa dos direitos do menor (ECA).', 'C) Exigir o pagamento de taxa de busca em arquivo.', 'D) Expulsar o conselheiro, invocando a autonomia da escola.', 'E) Entregar os documentos originais em definitivo ao conselheiro.'], answer: 1, comment: 'Gabarito B. O Conselho Tutelar é um órgão de zelo dos direitos da criança (ECA) e tem total acesso aos dados escolares necessários à proteção do menor, devendo a escola colaborar prontamente.' },
+            { id: 94, topic: 'Res. 03/2025 - Aproveitamento vs Equivalência', text: 'Assinale a alternativa que distingue corretamente "Aproveitamento de Estudos" de "Equivalência de Estudos":', options: ['A) São sinónimos exatos na legislação da Bahia.', 'B) Aproveitamento aplica-se a estudos no exterior; Equivalência a estudos no Brasil.', 'C) Aproveitamento é o reconhecimento de disciplinas já cursadas com êxito no Brasil para dispensa; Equivalência é o processo de validar estudos feitos no exterior.', 'D) Ambos só podem ser solicitados no Ensino Superior.', 'E) A Equivalência reprova o aluno, o Aproveitamento aprova.'], answer: 2, comment: 'Gabarito C. Conceitos clássicos de prova: Equivalência (valida o que vem de fora do país). Aproveitamento (dispensa matéria já feita noutra escola/curso no Brasil).' },
+            { id: 95, topic: 'Res. 03/2025 - Nome Social (Rotina)', text: 'Sobre a aplicação do Nome Social de alunos trans na escrituração escolar, marque a afirmação INCORRETA:', options: ['A) O nome social deve constar nos diários de classe para a chamada.', 'B) O histórico escolar final, por ser documento com validade legal externa civil, deve conter o nome civil (e o nome social, consoante as normas locais).', 'C) É exigida cirurgia de adequação sexual para que a secretaria aceite o pedido de nome social.', 'D) O uso do nome social visa garantir o respeito à identidade de género e evitar a evasão escolar.', 'E) Nas avaliações e provas internas, o aluno tem o direito de ser identificado pelo nome social.'], answer: 2, comment: 'Gabarito C. O reconhecimento da identidade de género é autodeclaratório. Exigir cirurgia ou laudo médico é ilegal e fere as normativas de direitos humanos do MEC/SEC.' },
+            { id: 96, topic: 'Res. 03/2025 - Progressão Parcial', text: 'Ao processar o resultado final, um aluno obteve aprovação em todas as disciplinas, exceto em Física e Química (2 disciplinas). O regimento da escola permite Progressão Parcial em até 2 disciplinas. A secretaria deve escriturar o seu resultado como:', options: ['A) Reprovado, pois falhou em matérias da base comum.', 'B) Aprovado Plenamente.', 'C) Aprovado com Progressão Parcial (Dependência), matriculando-o na série seguinte e retendo-o nas disciplinas específicas.', 'D) Evasão escolar.', 'E) Transferido Compulsoriamente.'], answer: 2, comment: 'Gabarito C. A Progressão Parcial permite o avanço de série, ficando o aluno obrigado a cursar no ano seguinte as disciplinas em que ficou retido.' },
+            { id: 97, topic: 'Res. 03/2025 - Transferência Ex Officio', text: 'A Transferência "Ex Officio" (de ofício) é aquela concedida a qualquer época do ano, independentemente da existência de vaga na escola de destino. Ela é garantida por lei exclusivamente a:', options: ['A) Alunos que repetiram de ano 3 vezes.', 'B) Filhos de servidores públicos civis ou militares removidos/transferidos no interesse da Administração.', 'C) Alunos atletas que mudam de clube.', 'D) Filhos de políticos em campanha.', 'E) Qualquer aluno que não goste da escola atual.'], answer: 1, comment: 'Gabarito B. Lei 9.536/97. A matrícula ex officio assegura vaga em escola congénere ao servidor (e dependentes) que foi transferido de cidade contra a sua vontade (interesse do serviço).' },
+            { id: 98, topic: 'Res. 03/2025 - Educação Especial', text: 'Na escrituração da Educação Especial, o Plano de Desenvolvimento Individual (PDI) do estudante com deficiência deve ficar arquivado:', options: ['A) Apenas na casa do aluno.', 'B) Na pasta individual (dossiê) do estudante na secretaria, compondo a sua vida escolar e orientando os professores.', 'C) No posto de saúde do bairro.', 'D) No arquivo morto da escola desde a matrícula.', 'E) Apenas na Secretaria de Educação, nunca na escola.'], answer: 1, comment: 'Gabarito B. O PDI é parte integrante da documentação pedagógica do aluno e deve estar acessível na pasta individual gerida pela secretaria/coordenação.' },
+            { id: 99, topic: 'Res. 03/2025 - Gestão de Vagas e Matrícula', text: 'De acordo com a transparência na Administração Pública e o fluxo de matrículas da rede estadual, a prioridade legal na alocação de vagas para o Ensino Fundamental e Médio deve considerar primeiramente:', options: ['A) A ordem de chegada com filas físicas de madrugada na porta da escola.', 'B) O pagamento de taxa voluntária de contribuição à escola.', 'C) O zoneamento, garantindo a matrícula do estudante na escola pública mais próxima da sua residência.', 'D) O desempenho escolar (boletim) do aluno.', 'E) A indicação por carta de vereadores.'], answer: 2, comment: 'Gabarito C. O ECA (Estatuto da Criança e do Adolescente) garante o direito à vaga na escola mais próxima da residência. Filas físicas (A) são desencorajadas pela matrícula online.' },
+            { id: 100, topic: 'Res. 03/2025 - Recuperação Final', text: 'Um aluno submeteu-se aos Estudos de Recuperação Final. A nota obtida nesta avaliação, para fins de registo no histórico escolar, deve:', options: ['A) Ser somada à média anual e dividida por dois.', 'B) Substituir a média final do período letivo, se for superior a esta, prevalecendo a melhor nota para o aluno.', 'C) Ser ignorada, servindo apenas para estatística.', 'D) Reduzir a média do aluno por ele ter necessitado de recuperação.', 'E) Ser lançada no diário com caneta vermelha.'], answer: 1, comment: 'Gabarito B. A lógica legal da recuperação na Bahia é a "substituição" da nota. A nota de recuperação substitui a nota regular se for mais benéfica ao estudante.' },
+            { id: 101, topic: 'Res. 03/2025 - Fecho de Diários', text: 'Ao final do ano letivo, o Secretário Escolar e a equipa de apoio recebem os Diários de Classe físicos ou verificam o SGE. O que deve ser verificado obrigatoriamente antes do encerramento (fecho) do ano letivo?', options: ['A) Apenas se a capa do diário está limpa.', 'B) A presença de todos os registos (frequência, conteúdos, avaliações) e as assinaturas dos professores regentes em todas as páginas exigidas, não podendo conter campos em branco.', 'C) Se as notas foram dadas em números pares.', 'D) Se o professor preencheu de lápis para facilitar apagamentos futuros.', 'E) Se todos os alunos foram aprovados.'], answer: 1, comment: 'Gabarito B. O diário é um documento legal que sofre auditoria (Tribunal de Contas/MEC). A secretaria não o encerra se houver lacunas, falta de assinaturas ou preenchimento a lápis.' },
+            { id: 102, topic: 'Res. 03/2025 - Correção de Documentos', text: 'Se o Técnico Administrativo constatar um erro de digitação no livro de Registo de Diplomas após este já estar finalizado, o procedimento burocrático correto é:', options: ['A) Rasgar a folha do livro e reescrever numa folha nova.', 'B) Utilizar corretivo líquido e escrever por cima.', 'C) Fazer uma "Ressalva" (ex: usar o termo "Digo", ou "Em tempo"), retificar a informação incorreta, datar e assinar.', 'D) Ignorar o erro, pois não tem valor legal.', 'E) Apagar com borracha.'], answer: 2, comment: 'Gabarito C. Documentos de registo oficial escolar não admitem rasuras ou arranques de folha. Usa-se a ressalva administrativa ("Em tempo...", "Digo...") e rubrica-se.' },
+            { id: 103, topic: 'Res. 03/2025 - Grêmio Estudantil', text: 'Nas escolas da rede estadual, a secretaria e a direção perante o Grêmio Estudantil devem:', options: ['A) Proibir a sua existência, pois gera insubordinação.', 'B) Escolher e nomear os membros da presidência do Grêmio.', 'C) Fomentar e garantir o seu livre funcionamento, fornecendo, sempre que possível, espaço físico, não podendo intervir na sua autonomia.', 'D) Auditar as contas do Grêmio e proibi-los de realizar eventos.', 'E) Exigir que todos os membros tenham notas acima da média.'], answer: 2, comment: 'Gabarito C. O fomento aos Grémios é política estadual (Gestão Democrática). Eles são entidades autónomas dos alunos, e a gestão não pode interferir na eleição.' },
+            { id: 104, topic: 'Res. 03/2025 - Evasão Escolar', text: 'A escola notou que um estudante de 14 anos faltou consecutivamente durante 15 dias sem justificação. A secretaria deve iniciar as rotinas de:', options: ['A) Expulsão por abandono de curso.', 'B) Suspensão imediata.', 'C) Busca Ativa Escolar (contacto com a família via telefone, carta ou visita) e, persistindo a ausência, notificação ao Conselho Tutelar.', 'D) Arquivamento direto da pasta do aluno.', 'E) Encaminhamento dos pais à Polícia Federal.'], answer: 2, comment: 'Gabarito C. A primeira ação perante a infrequência é sempre a Busca Ativa (contactar a família). Esgotadas as tentativas, aciona-se a rede de proteção (Conselho Tutelar).' },
+            { id: 105, topic: 'Res. 03/2025 - Atos Normativos', text: 'Para designar um professor para uma função específica (ex: Coordenador de Turno) no âmbito interno da escola, a Direção expede qual tipo de ato administrativo?', options: ['A) Circular.', 'B) Certidão.', 'C) Portaria.', 'D) Atestado.', 'E) Ofício.'], answer: 2, comment: 'Gabarito C. A Portaria é o ato administrativo interno usado pela Direção para designações, delegação de competências ou instauração de comissões/sindicâncias.' },
+            { id: 106, topic: 'Res. 03/2025 - Reclassificação Idade-Série', text: 'A escola recebe um aluno de 16 anos que abandonou a escola no 5º ano do Ensino Fundamental. O que a legislação pedagógica prevê para adequar este aluno (corrigir a distorção idade-série)?', options: ['A) Promovê-lo automaticamente para o Ensino Médio.', 'B) Submetê-lo a um processo de Reclassificação ou inseri-lo num programa de Aceleração de Estudos / EJA.', 'C) Obrigá-lo a sentar-se na sala com crianças de 10 anos (5º ano).', 'D) Negar a matrícula alegando excesso de idade.', 'E) Cobrar exames psicológicos.'], answer: 1, comment: 'Gabarito B. Para evitar o constrangimento social de juntar jovens e crianças, a LDB autoriza a Aceleração de Estudos e a Reclassificação (ou inserção na EJA após os 15 anos).' },
+            { id: 107, topic: 'Res. 03/2025 - Certificação ENCCEJA', text: 'Um candidato aprovado no exame supletivo do ENCCEJA procura uma unidade certificadora da rede estadual para emitir o seu diploma. O Técnico Administrativo verifica que ele tirou notas altas, mas ainda tem 17 anos (fez a prova com 17). O que deve ser feito?', options: ['A) Emitir o diploma imediatamente pelo mérito da nota.', 'B) Indeferir a emissão do certificado, pois a lei exige a idade mínima de 18 anos completos na data da primeira prova para a certificação no Ensino Médio.', 'C) Emitir apenas o histórico sem o certificado.', 'D) Emitir com autorização dos pais.', 'E) Cobrar uma multa por infração ao edital.'], answer: 1, comment: 'Gabarito B. Sem 18 anos completos na data da prova, o exame ENCCEJA Ensino Médio é anulado para fins de certificação, servindo apenas como autoavaliação (treineiro).' },
+            { id: 108, topic: 'Res. 03/2025 - Comunicação Oficial', text: 'Para enviar uma comunicação externa formal de uma escola pública estadual da Bahia para a Polícia Militar do município solicitando apoio num evento escolar, a secretaria elabora um:', options: ['A) Memorando.', 'B) Despacho.', 'C) Ofício.', 'D) Requerimento.', 'E) Certificado.'], answer: 2, comment: 'Gabarito C. O "Ofício" é o documento de comunicação formal utilizado entre órgãos públicos de esferas ou chefias diferentes (Comunicação externa ou oficial a autoridades).' },
+            { id: 109, topic: 'Res. 03/2025 - Atendimento ao Público', text: 'Segundo o manual de rotinas da IBFC, o princípio da impessoalidade no balcão da secretaria da escola dita que o Técnico Administrativo deve:', options: ['A) Atender os seus amigos e parentes primeiro, sem respeitar filas.', 'B) Dispensar tratamento igualitário a todos os utentes, não permitindo simpatias ou antipatias pessoais na emissão de documentos e matrículas.', 'C) Cobrar taxas secretas de pessoas desconhecidas.', 'D) Tratar o público com extrema frieza e sem contacto visual.', 'E) Encaminhar todos os problemas difíceis para o Diretor.'], answer: 1, comment: 'Gabarito B. Impessoalidade (Art. 37 da CF). A administração atende o cidadão sem favoritismos ou perseguições, respeitando o princípio da igualdade no atendimento.' },
+            { id: 110, topic: 'Res. 03/2025 - Inclusão - Educação Especial', text: 'A Educação Especial na rede SEC/BA é transversal a todas as etapas. O "Atendimento Educacional Especializado" (AEE) ofertado nas Salas de Recursos Multifuncionais é realizado:', options: ['A) No mesmo turno do ensino regular, substituindo as aulas de Matemática.', 'B) Apenas online.', 'C) Preferencialmente no turno inverso (contraturno) à escolarização, não sendo substitutivo do ensino regular.', 'D) Somente aos fins de semana.', 'E) Em escolas segregadas e exclusivas para deficientes.'], answer: 2, comment: 'Gabarito C. O AEE complementa ou suplementa a formação do aluno, não a substitui. Deve ser feito preferencialmente no contraturno escolar (LDB).' },
+            { id: 111, topic: 'Res. 03/2025 - Carga Horária Estágio', text: 'Na modalidade de Educação Profissional, o estágio supervisionado do aluno:', options: ['A) Quando obrigatório no currículo, é condição essencial e pré-requisito para a expedição do diploma de técnico de nível médio.', 'B) Pode ser dispensado se o aluno apresentar um atestado médico.', 'C) Não necessita de registo na escola, apenas na empresa.', 'D) Conta como hora extra, permitindo a formatura antecipada.', 'E) Só é permitido após a conclusão total das matérias teóricas.'], answer: 0, comment: 'Gabarito A. O diploma só é expedido após a conclusão e validação legal das horas de estágio obrigatório pela escola (escrituração do relatório).' },
+            { id: 112, topic: 'Res. 03/2025 - Transporte Escolar', text: 'O repasse de dados corretos pela secretaria ao Sistema Estadual (SGE) garante verbas do Programa Nacional de Apoio ao Transporte do Escolar (PNATE). Têm direito ao transporte escolar público, como regra geral:', options: ['A) Alunos de escolas privadas.', 'B) Alunos residentes em zonas urbanas centrais a 100 metros da escola.', 'C) Alunos da educação básica pública residentes prioritariamente na zona rural e em locais de difícil acesso, garantindo o seu acesso e permanência.', 'D) Apenas alunos do Ensino Médio.', 'E) Somente professores e diretores.'], answer: 2, comment: 'Gabarito C. O PNATE (transporte escolar) destina-se constitucionalmente aos alunos da rede pública, com prioridade para quem reside na zona rural/difícil acesso.' },
+            { id: 113, topic: 'Res. 03/2025 - Atendimento e Protocolo', text: 'Quando um requerimento de transferência entra na secretaria, o documento recebe um "número de protocolo". Esse número serve para:', options: ['A) Apenas gerar volume de papel.', 'B) Dificultar a vida do cidadão.', 'C) Registar a entrada oficial do pedido, controlando a tramitação (fluxo) e garantindo o acompanhamento dos prazos legais pelo requerente e pela administração.', 'D) Cobrar uma taxa ao fim do processo.', 'E) Identificar o aluno financeiramente.'], answer: 2, comment: 'Gabarito C. O protocolo é o controlo administrativo oficial. Dá transparência ao processo e comprova que o cidadão fez o pedido naquela data específica.' },
+            { id: 114, topic: 'Res. 03/2025 - Regime Disciplinar', text: 'A aplicação de penalidade grave a um aluno, como a "Transferência Compulsória", exige obrigatoriamente do conselho escolar e da direção:', options: ['A) Uma decisão unilateral e sumária.', 'B) A garantia do direito à ampla defesa e ao contraditório, envolvendo os pais/responsáveis legais no processo antes da decisão final.', 'C) A agressão verbal prévia ao aluno.', 'D) A suspensão dos registos escolares definitivos (exclusão do SGE).', 'E) O acionamento obrigatório do Exército.'], answer: 1, comment: 'Gabarito B. Princípio Constitucional. Ninguém pode sofrer pena escolar gravosa sem o devido processo legal interno (ampla defesa e contraditório).' },
+            { id: 115, topic: 'Res. 03/2025 - Conselhos Escolares', text: 'O Colegiado Escolar (ou Conselho Escolar) é o órgão máximo de deliberação local na gestão democrática. Qual é o seu formato de constituição e tomada de decisão?', options: ['A) Formado apenas pelo Diretor, que tem o poder de veto absoluto.', 'B) Constituído exclusivamente por empresários locais.', 'C) Natureza consultiva, deliberativa e mobilizadora, com representação paritária e proporcional de todos os segmentos (pais, alunos, professores, funcionários).', 'D) Natureza apenas decorativa.', 'E) Eleito pelo Governador do Estado.'], answer: 2, comment: 'Gabarito C. Gestão Democrática (Art. 14 LDB). O conselho escolar inclui a comunidade escolar completa, e as suas decisões têm peso na gestão orçamental e pedagógica da unidade.' },
+            { id: 116, topic: 'Res. 03/2025 - Arquivo Escolar (Digitalização)', text: 'Sobre a modernização dos acervos escolares, a digitalização de documentos físicos do Arquivo Permanente pela secretaria implica:', options: ['A) A eliminação compulsória e imediata de todos os documentos em papel.', 'B) Apenas guardar os ficheiros numa pen drive sem backups.', 'C) A preservação do suporte físico original quando dotado de valor histórico/legal insubstituível, mesmo após a criação do substituto digital, conforme leis de arquivo.', 'D) A exclusão das pastas físicas no dia seguinte à digitalização.', 'E) O envio dos documentos físicos para reciclagem urbana.'], answer: 2, comment: 'Gabarito C. A digitalização garante o acesso rápido (SGE), mas pastas originais com valor histórico e assinaturas à mão (Fé Pública) são frequentemente mantidas ou enviadas ao Arquivo Público, não sendo incineradas arbitrariamente.' },
+            { id: 117, topic: 'Res. 03/2025 - Censo Escolar (Correções)', text: 'O processo de Recolha de Dados do Censo Escolar é feito em duas etapas (Matrícula Inicial e Situação do Aluno). Se o Técnico Administrativo verificar um erro grave no preenchimento após o prazo de retificação nacional (MEC/INEP) estar encerrado:', options: ['A) Ele pode aceder ao sistema no dia seguinte e alterar unilateralmente.', 'B) O erro torna-se definitivo para aquele ano letivo, afetando os indicadores educacionais e repasses, cabendo responsabilidade administrativa pela falha.', 'C) O Governador pode editar uma lei para reabrir o sistema INEP.', 'D) A escola perde imediatamente o seu registo de funcionamento.', 'E) O erro é corrigido na secretaria usando corretivo líquido.'], answer: 1, comment: 'Gabarito B. Os prazos do INEP/MEC são nacionais e intransponíveis. Falhar nestes prazos acarreta perdas severas de recursos para a escola e gera processos administrativos (PAD).' },
+            { id: 118, topic: 'Res. 03/2025 - Sigilo Médico na Escola', text: 'Um professor exige do técnico administrativo o laudo psicológico completo contendo detalhes íntimos de um aluno diagnosticado com TDAH, arquivado na secretaria, para "entender o comportamento do jovem". O servidor deve:', options: ['A) Entregar uma cópia original do laudo ao professor.', 'B) Divulgar o laudo no grupo de WhatsApp da escola.', 'C) Resguardar o sigilo médico/íntimo (LGPD), permitindo apenas que o professor aceda ao Plano de Atendimento Educacional Especializado (PDI) ou orientações pedagógicas mediadas pela coordenação.', 'D) Destruir o laudo para evitar fugas de informação.', 'E) Cobrar do professor a assinatura de um termo de confidencialidade.'], answer: 2, comment: 'Gabarito C. O professor tem direito ao perfil pedagógico (adaptações curriculares e comportamentais necessárias). O laudo médico bruto com diagnósticos clínicos é dado sensível restrito à família e à coordenação especial.' },
+            { id: 119, topic: 'Res. 03/2025 - Reclassificação e Certificação', text: 'Um aluno reclassificado do 1º ano direto para o 3º ano do Ensino Médio, devido a avanço por superdotação/altas habilidades, requer o seu Histórico Final. Como constarão as notas do 1º e 2º ano?', options: ['A) Terão notas zero e o aluno deve assinar um termo.', 'B) As notas serão preenchidas com a média 5,0 por padrão.', 'C) Constará no histórico uma "Ressalva/Observação" fundamentada nas atas legais, referindo a promoção via Reclassificação/Avanço de Estudos, justificando a ausência de notas regulares nessas séries.', 'D) As disciplinas dessas séries ficam todas em branco.', 'E) A escola inventa notas com base nas provas do 3º ano.'], answer: 2, comment: 'Gabarito C. O histórico reflete a vida do aluno. A "ausência" de cursar as séries anteriores é justificada pela ata oficial de Reclassificação anexada ao dossiê, preenchendo o histórico com as ressalvas legais da LDB.' },
+            { id: 120, topic: 'Res. 03/2025 - Carga Horária EAD', text: 'Na flexibilização do Novo Ensino Médio, parte da carga horária pode ser ofertada na modalidade de Ensino à Distância (EAD). O controlo dessa assiduidade pela secretaria dá-se:', options: ['A) Através da palavra do aluno, não carecendo de prova formal.', 'B) Ignorando a contagem de faltas.', 'C) Por meio dos relatórios de acesso e conclusão de atividades gerados pela plataforma Virtual de Aprendizagem oficial do Estado, devidamente integrados ao SGE.', 'D) Pela entrega mensal de uma redação impressa.', 'E) Contando as horas em que o aluno passa na biblioteca.'], answer: 2, comment: 'Gabarito C. A validação de carga horária assíncrona/EAD é feita pelo rasto digital e cumprimento de metas (metadados do AVA).' },
+            { id: 121, topic: 'Res. 03/2025 - Calendário Suplementar', text: 'Devido a uma tempestade que alagou a escola, a unidade ficou fechada por 10 dias úteis. Para cumprir os 200 dias e 800 horas letivas previstos na norma, a escola deve:', options: ['A) Declarar os dias perdidos como feriados antecipados e encerrar o ano sem os repor.', 'B) Forçar os alunos a assistir aulas noturnas por uma semana.', 'C) Elaborar um Plano de Reposição de Aulas (sábados letivos ou avanço no calendário), submetê-lo à aprovação do Conselho Escolar e homologá-lo na Diretoria de Educação (NTE).', 'D) Diminuir a duração de cada aula para 30 minutos.', 'E) Aprovar automaticamente todos os alunos prejudicados.'], answer: 2, comment: 'Gabarito C. A LDB não permite suprimir o direito líquido aos 200 dias/800h. Casos fortuitos exigem calendário de reposição oficial.' },
+            { id: 122, topic: 'Res. 03/2025 - Equivalência de Idade - EJA', text: 'Analise a situação: Jovem com 17 anos completos no início do ano requer matrícula no Ensino Médio regular, no turno noturno, para poder trabalhar durante o dia. A secretaria escolar deve:', options: ['A) Negar, pois menores de idade não podem estudar à noite.', 'B) Matricular o aluno, uma vez que a lei permite o acesso de adolescentes trabalhadores ao ensino regular noturno adequado às suas condições (Art. 4º, LDB).', 'C) Obrigá-lo a fazer EJA.', 'D) Exigir que o jovem apresente emancipação judicial.', 'E) Matricular apenas com autorização do Conselho Tutelar.'], answer: 1, comment: 'Gabarito B. O Ensino Noturno Regular deve ser garantido pelo Estado aos jovens e trabalhadores. (Lembre-se: ele tem 17 anos, logo não pode cursar a EJA Ensino Médio, cuja idade mínima é 18).' },
+            { id: 123, topic: 'Res. 03/2025 - Emissão de Certidões', text: 'Um antigo estudante solicita à escola uma certidão atestando que lá concluiu os estudos na década de 1990. Após procurar nos livros e pastas do arquivo, o Técnico não encontra nenhum registo do aluno. Qual o procedimento a seguir?', options: ['A) Expedir uma certidão genérica de conclusão baseada no relato verbal do aluno.', 'B) Encaminhar o aluno para outro colégio.', 'C) Fornecer uma "Certidão Negativa", atestando formalmente, sob fé pública, que após buscas realizadas nos acervos da instituição, não foi localizado qualquer registo escolar em nome do requerente.', 'D) Ignorar o pedido e não responder ao utente.', 'E) Prender o utente por tentar fraudar um diploma.'], answer: 2, comment: 'Gabarito C. A Administração Pública manifesta-se através de certidões. Se os dados não existem, a resposta oficial documentada é a Certidão Negativa de registos.' },
+            { id: 124, topic: 'Res. 03/2025 - Rotinas de Atendimento', text: 'No serviço público, o "Princípio da Publicidade" aplica-se no ambiente escolar na seguinte situação prática da secretaria:', options: ['A) Colocação do Diário de Classe com as notas abertas no corredor para todos verem.', 'B) Publicação de processos de licitação da cantina e da lista de alunos matriculados nos editais murais da escola, bem como regras de matrículas, respeitando o direito coletivo à informação e à transparência.', 'C) Partilha do endereço pessoal dos professores com fornecedores.', 'D) Publicação no Instagram da escola dos nomes dos alunos expulsos.', 'E) Acesso irrestrito a senhas financeiras por alunos.'], answer: 1, comment: 'Gabarito B. A Publicidade (Art. 37 CF) garante transparência das ações e direitos coletivos, não abrangendo exposição vexatória ou dados privados (notas, expulsões, moradas).' },
+            { id: 125, topic: 'Res. 03/2025 - Declaração de Escolaridade', text: 'Um aluno solicita uma Declaração de Matrícula e Frequência atualizada para apresentar numa entrevista de emprego. O Técnico Administrativo elabora o documento e colhe as assinaturas. Para conferir autêntica "Fé Pública", é obrigatório apospor no documento:', options: ['A) Um selo dourado.', 'B) A impressão digital do aluno e dos pais.', 'C) A assinatura original da Direção/Secretaria e o "Carimbo" contendo a identificação funcional e o número de registo/matrícula do servidor que assina.', 'D) O visto do juiz da comarca.', 'E) A assinatura de três testemunhas.'], answer: 2, comment: 'Gabarito C. O Carimbo de identificação funcional + assinatura são a materialização da fé pública concedida ao servidor administrativo pelas portarias de nomeação do Estado.' },
+            { id: 126, topic: 'Res. 03/2025 - Transferência - Prazos', text: 'Segundo a práxis administrativa escolar, se a unidade escolar emissora atrasar sistematicamente e recusar-se a expedir o Histórico Escolar definitivo sem qualquer justificação superior, ela sujeita-se a:', options: ['A) Multa cobrada pelo aluno e paga ao próprio.', 'B) Encaminhamento do caso para a Inspeção Escolar (NTE) e Ministério Público (MP/BA) por retenção indevida de documento público.', 'C) Fecho imediato da instituição com perda da licença.', 'D) Louvor, pois a demora evita falsificações.', 'E) Exclusão dos alunos do censo letivo.'], answer: 1, comment: 'Gabarito B. Retenção de histórico (que não seja por prazo técnico razoável) fere a Constituição e o ECA. A escola que descumpre, especialmente escolas privadas, pode sofrer ações do MP.' },
+            { id: 127, topic: 'Res. 03/2025 - Matrícula Pessoas com Deficiência', text: 'A Resolução impõe que a escola, no ato da matrícula de um estudante que utiliza cadeira de rodas, proceda com prioridade na sua lotação. Isso significa:', options: ['A) Isentar o aluno de qualquer cobrança financeira mensal, que seria cobrada dos outros.', 'B) Alojar as turmas com alunos portadores de deficiência física/motora nas salas localizadas preferencialmente no piso térreo, promovendo a acessibilidade arquitetónica imediata.', 'C) Realizar matrícula exclusiva na turma especial (EJA).', 'D) Forçar os outros alunos a carregar a cadeira de rodas escadas acima.', 'E) Solicitar à família que pague um professor substituto.'], answer: 1, comment: 'Gabarito B. Medida estrutural e pedagógica imposta por lei. Garantir acessibilidade plena às salas de aula de ensino regular (LBI - Lei Brasileira de Inclusão).' },
+            { id: 128, topic: 'Res. 03/2025 - Conservação de Acervo', text: 'O Técnico Administrativo recebe a missão de organizar as antigas "Pastas Individuais" de alunos formados há mais de 10 anos. Para evitar a degradação deste arquivo de guarda permanente, qual prática técnica deve adotar?', options: ['A) Retirar clips de metal e elásticos de borracha velhos que enferrujam e deterioram o papel, utilizando pastas de cartão suspensas e acondicionamento seco.', 'B) Encadernar todas as pastas individuais num único livro de plástico derretido.', 'C) Guardar os papéis em sacos de lixo preto nas caves da escola.', 'D) Plastificar todo o documento histórico a quente.', 'E) Atar as folhas com adesivos de cola líquida.'], answer: 0, comment: 'Gabarito A. Conhecimento transversal de Arquivologia cobrado pela IBFC em cargos administrativos. Evita-se metal (oxidação) e plástico reativo no arquivo definitivo.' },
+            { id: 129, topic: 'Res. 03/2025 - Atendimento ao Público (Princípios)', text: 'Um funcionário da secretaria desliga o telefone na cara de um pai que pediu informações detalhadas sobre as datas de provas, afirmando que a escola não tem a obrigação de responder. Este ato fere principalmente o princípio administrativo constitucional da:', options: ['A) Legalidade e Probidade.', 'B) Autotutela.', 'C) Eficiência e da Urbanidade no serviço público.', 'D) Publicidade Secreta.', 'E) Separação dos Poderes.'], answer: 2, comment: 'Gabarito C. Desligar o telefone no atendimento evidencia ausência de Urbanidade e viola a Eficiência (celeridade e presteza ao utente), requisitos essenciais do serviço público.' },
+            { id: 130, topic: 'Res. 03/2025 - Avaliação Final Geral', text: 'Julgue o caso à luz da LDB e Resoluções Baianas: "A direção da escola decidiu unilateralmente, sem aprovação do conselho, que alunos reprovados deveriam pagar uma taxa de 20 Reais para solicitar a emissão de boletins parciais durante o ano seguinte". Esta ação é:', options: ['A) Legal, se reverter o dinheiro para o grêmio estudantil.', 'B) Ilegal, porque as escolas públicas estaduais são mantidas pelo Poder Público, sendo inconstitucional a cobrança de quaisquer taxas para a expedição de documentos de vida escolar e afins.', 'C) Facultativa e baseada na autonomia do diretor.', 'D) Ilegal apenas para alunos do Ensino Fundamental; para os do Ensino Médio é permitida.', 'E) Legal, pois o conselho escolar tem função puramente decorativa.'], answer: 1, comment: 'Gabarito B. Educação básica pública é gratuita em todos os seus serviços administrativos e pedagógicos (Art. 206 da CF/88 e LDB). A cobrança constitui crime de concussão ou infração disciplinar gravíssima.' }
+        ]; 
+
+
+        // =========================================================================
+        // 2. ESTADO DA APLICAÇÃO (STATE MANAGEMENT)
+        // =========================================================================
+        let appState = {
+            history: {}, // Estrutura: { idQuestao: { status: 'correct'/'incorrect', attempts: 1 } }
+            cyclesCompleted: 0
+        };
+
+        let currentCycle = { questions: [], currentIndex: 0 };
+
+        // =========================================================================
+        // 3. CONTROLADORES DE INTERFACE (UI)
+        // =========================================================================
+        function initApp() {
+            carregarDadosLocais();
+            atualizarDashboard();
+        }
+
+        function mudarAba(nomeAba) {
+            document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active', 'border-indigo-400', 'bg-indigo-800', 'text-white');
+                btn.classList.add('border-transparent', 'text-indigo-200');
+            });
+            
+            document.getElementById(`view-${nomeAba}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${nomeAba}`);
+            activeBtn.classList.remove('border-transparent', 'text-indigo-200');
+            activeBtn.classList.add('tab-active', 'border-indigo-400', 'bg-indigo-800', 'text-white');
+
+            if (nomeAba === 'dashboard') atualizarDashboard();
+        }
+
+        // =========================================================================
+        // 4. MOTOR ADAPTATIVO (REGRAS DE NEGÓCIO DA EDUCAÇÃO)
+        // O Filtro seleciona exclusivamente as ERRADAS e as NÃO RESPONDIDAS.
+        // =========================================================================
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function tentarIniciarCiclo() {
+            // Verifica se o usuário já colou o banco de questões
+            if (!questionBank || questionBank.length === 0) {
+                mostrarModal('Banco Vazio', 'Cole o banco de questões (questionBank) no código fonte para iniciar.', 'error', 'Entendi');
+                return;
+            }
+
+            let erradas = [];
+            let naoRespondidas = [];
+
+            questionBank.forEach(q => {
+                const hist = appState.history[q.id];
+                if (!hist) {
+                    naoRespondidas.push(q);
+                } else if (hist.status === 'incorrect') {
+                    erradas.push(q);
+                }
+            });
+
+            if (erradas.length + naoRespondidas.length < 20) {
+                mostrarModal(
+                    'Questões Insuficientes',
+                    'A quantidade de questões erradas e não respondidas no banco é menor que 20 (você acertou quase tudo!). Deseja reiniciar o seu histórico para continuar treinando?',
+                    'warning',
+                    'Reiniciar Histórico',
+                    () => { reiniciarBancoDeQuestoes(); },
+                    true // mostrar cancelar
+                );
+                return;
+            }
+
+            shuffleArray(erradas);
+            shuffleArray(naoRespondidas);
+
+            let questoesDoCiclo = [];
+            
+            erradas.forEach(q => { if(questoesDoCiclo.length < 20) questoesDoCiclo.push(q); });
+            naoRespondidas.forEach(q => { if(questoesDoCiclo.length < 20) questoesDoCiclo.push(q); });
+
+            shuffleArray(questoesDoCiclo);
+            
+            currentCycle.questions = questoesDoCiclo;
+            currentCycle.currentIndex = 0;
+
+            document.getElementById('cycle-setup').classList.add('hidden');
+            document.getElementById('question-container').classList.remove('hidden');
+            
+            renderizarQuestaoAtual();
+        }
+
+        function reiniciarBancoDeQuestoes() {
+            appState.history = {}; 
+            salvarDadosLocais();
+            tentarIniciarCiclo(); 
+        }
+
+        // =========================================================================
+        // 5. MOTOR DE RENDERIZAÇÃO E AVALIAÇÃO DO SIMULADO
+        // =========================================================================
+        function renderizarQuestaoAtual() {
+            const q = currentCycle.questions[currentCycle.currentIndex];
+            const total = currentCycle.questions.length;
+            const atual = currentCycle.currentIndex + 1;
+
+            document.getElementById('q-topic').textContent = q.topic;
+            document.getElementById('q-progress').textContent = `Questão ${atual} de ${total}`;
+            document.getElementById('q-text').textContent = q.text;
+
+            const conteinerOpcoes = document.getElementById('q-options');
+            conteinerOpcoes.innerHTML = '';
+            
+            q.options.forEach((opt, index) => {
+                const htmlOpcao = `
+                    <label class="option-label block relative">
+                        <input type="radio" name="q-option" value="${index}" class="option-radio absolute opacity-0 w-0 h-0" onchange="habilitarBotaoConfirma(true)">
+                        <div class="option-content p-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 flex items-start">
+                            <span class="font-bold mr-3 text-indigo-600 mt-0.5">${String.fromCharCode(65 + index)}</span>
+                            <span>${opt.substring(3)}</span>
+                        </div>
+                    </label>
+                `;
+                conteinerOpcoes.insertAdjacentHTML('beforeend', htmlOpcao);
+            });
+
+            document.getElementById('feedback-container').classList.add('hidden');
+            const btnConfirmar = document.getElementById('btn-confirm');
+            btnConfirmar.classList.remove('hidden');
+            btnConfirmar.disabled = true;
+            document.getElementById('btn-next').classList.add('hidden');
+        }
+
+        function habilitarBotaoConfirma(habilitar) {
+            document.getElementById('btn-confirm').disabled = !habilitar;
+        }
+
+        function confirmarResposta() {
+            const radioSelecionado = document.querySelector('input[name="q-option"]:checked');
+            if (!radioSelecionado) return;
+
+            const valorSelecionado = parseInt(radioSelecionado.value);
+            const questao = currentCycle.questions[currentCycle.currentIndex];
+            const estaCorreto = valorSelecionado === questao.answer;
+
+            if (!appState.history[questao.id]) {
+                appState.history[questao.id] = { status: estaCorreto ? 'correct' : 'incorrect', attempts: 1 };
+            } else {
+                appState.history[questao.id].status = estaCorreto ? 'correct' : 'incorrect';
+                appState.history[questao.id].attempts += 1;
+            }
+            salvarDadosLocais();
+
+            const labels = document.querySelectorAll('.option-label');
+            labels.forEach(lbl => {
+                const input = lbl.querySelector('input');
+                const content = lbl.querySelector('.option-content');
+                input.disabled = true; 
+                
+                if (parseInt(input.value) === questao.answer) {
+                    content.classList.add('correct-answer');
+                } else if (input.checked && !estaCorreto) {
+                    content.classList.add('wrong-answer');
+                }
+            });
+
+            const painelFeedback = document.getElementById('feedback-container');
+            const tituloFeedback = document.getElementById('feedback-title');
+            
+            painelFeedback.classList.remove('hidden', 'border-green-500', 'border-red-500', 'bg-green-50', 'bg-red-50');
+            if (estaCorreto) {
+                painelFeedback.classList.add('border-green-500', 'bg-green-50');
+                tituloFeedback.innerHTML = `<svg class="w-6 h-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Resposta Correta!`;
+                tituloFeedback.className = "text-lg font-bold mb-2 flex items-center text-green-700";
+            } else {
+                painelFeedback.classList.add('border-red-500', 'bg-red-50');
+                tituloFeedback.innerHTML = `<svg class="w-6 h-6 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Resposta Incorreta`;
+                tituloFeedback.className = "text-lg font-bold mb-2 flex items-center text-red-700";
+            }
+            
+            document.getElementById('feedback-comment').textContent = questao.comment;
+            
+            document.getElementById('btn-confirm').classList.add('hidden');
+            document.getElementById('btn-next').classList.remove('hidden');
+        }
+
+        function avancarQuestao() {
+            currentCycle.currentIndex++;
+            if (currentCycle.currentIndex < currentCycle.questions.length) {
+                renderizarQuestaoAtual();
+            } else {
+                appState.cyclesCompleted++;
+                salvarDadosLocais();
+                // BUG CORRIGIDO: Agora usamos a nova assinatura do modal garantindo que o callback rode!
+                mostrarModal(
+                    'Ciclo Concluído!', 
+                    'O filtro analisará suas respostas para calibrar o próximo treinamento.', 
+                    'success', 
+                    'Ver Desempenho', // Texto do botão
+                    () => {           // Callback executado ao clicar
+                        document.getElementById('question-container').classList.add('hidden');
+                        document.getElementById('cycle-setup').classList.remove('hidden');
+                        mudarAba('dashboard');
+                    },
+                    false // Não mostrar botão cancelar
+                );
+            }
+        }
+
+        // =========================================================================
+        // 6. DASHBOARD E ESTATÍSTICAS
+        // =========================================================================
+        function atualizarDashboard() {
+            let totalRespondidas = 0;
+            let acertos = 0;
+
+            for (const data of Object.values(appState.history)) {
+                totalRespondidas++;
+                if (data.status === 'correct') acertos++;
+            }
+
+            const perc = totalRespondidas === 0 ? 0 : Math.round((acertos / totalRespondidas) * 100);
+            
+            document.getElementById('stat-total').textContent = totalRespondidas;
+            document.getElementById('stat-cycles').textContent = appState.cyclesCompleted;
+            document.getElementById('stat-correct').textContent = acertos;
+            document.getElementById('stat-wrong').textContent = totalRespondidas - acertos;
+            
+            const chart = document.getElementById('main-chart');
+            chart.style.setProperty('--p', `${perc}%`);
+            chart.style.setProperty('--chart-color', perc >= 70 ? '#10b981' : (perc >= 50 ? '#f59e0b' : '#ef4444'));
+            document.getElementById('main-percentage').textContent = `${perc}%`;
+            document.getElementById('main-fraction').textContent = `${acertos}/${totalRespondidas}`;
+        }
+
+        // =========================================================================
+        // 7. PERSISTÊNCIA DE DADOS (LOCALSTORAGE / JSON)
+        // =========================================================================
+        function salvarDadosLocais() { localStorage.setItem('secBaSimulaState_v2', JSON.stringify(appState)); }
+
+        function carregarDadosLocais() {
+            const salvo = localStorage.getItem('secBaSimulaState_v2');
+            if (salvo) {
+                try { appState = JSON.parse(salvo); } 
+                catch (e) { console.error("Erro ao ler dados salvos."); }
+            }
+        }
+
+        function exportarDados() {
+            document.getElementById('json-data').value = JSON.stringify(appState);
+            mostrarModal('Backup Gerado', 'Copie o código gerado na caixa e guarde-o com segurança.', 'info', 'Entendi');
+        }
+
+        function importarDados() {
+            const input = document.getElementById('json-data').value;
+            if (!input) return mostrarModal('Aviso', 'Cole o código JSON no campo antes.', 'warning', 'Entendi');
+            
+            try {
+                const objParseado = JSON.parse(input);
+                if (objParseado && typeof objParseado.history === 'object') {
+                    appState = objParseado;
+                    salvarDadosLocais();
+                    atualizarDashboard();
+                    document.getElementById('json-data').value = '';
+                    mostrarModal('Sucesso', 'Dados restaurados com sucesso!', 'success', 'Continuar');
+                } else throw new Error("Inválido");
+            } catch (e) { mostrarModal('Erro', 'O código fornecido não é um backup válido.', 'error', 'Entendi'); }
+        }
+
+        // =========================================================================
+        // 8. SISTEMA DE MODAIS (Bug corrigido: Função refatorada para callbacks limpos)
+        // =========================================================================
+        function mostrarModal(titulo, mensagem, tipo = 'info', textoAcaoPrincipal = 'Entendi', cbAcaoPrincipal = null, mostrarCancelar = false, cbCancelar = null) {
+            document.getElementById('modal-title').textContent = titulo;
+            document.getElementById('modal-message').textContent = mensagem;
+            
+            const conteinerIcone = document.getElementById('modal-icon');
+            const conteinerAcoes = document.getElementById('modal-actions');
+            conteinerAcoes.innerHTML = '';
+            
+            const configsIcone = {
+                success: { bg: 'bg-green-100', text: 'text-green-600', svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>' },
+                error:   { bg: 'bg-red-100', text: 'text-red-600', svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>' },
+                warning: { bg: 'bg-yellow-100', text: 'text-yellow-600', svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>' },
+                info:    { bg: 'bg-indigo-100', text: 'text-indigo-600', svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>' }
+            };
+            
+            conteinerIcone.className = `mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${configsIcone[tipo].bg} ${configsIcone[tipo].text}`;
+            conteinerIcone.innerHTML = `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">${configsIcone[tipo].svg}</svg>`;
+
+            if (mostrarCancelar) {
+                const btnCancelar = document.createElement('button');
+                btnCancelar.className = "px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition font-medium";
+                btnCancelar.textContent = "Cancelar";
+                btnCancelar.onclick = () => { fecharModal(); if(cbCancelar) cbCancelar(); };
+                conteinerAcoes.appendChild(btnCancelar);
+            }
+
+            const btnOk = document.createElement('button');
+            btnOk.className = "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition shadow font-medium";
+            btnOk.textContent = textoAcaoPrincipal;
+            btnOk.onclick = () => { fecharModal(); if(cbAcaoPrincipal) cbAcaoPrincipal(); };
+            
+            conteinerAcoes.appendChild(btnOk);
+
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function fecharModal() { document.getElementById('custom-modal').classList.add('hidden'); }
+
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>
