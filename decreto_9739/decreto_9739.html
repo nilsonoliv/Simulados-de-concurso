@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo IBFC | Decreto 9.739/2019</title>
+    
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Configuração do Tailwind (Cores da Marca IBFC) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ibfc: { blue: '#1e3a8a', light: '#eff6ff', accent: '#3b82f6', success: '#10b981', error: '#ef4444' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Estilos Customizados -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Controlo de Abas (Tabs) */
+        .tab-btn.active { border-bottom: 3px solid #1e3a8a; color: #1e3a8a; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Estilos das Opções de Resposta */
+        .option-label { transition: all 0.2s; }
+        .option-label:hover:not(.disabled) { background-color: #eff6ff; border-color: #3b82f6; }
+        input[type="radio"]:checked + .option-label:not(.disabled) { background-color: #eff6ff; border-color: #1e3a8a; box-shadow: 0 0 0 1px #1e3a8a; }
+        
+        /* Feedback Visual (Certo/Errado) */
+        .correct-ans { background-color: #d1fae5 !important; border-color: #10b981 !important; color: #065f46; }
+        .wrong-ans { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b; }
+        .disabled-opt { opacity: 0.5; pointer-events: none; }
+
+        /* Scrollbar Customizada para melhor UI */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col relative">
+
+    <!-- CABEÇALHO DA APLICAÇÃO -->
+    <header class="bg-ibfc-blue text-white shadow-md z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-graduation-cap"></i> EdTech IBFC Simulator</h1>
+                <p class="text-sm text-blue-200"><a href="../raiz/index.html">SEC/BA - Decreto Federal 9.739/2019</a></p>
+            </div>
+            <div class="text-sm bg-blue-800 px-3 py-1 rounded-full border border-blue-700 flex gap-3">
+                <span id="header-status-counter" title="Questões na sessão atual">Sessão: 0/0</span>
+                <span id="header-global-counter" class="text-blue-300 border-l border-blue-600 pl-3" title="Progresso Global do Banco">Banco: 0/30</span>
+            </div>
+        </div>
+        
+        <!-- Navegação por Abas -->
+        <div class="max-w-6xl mx-auto px-4 mt-2 flex gap-6 overflow-x-auto">
+            <button onclick="mudarAba('simulado')" id="btn-simulado" class="tab-btn active pb-2 px-1 text-blue-100 hover:text-white transition whitespace-nowrap"><i class="fa-solid fa-pen-to-square mr-1"></i> Simulado</button>
+            <button onclick="mudarAba('dashboard')" id="btn-dashboard" class="tab-btn pb-2 px-1 text-blue-100 hover:text-white transition whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-1"></i> Dashboard & SWOT</button>
+            <button onclick="mudarAba('dados')" id="btn-dados" class="tab-btn pb-2 px-1 text-blue-100 hover:text-white transition whitespace-nowrap"><i class="fa-solid fa-database mr-1"></i> Salvar/Carregar</button>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL DE CONTEÚDO -->
+    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-6 overflow-y-auto">
+        
+        <!-- ========================================== -->
+        <!-- ABA 1: SIMULADO (Área de Resolução)        -->
+        <!-- ========================================== -->
+        <section id="tab-simulado" class="tab-content active">
+            <!-- Ecrã de Boas-vindas / Iniciar Sessão -->
+            <div id="area-iniciar-sessao" class="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
+                <div class="w-20 h-20 bg-blue-50 text-ibfc-blue rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Pronto para treinar?</h2>
+                <p class="text-gray-600 mb-8 max-w-lg mx-auto">O algoritmo irá focar-se nas questões <strong>não respondidas</strong> e nas que <strong>errou anteriormente</strong> para otimizar a sua aprendizagem.</p>
+                <button onclick="tentarIniciarSessao()" class="bg-ibfc-accent hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-lg transition shadow-md text-lg inline-flex items-center gap-2">
+                    <i class="fa-solid fa-play"></i> Iniciar Nova Sessão
+                </button>
+            </div>
+
+            <!-- Ecrã da Questão (Escondido por padrão) -->
+            <div id="area-questao" class="hidden bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <div class="flex justify-between items-center mb-4">
+                    <span id="q-topico" class="text-xs font-semibold uppercase tracking-wider text-ibfc-accent bg-blue-50 px-2 py-1 rounded">Tópico</span>
+                    <span id="q-status-badge" class="text-xs font-medium px-2 py-1 rounded bg-gray-100 text-gray-600"><i class="fa-regular fa-circle-question"></i> Não Respondida</span>
+                </div>
+
+                <h2 id="q-texto" class="text-lg md:text-xl font-medium text-gray-800 mb-6 leading-relaxed">Carregando...</h2>
+
+                <div id="q-opcoes" class="flex flex-col gap-3 mb-8">
+                    <!-- Opções geradas dinamicamente via JS -->
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex gap-4 border-t border-gray-100 pt-6">
+                    <button id="btn-confirmar" onclick="confirmarResposta()" class="bg-ibfc-accent hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition shadow-sm w-full md:w-auto">Confirmar Resposta</button>
+                    <button id="btn-proxima" onclick="avancarQuestao()" class="hidden bg-gray-800 hover:bg-gray-900 text-white font-medium py-3 px-6 rounded-lg transition shadow-sm w-full md:w-auto">Próxima Questão <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                    <button id="btn-finalizar" onclick="finalizarSessao()" class="hidden bg-ibfc-success hover:bg-green-600 text-white font-medium py-3 px-6 rounded-lg transition shadow-sm w-full md:w-auto">Finalizar Sessão <i class="fa-solid fa-flag-checkered ml-2"></i></button>
+                </div>
+
+                <!-- Área de Feedback (Gabarito) -->
+                <div id="area-feedback" class="hidden mt-6 p-5 rounded-lg border">
+                    <div class="flex items-start gap-3">
+                        <div id="icone-feedback" class="text-2xl mt-1"></div>
+                        <div>
+                            <h3 id="titulo-feedback" class="font-bold text-lg mb-1"></h3>
+                            <p id="texto-feedback" class="text-gray-700 text-sm md:text-base leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ABA 2: DASHBOARD & SWOT                    -->
+        <!-- ========================================== -->
+        <section id="tab-dashboard" class="tab-content">
+            <!-- Cards de Resumo -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 text-center">
+                    <h4 class="text-gray-500 text-sm font-semibold uppercase mb-1">Questões Certas</h4>
+                    <span id="dash-certas" class="text-3xl font-bold text-ibfc-success">0</span>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 text-center">
+                    <h4 class="text-gray-500 text-sm font-semibold uppercase mb-1">Questões Erradas</h4>
+                    <span id="dash-erradas" class="text-3xl font-bold text-ibfc-error">0</span>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 text-center">
+                    <h4 class="text-gray-500 text-sm font-semibold uppercase mb-1">Não Respondidas</h4>
+                    <span id="dash-pendentes" class="text-3xl font-bold text-gray-400">30</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Gráfico de Desempenho Global -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
+                    <h3 class="font-bold text-gray-700 mb-4 w-full text-center border-b pb-2">Desempenho Global do Banco</h3>
+                    <div class="w-48 h-48 relative">
+                        <canvas id="graficoGlobal"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                            <span id="pct-global" class="text-2xl font-bold text-gray-800">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Evolução (Histórico) -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 text-center border-b pb-2">Evolução por Sessões</h3>
+                    <div class="w-full h-48 relative">
+                        <canvas id="graficoEvolucao"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matriz SWOT -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 class="font-bold text-gray-800 mb-2 flex items-center gap-2"><i class="fa-solid fa-chess-knight text-ibfc-blue"></i> Análise de Desempenho por Tópico</h3>
+                <p class="text-sm text-gray-500 mb-6">Mapeamento automático das suas forças e fraquezas com base no histórico de respostas.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-green-200 bg-green-50 rounded-lg p-4">
+                        <h4 class="text-green-800 font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-arrow-trend-up"></i> Pontos Fortes (>80%)</h4>
+                        <ul id="lista-fortes" class="space-y-2 text-sm text-green-900"></ul>
+                    </div>
+                    <div class="border border-red-200 bg-red-50 rounded-lg p-4">
+                        <h4 class="text-red-800 font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-circle-exclamation"></i> Pontos de Atenção (<60%)</h4>
+                        <ul id="lista-fracos" class="space-y-2 text-sm text-red-900"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ABA 3: PERSISTÊNCIA (Import/Export)        -->
+        <!-- ========================================== -->
+        <section id="tab-dados" class="tab-content">
+            <div class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200 max-w-3xl mx-auto">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-100 text-ibfc-blue rounded-full flex items-center justify-center text-2xl mx-auto mb-4"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <h2 class="text-2xl font-bold text-gray-800">Cópia de Segurança do Progresso</h2>
+                    <p class="text-gray-500 mt-2">Guarde o código gerado num local seguro para não perder as estatísticas do algoritmo caso limpe o cache do navegador.</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Código de Restauro (JSON Base64)</label>
+                        <textarea id="texto-dados" rows="5" class="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-ibfc-accent focus:border-ibfc-accent outline-none" placeholder="Cole o código aqui para carregar o seu progresso anterior..."></textarea>
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <button onclick="exportarDados()" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-lg font-medium transition"><i class="fa-solid fa-download mr-2"></i>1. Gerar Código</button>
+                        <button onclick="copiarDados()" class="flex-1 bg-ibfc-blue hover:bg-blue-900 text-white py-3 rounded-lg font-medium transition"><i class="fa-solid fa-copy mr-2"></i>2. Copiar Código</button>
+                        <button onclick="importarDados()" class="flex-1 bg-ibfc-accent hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition"><i class="fa-solid fa-upload mr-2"></i>Carregar Progresso</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODAIS E COMPONENTES DE NOTIFICAÇÃO        -->
+    <!-- ========================================== -->
+    
+    <!-- Modal: Reiniciar Banco de Questões (Substitui o window.confirm) -->
+    <div id="modal-reiniciar" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all">
+            <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4"><i class="fa-solid fa-rotate-right"></i></div>
+            <h3 class="text-xl font-bold text-center text-gray-800 mb-2">Banco Esgotado!</h3>
+            <p class="text-gray-600 text-center mb-6 leading-relaxed">Não existem questões suficientes classificadas como "Não Respondidas" ou "Erradas" para completar uma nova sessão.<br><br>Deseja reiniciar o banco de questões (as questões certas voltarão a ser não respondidas) ou cancelar?</p>
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button onclick="fecharModalReiniciar()" class="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition">Cancelar</button>
+                <button onclick="reiniciarStatusQuestoes()" class="flex-1 py-3 px-4 bg-ibfc-accent hover:bg-blue-600 text-white font-medium rounded-lg transition">Reiniciar Banco</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de Notificação -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 z-50 flex items-center gap-3">
+        <i id="icone-toast" class="fa-solid fa-circle-info"></i>
+        <span id="msg-toast">Notificação</span>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LÓGICA DE PROGRAMAÇÃO (JAVASCRIPT)         -->
+    <!-- ========================================== -->
+    <script>
+        /**
+         * 1. BANCO DE QUESTÕES (Comprimido para poupar linhas verticais)
+         * Contém 30 questões estilo IBFC focadas no Decreto 9.739/2019.
+         */
+        const BANCO_QUESTOES = [
+            { id: 1, topico: "Regras para Concursos Públicos", texto: "De acordo com o Decreto nº 9.739/2019, o Ministério da Economia poderá autorizar a nomeação de candidatos não convocados que ultrapasse as vagas originais em até:", opcoes: ["A) 10%", "B) 20%", "C) 25%", "D) 30%", "E) 50%"], resposta: 2, explicacao: "Art. 28, § 2º: O Ministro poderá autorizar a nomeação de aprovados que ultrapassem em até 25% a quantidade original de vagas." },
+            { id: 2, topico: "Competências e Estruturas", texto: "As propostas de criação ou transformação de cargos em comissão devem ser dirigidas ao:", opcoes: ["A) Presidente da República.", "B) Ministério da Economia.", "C) Congresso Nacional.", "D) Tribunal de Contas da União.", "E) Superior Tribunal de Justiça."], resposta: 1, explicacao: "Art. 8º: As propostas serão encaminhadas ao Ministério da Economia (atual MGI)." },
+            { id: 3, topico: "Regras para Concursos Públicos", texto: "O edital do concurso público será publicado no DOU com antecedência mínima da primeira prova de:", opcoes: ["A) 30 dias.", "B) 45 dias.", "C) 60 dias (dois meses).", "D) 90 dias.", "E) 120 dias."], resposta: 2, explicacao: "Art. 41: Antecedência mínima de dois meses da realização da primeira prova." },
+            { id: 4, topico: "Eficiência Organizacional", texto: "O Sistema de Organização e Inovação Institucional (SIORG) tem como órgão central:", opcoes: ["A) A Casa Civil.", "B) A CGU.", "C) A Secretaria de Governo.", "D) O Ministério da Economia.", "E) O GSI."], resposta: 3, explicacao: "Art. 13: O Ministério da Economia atua como órgão central do SIORG." },
+            { id: 5, topico: "Regras para Concursos Públicos", texto: "A validade do concurso público fixada no edital é de:", opcoes: ["A) Até dois anos, prorrogável uma vez por igual período.", "B) Até um ano, prorrogável uma vez.", "C) Dois anos ininterruptos.", "D) Até cinco anos.", "E) Três anos."], resposta: 0, explicacao: "Art. 41, II: Prazo de validade de até 2 anos, prorrogável uma única vez, por igual período." },
+            { id: 6, topico: "Regras para Concursos Públicos", texto: "A autorização para concurso público está condicionada, principalmente, a:", opcoes: ["A) Menos de 10% de cargos vagos.", "B) Orçamento próprio para 5 anos.", "C) Prévia dotação orçamentária.", "D) Exigência de nível superior.", "E) Taxa de inscrição máxima de 5%."], resposta: 2, explicacao: "Art. 27: Condicionada à prévia dotação orçamentária para atendimento das projeções de despesa." },
+            { id: 7, topico: "Eficiência Organizacional", texto: "As propostas de alteração da estrutura organizacional devem conter justificativa que engloba:", opcoes: ["A) Aprovação popular.", "B) Parecer sindical.", "C) Demonstração dos ganhos de eficiência e impacto financeiro.", "D) Autorização do STF.", "E) Aprovação da Assembleia."], resposta: 2, explicacao: "Art. 5º: Devem demonstrar ganhos de eficiência, eficácia ou efetividade e o impacto financeiro." },
+            { id: 8, topico: "Delegação e Atos Normativos", texto: "Segundo a lógica do Decreto, as competências ministeriais podem ser delegadas, sendo VEDADA a delegação para:", opcoes: ["A) Edição de atos de caráter normativo.", "B) Nomeação de cargos.", "C) Autorização para autarquias.", "D) Exames admissionais.", "E) Redução de prazos."], resposta: 0, explicacao: "Atos normativos, por natureza e com base na Lei 9.784, são competências indelegáveis aplicadas subsidiariamente." },
+            { id: 9, topico: "Competências e Estruturas", texto: "Qual alternativa NÃO compõe a estrutura básica de um Ministério?", opcoes: ["A) Gabinete do Ministro.", "B) Secretaria-Executiva.", "C) Órgãos de assistência direta.", "D) Tribunais Regionais Setoriais.", "E) Órgãos específicos singulares."], resposta: 3, explicacao: "Tribunais Regionais são do Poder Judiciário, não do Poder Executivo (Ministérios)." },
+            { id: 10, topico: "Regras para Concursos Públicos", texto: "Segundo o Anexo II, se um concurso oferece 1 vaga, a quantidade máxima de aprovados no resultado final será:", opcoes: ["A) 1", "B) 3", "C) 5", "D) 10", "E) 15"], resposta: 2, explicacao: "Anexo II do Decreto 9.739: Para 1 vaga imediata, o máximo de aprovados é 5." },
+            { id: 11, topico: "Regras para Concursos Públicos", texto: "Ainda com base no Anexo II, se o edital prever mais de 30 vagas, o limite de aprovados será:", opcoes: ["A) Duas vezes o número de vagas.", "B) Três vezes.", "C) Quatro vezes.", "D) Cinco vezes.", "E) Ilimitado."], resposta: 0, explicacao: "Anexo II: Para mais de 30 vagas, o limite é 2 vezes a quantidade de vagas." },
+            { id: 12, topico: "Regras para Concursos Públicos", texto: "Candidatos não classificados no quantitativo máximo de aprovados do Anexo II:", opcoes: ["A) Ficam em lista de espera.", "B) Estão automaticamente reprovados.", "C) Podem ser chamados futuramente.", "D) Têm direito líquido e certo.", "E) Fazem prova discursiva extra."], resposta: 1, explicacao: "Art. 39, § 1º: Estarão automaticamente reprovados no concurso público." },
+            { id: 13, topico: "Competências e Estruturas", texto: "NÃO é requisito obrigatório prévio para solicitar um concurso:", opcoes: ["A) Informatização e automação de processos judiciais.", "B) Evolução do quadro de pessoal.", "C) Inviabilidade de terceirização.", "D) Dimensionamento da força de trabalho.", "E) Revisão de processos de trabalho."], resposta: 0, explicacao: "Informatização de processos judiciais não consta nos requisitos do Art. 27." },
+            { id: 14, topico: "Eficiência Organizacional", texto: "Os órgãos setoriais do SIORG atuam no âmbito:", opcoes: ["A) Das concessionárias privadas.", "B) Das Secretarias de Estado.", "C) Dos Ministérios e Presidência da República.", "D) Dos Municípios.", "E) Exclusivamente do TCU."], resposta: 2, explicacao: "Art. 13: Atuam no âmbito dos Ministérios e órgãos da Presidência da República." },
+            { id: 15, topico: "Regras para Concursos Públicos", texto: "Em caso de empate na última posição de classificação do quantitativo máximo de aprovados:", opcoes: ["A) Haverá sorteio.", "B) Todos serão reprovados.", "C) Nenhum empatado será considerado reprovado.", "D) Prevalece o mais idoso obrigatoriamente.", "E) Ficam de fora do limite."], resposta: 2, explicacao: "Art. 39, § 3º: Nenhum dos candidatos empatados na última classificação será reprovado." },
+            { id: 16, topico: "Regras para Concursos Públicos", texto: "Para prorrogar a validade de um concurso é necessário:", opcoes: ["A) Medida Provisória.", "B) Ato fundamentado da autoridade competente antes do vencimento.", "C) Decisão judicial.", "D) Aprovação do Senado.", "E) Autorização sindical."], resposta: 1, explicacao: "Ato administrativo discricionário da autoridade responsável, publicado dentro da validade." },
+            { id: 17, topico: "Delegação e Atos Normativos", texto: "A autorização de concursos na administração direta e autárquica federal compete ao:", opcoes: ["A) Presidente.", "B) Ministro da Economia.", "C) Ministro da respectiva pasta livremente.", "D) TCU.", "E) PGR."], resposta: 1, explicacao: "Art. 27: Compete ao Ministro de Estado da Economia (atual MGI)." },
+            { id: 18, topico: "Eficiência Organizacional", texto: "Se a alteração organizacional não gerar impacto financeiro:", opcoes: ["A) É arquivada.", "B) Dispensa avaliação do SIORG.", "C) Exige declaração atestando a inexistência de aumento de despesa.", "D) Implanta-se sem portaria.", "E) É proibida."], resposta: 2, explicacao: "Art. 5º: Exige-se declaração expressa confirmando a inexistência de impacto financeiro." },
+            { id: 19, topico: "Regras para Concursos Públicos", texto: "O candidato que não tomar posse no prazo legal após nomeado:", opcoes: ["A) Vai para o fim da fila.", "B) Terá o ato de provimento tornado sem efeito.", "C) Tem 5 anos de carência.", "D) Paga multa.", "E) É suspenso."], resposta: 1, explicacao: "Regra do regime jurídico (Lei 8112) que pauta as diretrizes de provimento." },
+            { id: 20, topico: "Competências e Estruturas", texto: "A criação de novas estruturas organizacionais exige demonstrar:", opcoes: ["A) Falta de chefias.", "B) Que competências não podem ser exercidas por estrutura já existente.", "C) Vinculação político-partidária.", "D) Aprovação do CNJ.", "E) Aumento salarial prévio."], resposta: 1, explicacao: "Princípio da racionalidade: evitar sobreposição de estruturas desnecessárias." },
+            { id: 21, topico: "Regras para Concursos Públicos", texto: "A autorização para nomeação adicional (até 25%) depende de:", opcoes: ["A) Parecer do TCU.", "B) Solicitação motivada do órgão realizador do concurso.", "C) Plebiscito.", "D) Aumento de arrecadação.", "E) Decreto presidencial extra."], resposta: 1, explicacao: "Art. 28, § 2º: Depende de solicitação fundamentada do dirigente máximo do órgão." },
+            { id: 22, topico: "Eficiência Organizacional", texto: "A Carta de Serviços ao Usuário serve para:", opcoes: ["A) Normatizar obrigações dos servidores.", "B) Divulgar serviços prestados, acesso e compromissos de qualidade.", "C) Cobrar taxas.", "D) Ocultar metas.", "E) Substituir a ouvidoria."], resposta: 1, explicacao: "Visa a transparência e qualidade no atendimento ao cidadão." },
+            { id: 23, topico: "Regras para Concursos Públicos", texto: "Para abrir concurso, o órgão deve materializar a adequação da força de trabalho através do:", opcoes: ["A) Planejamento de marketing.", "B) Dimensionamento da força de trabalho (DFT).", "C) Relatório de despesas.", "D) Estudo ambiental.", "E) Balanço contábil."], resposta: 1, explicacao: "Art. 27: É obrigatório o envio do DFT." },
+            { id: 24, topico: "Delegação e Atos Normativos", texto: "O Regimento Interno dos órgãos da administração direta é aprovado por:", opcoes: ["A) Lei do Senado.", "B) Ato do respectivo Ministro de Estado.", "C) Resolução conjunta.", "D) Medida Provisória.", "E) Portaria da Receita Federal."], resposta: 1, explicacao: "Art. 10: Aprovado por ato do respectivo Ministro de Estado." },
+            { id: 25, topico: "Regras para Concursos Públicos", texto: "Reserva de vagas para PCDs nos editais (legislação federal):", opcoes: ["A) 10% a 30%.", "B) Mínimo 5% e máximo 20%.", "C) Exatos 10%.", "D) Não há reserva.", "E) Mínimo 20%."], resposta: 1, explicacao: "Garantia legal exigida nos editais: Até 20%, assegurando o mínimo de 5%." },
+            { id: 26, topico: "Competências e Estruturas", texto: "Autarquias ao proporem reestruturação devem encaminhar proposta aprovada por seu:", opcoes: ["A) MP.", "B) Sindicato.", "C) Órgão colegiado máximo, quando houver.", "D) Estagiários.", "E) Conselho de ética."], resposta: 2, explicacao: "Art. 6º: Exigência de aprovação pelo órgão colegiado máximo diretivo da autarquia." },
+            { id: 27, topico: "Regras para Concursos Públicos", texto: "Concursos destinados EXCLUSIVAMENTE a cadastro de reserva:", opcoes: ["A) Sim, irrestrito.", "B) Sim, desde que com autorização e fundamentação de rotatividade.", "C) Proibido.", "D) Apenas Defesa.", "E) Apenas nível fundamental."], resposta: 1, explicacao: "Possível mediante planejamento e justificativa técnica robusta (rotatividade)." },
+            { id: 28, topico: "Eficiência Organizacional", texto: "Requisito para manutenção de estruturas regimentais:", opcoes: ["A) Avaliação anual de impacto e desempenho.", "B) Aumento orçamentário.", "C) Cargos políticos.", "D) Descentralização.", "E) Troca de chefias."], resposta: 0, explicacao: "Princípio da Eficiência exige monitorização do impacto e desempenho organizacional." },
+            { id: 29, topico: "Regras para Concursos Públicos", texto: "A publicação do resultado final dá-se:", opcoes: ["A) Apenas na banca.", "B) No Diário Oficial da União em ordem de classificação.", "C) Jornal local.", "D) Aviso na sede.", "E) Redes sociais."], resposta: 1, explicacao: "Art. 39: Homologado e publicado no DOU na ordem de classificação." },
+            { id: 30, topico: "Delegação e Atos Normativos", texto: "A competência do Ministro da Economia para editar normas complementares ao decreto é de:", opcoes: ["A) Polícia judiciária.", "B) Poder regulamentar complementar.", "C) Legislativa primária.", "D) Disciplinar.", "E) Coisa julgada."], resposta: 1, explicacao: "Art. 45: Poder regulamentar derivado para fiel execução da lei/decreto." }
+        ];
+
+        /**
+         * 2. GESTÃO DE ESTADO (State Management)
+         * Utilizamos um padrão de arquitetura centralizada.
+         */
+        const TAMANHO_SESSAO = 15; // Quantidade ideal de questões por ciclo de estudo
+        
+        // Estado inicial por defeito
+        let estadoPadrao = {
+            statusQuestoes: {}, // { 1: 'nao_respondida', 2: 'certa', 3: 'errada' }
+            sessaoAtual: {
+                idsQuestoes: [],    // IDs das questões separadas para o ciclo atual
+                indiceAtual: 0,     // Posição no array idsQuestoes
+                emAndamento: false, // Define se o utilizador está no meio de um simulado
+                respondida: false   // Evita duplo clique na resposta
+            },
+            historico: [] // Guarda dados para os gráficos de evolução
+        };
+
+        // Objeto estado reativo (clonado do padrão)
+        let estado = JSON.parse(JSON.stringify(estadoPadrao));
+        
+        // Instâncias do Chart.js
+        let graficoSessaoInstancia = null;
+        let graficoEvolucaoInstancia = null;
+
+        /**
+         * 3. INICIALIZAÇÃO DA APLICAÇÃO
+         */
+        window.onload = () => {
+            inicializarStatusQuestoes();
+            carregarDadosLocais();
+            atualizarInterfaceSessao();
+            atualizarDashboard();
+        };
+
+        // Garante que todas as questões existem no estado com status 'nao_respondida'
+        function inicializarStatusQuestoes() {
+            for (let i = 0; i < BANCO_QUESTOES.length; i++) {
+                let q = BANCO_QUESTOES[i];
+                if (!estado.statusQuestoes[q.id]) {
+                    estado.statusQuestoes[q.id] = 'nao_respondida';
+                }
+            }
+        }
+
+        /**
+         * 4. LÓGICA DO SIMULADO ADAPTATIVO (Clean Code)
+         */
+
+        // Inicia um novo ciclo de simulado
+        function tentarIniciarSessao() {
+            // Filtra: Apenas as que não foram respondidas ou que foram erradas
+            let questõesElegiveis = [];
+            for (let id in estado.statusQuestoes) {
+                let status = estado.statusQuestoes[id];
+                if (status === 'nao_respondida' || status === 'errada') {
+                    questõesElegiveis.push(parseInt(id));
+                }
+            }
+
+            // Regra de Negócio: Se não houver questões suficientes
+            if (questõesElegiveis.length < TAMANHO_SESSAO) {
+                mostrarModalReiniciar();
+                return;
+            }
+
+            // Baralha as questões (Fisher-Yates shuffle simplificado)
+            for (let i = questõesElegiveis.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                let temp = questõesElegiveis[i];
+                questõesElegiveis[i] = questõesElegiveis[j];
+                questõesElegiveis[j] = temp;
+            }
+
+            // Prepara o estado da nova sessão selecionando o limite definido
+            let selecionadas = [];
+            for(let i = 0; i < TAMANHO_SESSAO; i++) {
+                selecionadas.push(questõesElegiveis[i]);
+            }
+
+            estado.sessaoAtual.idsQuestoes = selecionadas;
+            estado.sessaoAtual.indiceAtual = 0;
+            estado.sessaoAtual.emAndamento = true;
+            estado.sessaoAtual.respondida = false;
+            
+            salvarDadosLocais();
+            atualizarInterfaceSessao();
+        }
+
+        // Renderiza a pergunta atual no ecrã
+        function atualizarInterfaceSessao() {
+            const elAreaInicio = document.getElementById('area-iniciar-sessao');
+            const elAreaQuestao = document.getElementById('area-questao');
+
+            // Se não houver sessão ativa, mostra ecrã inicial
+            if (!estado.sessaoAtual.emAndamento) {
+                elAreaInicio.classList.remove('hidden');
+                elAreaQuestao.classList.add('hidden');
+                atualizarContadoresCabecalho();
+                return;
+            }
+
+            // Exibe a área de questões
+            elAreaInicio.classList.add('hidden');
+            elAreaQuestao.classList.remove('hidden');
+
+            // Recupera a questão atual pelo ID
+            const idAtual = estado.sessaoAtual.idsQuestoes[estado.sessaoAtual.indiceAtual];
+            const questao = BANCO_QUESTOES.find(function(q) { return q.id === idAtual; });
+            const statusBadge = document.getElementById('q-status-badge');
+
+            // Atualiza UI de Texto
+            document.getElementById('q-topico').textContent = questao.topico;
+            document.getElementById('q-texto').textContent = `${estado.sessaoAtual.indiceAtual + 1}. ${questao.texto}`;
+            
+            // Define o Badge de Status
+            let statusOriginal = estado.statusQuestoes[questao.id];
+            if(statusOriginal === 'errada') {
+                statusBadge.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Revisão de Erro';
+                statusBadge.className = 'text-xs font-medium px-2 py-1 rounded bg-red-100 text-red-700';
+            } else {
+                statusBadge.innerHTML = '<i class="fa-regular fa-circle-question"></i> Inédita';
+                statusBadge.className = 'text-xs font-medium px-2 py-1 rounded bg-blue-100 text-blue-700';
+            }
+
+            // Renderiza Alternativas
+            const divOpcoes = document.getElementById('q-opcoes');
+            divOpcoes.innerHTML = '';
+            
+            for (let i = 0; i < questao.opcoes.length; i++) {
+                const opcaoTexto = questao.opcoes[i];
+                divOpcoes.innerHTML += `
+                    <label class="option-label flex items-start p-4 border border-gray-200 rounded-lg cursor-pointer bg-white relative">
+                        <input type="radio" name="opcaoResposta" value="${i}" class="mt-1 mr-3 w-4 h-4 text-ibfc-blue border-gray-300 focus:ring-ibfc-blue">
+                        <span class="text-gray-700 w-full">${opcaoTexto}</span>
+                    </label>
+                `;
+            }
+
+            // Reseta Feedback e Botões
+            estado.sessaoAtual.respondida = false;
+            document.getElementById('area-feedback').classList.add('hidden');
+            document.getElementById('btn-confirmar').classList.remove('hidden');
+            document.getElementById('btn-proxima').classList.add('hidden');
+            document.getElementById('btn-finalizar').classList.add('hidden');
+            
+            atualizarContadoresCabecalho();
+        }
+
+        // Processa a validação da resposta selecionada
+        function confirmarResposta() {
+            if (estado.sessaoAtual.respondida) return;
+
+            const radioSelecionado = document.querySelector('input[name="opcaoResposta"]:checked');
+            if (!radioSelecionado) {
+                mostrarNotificacao("Selecione uma alternativa para confirmar.", "warning");
+                return;
+            }
+
+            estado.sessaoAtual.respondida = true;
+            const indiceSelecionado = parseInt(radioSelecionado.value);
+            
+            const idAtual = estado.sessaoAtual.idsQuestoes[estado.sessaoAtual.indiceAtual];
+            const questao = BANCO_QUESTOES.find(function(q) { return q.id === idAtual; });
+            const acertou = (indiceSelecionado === questao.resposta);
+
+            // Atualiza o estado da questão no Banco de Conhecimento
+            estado.statusQuestoes[questao.id] = acertou ? 'certa' : 'errada';
+
+            // Feedback Visual nas Opções
+            const labels = document.querySelectorAll('.option-label');
+            for(let i=0; i<labels.length; i++) {
+                let label = labels[i];
+                label.querySelector('input').disabled = true;
+                label.classList.add('disabled-opt'); // Desativa hover
+                
+                if (i === questao.resposta) {
+                    label.classList.remove('disabled-opt');
+                    label.classList.add('correct-ans');
+                } else if (i === indiceSelecionado && !acertou) {
+                    label.classList.remove('disabled-opt');
+                    label.classList.add('wrong-ans');
+                }
+            }
+
+            // Exibir Gabarito Comentado
+            exibirGabarito(acertou, questao.explicacao);
+
+            // Gestão dos Botões de Fluxo
+            document.getElementById('btn-confirmar').classList.add('hidden');
+            
+            let isUltimaQuestao = (estado.sessaoAtual.indiceAtual === estado.sessaoAtual.idsQuestoes.length - 1);
+            if (isUltimaQuestao) {
+                document.getElementById('btn-finalizar').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-proxima').classList.remove('hidden');
+            }
+
+            salvarDadosLocais();
+            atualizarDashboard(); // Atualiza contadores em tempo real no background
+        }
+
+        // Renderiza o painel de feedback explicativo
+        function exibirGabarito(acertou, textoExplicativo) {
+            const area = document.getElementById('area-feedback');
+            const titulo = document.getElementById('titulo-feedback');
+            const icone = document.getElementById('icone-feedback');
+            
+            area.classList.remove('hidden', 'bg-green-50', 'border-green-200', 'bg-red-50', 'border-red-200');
+            
+            if (acertou) {
+                area.classList.add('bg-green-50', 'border-green-200');
+                icone.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+                titulo.textContent = "Correto!";
+                titulo.className = "font-bold text-lg mb-1 text-green-800";
+            } else {
+                area.classList.add('bg-red-50', 'border-red-200');
+                icone.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+                titulo.textContent = "Incorreto";
+                titulo.className = "font-bold text-lg mb-1 text-red-800";
+            }
+            
+            document.getElementById('texto-feedback').innerHTML = `<strong>Comentário:</strong> ${textoExplicativo}`;
+        }
+
+        // Avança o índice da sessão para renderizar a próxima
+        function avancarQuestao() {
+            estado.sessaoAtual.indiceAtual++;
+            atualizarInterfaceSessao();
+        }
+
+        // Encerra a sessão, guarda histórico e volta ao ecrã inicial
+        function finalizarSessao() {
+            // Calcular acertos desta sessão para o gráfico de evolução
+            let certasSessao = 0;
+            for(let i=0; i<estado.sessaoAtual.idsQuestoes.length; i++){
+                let id = estado.sessaoAtual.idsQuestoes[i];
+                if(estado.statusQuestoes[id] === 'certa') certasSessao++;
+            }
+            
+            let percentual = Math.round((certasSessao / TAMANHO_SESSAO) * 100);
+            
+            // Guardar no histórico
+            estado.historico.push({
+                data: new Date().toLocaleDateString(),
+                nota: percentual
+            });
+
+            // Resetar sessão atual
+            estado.sessaoAtual.emAndamento = false;
+            estado.sessaoAtual.idsQuestoes = [];
+            estado.sessaoAtual.indiceAtual = 0;
+            
+            salvarDadosLocais();
+            atualizarInterfaceSessao();
+            mostrarNotificacao("Ciclo concluído com sucesso! Veja a sua evolução no Dashboard.", "success");
+        }
+
+        /**
+         * 5. DASHBOARD E GRÁFICOS
+         */
+        
+        // Atualiza todos os dados analíticos nas abas
+        function atualizarDashboard() {
+            let certas = 0, erradas = 0, pendentes = 0;
+            let estatisticasTopicos = {}; // { "Topico": { certas: 0, total_resp: 0 } }
+
+            // Conta os status gerais
+            for (let i = 0; i < BANCO_QUESTOES.length; i++) {
+                let q = BANCO_QUESTOES[i];
+                let status = estado.statusQuestoes[q.id];
+                
+                // Inicializa o tópico na estrutura de contagem
+                if(!estatisticasTopicos[q.topico]) {
+                    estatisticasTopicos[q.topico] = { certas: 0, respondidas: 0 };
+                }
+
+                if (status === 'certa') {
+                    certas++;
+                    estatisticasTopicos[q.topico].certas++;
+                    estatisticasTopicos[q.topico].respondidas++;
+                } else if (status === 'errada') {
+                    erradas++;
+                    estatisticasTopicos[q.topico].respondidas++;
+                } else {
+                    pendentes++;
+                }
+            }
+
+            // Atualiza Cards
+            document.getElementById('dash-certas').textContent = certas;
+            document.getElementById('dash-erradas').textContent = erradas;
+            document.getElementById('dash-pendentes').textContent = pendentes;
+
+            // Calcula Percentual Global (Baseado nas respondidas)
+            let totalRespondidas = certas + erradas;
+            let percentualGlobal = totalRespondidas > 0 ? Math.round((certas / totalRespondidas) * 100) : 0;
+            document.getElementById('pct-global').textContent = percentualGlobal + '%';
+
+            // Redesenha Gráficos
+            renderizarGraficoGlobal(certas, erradas, pendentes);
+            renderizarGraficoEvolucao();
+            
+            // Renderiza Matriz SWOT
+            renderizarSWOT(estatisticasTopicos);
+        }
+
+        function renderizarGraficoGlobal(c, e, p) {
+            const ctx = document.getElementById('graficoGlobal').getContext('2d');
+            if (graficoSessaoInstancia) graficoSessaoInstancia.destroy();
+            
+            let temDados = (c > 0 || e > 0 || p < BANCO_QUESTOES.length);
+            let dados = temDados ? [c, e, p] : [1];
+            let cores = temDados ? ['#10b981', '#ef4444', '#cbd5e1'] : ['#e5e7eb'];
+            let labels = temDados ? ['Certas', 'Erradas', 'Pendentes'] : ['Sem dados'];
+
+            graficoSessaoInstancia = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: labels, datasets: [{ data: dados, backgroundColor: cores, borderWidth: 0, cutout: '75%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderizarGraficoEvolucao() {
+            const ctx = document.getElementById('graficoEvolucao').getContext('2d');
+            if (graficoEvolucaoInstancia) graficoEvolucaoInstancia.destroy();
+
+            let labels = [];
+            let dados = [];
+
+            // Pega as últimas 7 sessões
+            let historicoRecente = estado.historico.slice(-7);
+            
+            if (historicoRecente.length === 0) {
+                labels = ['Sessão 1']; dados = [0]; // Empty state
+            } else {
+                for(let i=0; i<historicoRecente.length; i++) {
+                    labels.push('S ' + (estado.historico.length - historicoRecente.length + i + 1));
+                    dados.push(historicoRecente[i].nota);
+                }
+            }
+
+            graficoEvolucaoInstancia = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '% Acerto', data: dados, backgroundColor: '#3b82f6', borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderizarSWOT(statsTopicos) {
+            const listaFortes = document.getElementById('lista-fortes');
+            const listaFracos = document.getElementById('lista-fracos');
+            let htmlFortes = '';
+            let htmlFracos = '';
+
+            for (let topico in statsTopicos) {
+                let s = statsTopicos[topico];
+                if (s.respondidas >= 2) { // Precisa de pelo menos 2 questões para avaliar estatística
+                    let pct = Math.round((s.certas / s.respondidas) * 100);
+                    let item = `<li class="flex justify-between border-b border-opacity-20 last:border-0 border-current py-1">
+                                  <span>${topico}</span><span class="font-bold">${pct}%</span>
+                                </li>`;
+                    
+                    if (pct >= 80) htmlFortes += item;
+                    else if (pct <= 60) htmlFracos += item;
+                }
+            }
+
+            listaFortes.innerHTML = htmlFortes || '<li class="text-gray-500 italic">Necessita resolver mais questões consistentes.</li>';
+            listaFracos.innerHTML = htmlFracos || '<li class="text-gray-500 italic">Sem pontos de atenção críticos no momento.</li>';
+        }
+
+        // Funções UI: Contadores do Cabeçalho
+        function atualizarContadoresCabecalho() {
+            let certas = 0;
+            for(let id in estado.statusQuestoes) {
+                if(estado.statusQuestoes[id] === 'certa') certas++;
+            }
+
+            // Global do Banco
+            document.getElementById('header-global-counter').textContent = `Dominado: ${certas}/${BANCO_QUESTOES.length}`;
+            
+            // Sessão Atual
+            if (estado.sessaoAtual.emAndamento) {
+                let idxAtual = estado.sessaoAtual.indiceAtual + 1;
+                let totSessao = estado.sessaoAtual.idsQuestoes.length;
+                document.getElementById('header-status-counter').textContent = `Questão: ${idxAtual}/${totSessao}`;
+            } else {
+                document.getElementById('header-status-counter').textContent = `Aguardando Início`;
+            }
+        }
+
+        // Função de navegação por abas
+        function mudarAba(abaID) {
+            let conteudos = document.querySelectorAll('.tab-content');
+            for(let i=0; i<conteudos.length; i++) conteudos[i].classList.remove('active');
+            
+            let botoes = document.querySelectorAll('.tab-btn');
+            for(let i=0; i<botoes.length; i++) botoes[i].classList.remove('active');
+            
+            document.getElementById('tab-' + abaID).classList.add('active');
+            document.getElementById('btn-' + abaID).classList.add('active');
+
+            if (abaID === 'dashboard') atualizarDashboard();
+        }
+
+        /**
+         * 6. LÓGICA DO MODAL (Reiniciar Banco)
+         */
+        function mostrarModalReiniciar() { document.getElementById('modal-reiniciar').classList.remove('hidden'); }
+        function fecharModalReiniciar() { document.getElementById('modal-reiniciar').classList.add('hidden'); }
+        
+        // Ação executada se o utilizador clicar em "Reiniciar Banco" no modal
+        function reiniciarStatusQuestoes() {
+            // Converte todas as questões de volta para "nao_respondida"
+            for (let id in estado.statusQuestoes) {
+                estado.statusQuestoes[id] = 'nao_respondida';
+            }
+            salvarDadosLocais();
+            fecharModalReiniciar();
+            mostrarNotificacao("O banco foi reiniciado com sucesso. A preparar sessão...", "success");
+            
+            // Inicia nova sessão automaticamente após reiniciar
+            setTimeout(tentarIniciarSessao, 500); 
+        }
+
+        /**
+         * 7. PERSISTÊNCIA DE DADOS (Import/Export e LocalStorage)
+         */
+        function salvarDadosLocais() {
+            try { localStorage.setItem('ibfc_estado_v2', JSON.stringify(estado)); } catch(e){}
+        }
+
+        function carregarDadosLocais() {
+            try {
+                let dados = localStorage.getItem('ibfc_estado_v2');
+                if (dados) {
+                    let estadoCarregado = JSON.parse(dados);
+                    // Validação de segurança básica para evitar quebras por JSON mal formatado
+                    if (estadoCarregado && estadoCarregado.statusQuestoes) {
+                        estado = estadoCarregado;
+                    }
+                }
+            } catch(e){}
+        }
+
+        function exportarDados() {
+            let stringBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(estado))));
+            document.getElementById('texto-dados').value = stringBase64;
+            mostrarNotificacao("Código de segurança gerado!", "success");
+        }
+
+        function copiarDados() {
+            let textarea = document.getElementById('texto-dados');
+            if(!textarea.value) return mostrarNotificacao("Gere o código primeiro.", "warning");
+            textarea.select();
+            document.execCommand('copy');
+            mostrarNotificacao("Copiado para a área de transferência!", "success");
+        }
+
+        function importarDados() {
+            let base64 = document.getElementById('texto-dados').value.trim();
+            if(!base64) return mostrarNotificacao("Cole um código na caixa de texto.", "warning");
+            
+            try {
+                let stringJSON = decodeURIComponent(escape(atob(base64)));
+                let obj = JSON.parse(stringJSON);
+                if(obj && obj.statusQuestoes) {
+                    estado = obj;
+                    salvarDadosLocais();
+                    document.getElementById('texto-dados').value = '';
+                    atualizarInterfaceSessao();
+                    atualizarDashboard();
+                    mostrarNotificacao("Dados de progresso restaurados com sucesso!", "success");
+                }
+            } catch(e) {
+                mostrarNotificacao("Código inválido ou corrompido.", "error");
+            }
+        }
+
+        // Sistema de Toast (Avisos Flutuantes)
+        function mostrarNotificacao(mensagem, tipo = 'info') {
+            const toast = document.getElementById('toast');
+            const icone = document.getElementById('icone-toast');
+            document.getElementById('msg-toast').textContent = mensagem;
+            
+            toast.className = 'fixed bottom-4 right-4 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 z-50 flex items-center gap-3';
+            
+            if(tipo === 'success') { toast.classList.add('bg-green-600'); icone.className = "fa-solid fa-circle-check"; }
+            else if(tipo === 'error') { toast.classList.add('bg-red-600'); icone.className = "fa-solid fa-circle-xmark"; }
+            else if(tipo === 'warning') { toast.classList.add('bg-yellow-500'); icone.className = "fa-solid fa-triangle-exclamation"; }
+            else { toast.classList.add('bg-gray-800'); icone.className = "fa-solid fa-circle-info"; }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(function() { toast.classList.add('translate-y-20', 'opacity-0'); }, 4000);
+        }
+
+    </script>
+</body>
+</html>

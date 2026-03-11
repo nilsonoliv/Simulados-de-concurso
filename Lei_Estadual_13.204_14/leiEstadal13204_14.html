@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador IBFC - Lei 13.204/14 SEC/BA</title>
+    <style>
+        /* =====================================================================
+           1. VARIÁVEIS DE COR E ESTILO GLOBAL (Design System)
+           ===================================================================== */
+        :root {
+            --primary: #1e3a8a;       /* Azul escuro (Banca/Sério) */
+            --primary-light: #3b82f6; /* Azul claro (Ações) */
+            --secondary: #f8fafc;     /* Fundo de elementos */
+            --success: #10b981;       /* Verde (Acertos) */
+            --danger: #ef4444;        /* Vermelho (Erros) */
+            --text-dark: #1e293b;     /* Texto principal */
+            --text-muted: #64748b;    /* Texto secundário */
+            --bg-body: #f1f5f9;       /* Fundo da página */
+            --bg-card: #ffffff;       /* Fundo dos cartões (Branco) */
+            --border: #e2e8f0;        /* Bordas suaves */
+            --radius: 8px;            /* Arredondamento padrão */
+            --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-main); background-color: var(--bg-body); color: var(--text-dark); line-height: 1.6; }
+
+        /* =====================================================================
+           2. LAYOUT PRINCIPAL (Sidebar e Conteúdo)
+           ===================================================================== */
+        .app-container { display: flex; min-height: 100vh; }
+        
+        .sidebar { width: 260px; background-color: var(--primary); color: white; padding: 2rem 1rem; display: flex; flex-direction: column; gap: 1rem; }
+        .sidebar h1 { font-size: 1.2rem; margin-bottom: 2rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; }
+        
+        .nav-btn { background: transparent; color: #cbd5e1; border: none; text-align: left; padding: 0.75rem 1rem; border-radius: var(--radius); cursor: pointer; font-size: 1rem; transition: all 0.3s ease; }
+        .nav-btn:hover, .nav-btn.active { background-color: rgba(255,255,255,0.1); color: white; font-weight: bold; }
+
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; max-height: 100vh; }
+        .view-section { display: none; animation: fadeIn 0.4s ease; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* =====================================================================
+           3. COMPONENTES REUTILIZÁVEIS (Cards, Botões, Badges)
+           ===================================================================== */
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 1.5rem; border: 1px solid var(--border); }
+        h2 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--primary); }
+
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: var(--radius); cursor: pointer; font-weight: 600; font-size: 1rem; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--primary-light); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-dark); }
+
+        /* =====================================================================
+           4. SIMULADOR E QUESTÕES
+           ===================================================================== */
+        .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        .badge { background: var(--bg-body); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.875rem; font-weight: 600; color: var(--primary); }
+        .question-text { font-size: 1.1rem; margin-bottom: 1.5rem; font-weight: 500; }
+        
+        .options-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+        .option-item { background: var(--secondary); border: 2px solid var(--border); padding: 1rem; border-radius: var(--radius); cursor: pointer; transition: all 0.2s; display: flex; align-items: flex-start; gap: 10px; }
+        .option-item:hover { border-color: var(--primary-light); background: #eff6ff; }
+        .option-item.selected { border-color: var(--primary); background: #eff6ff; }
+        .option-item.correct { border-color: var(--success); background: #ecfdf5; }
+        .option-item.wrong { border-color: var(--danger); background: #fef2f2; }
+        .option-letter { font-weight: bold; color: var(--primary); min-width: 25px; }
+
+        .feedback-box { margin-top: 1.5rem; padding: 1rem; border-radius: var(--radius); display: none; }
+        .feedback-box.show { display: block; }
+        .feedback-box.success { background: #ecfdf5; border-left: 4px solid var(--success); }
+        .feedback-box.error { background: #fef2f2; border-left: 4px solid var(--danger); }
+        .simulator-actions { margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem; }
+
+        /* =====================================================================
+           5. DASHBOARD E MODAIS
+           ===================================================================== */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .chart-container { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Gráfico Rosca em CSS */
+        .donut-chart { width: 160px; height: 160px; border-radius: 50%; background: conic-gradient(var(--success) var(--perc), var(--danger) 0); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 1rem; }
+        .donut-chart::before { content: ""; width: 120px; height: 120px; background-color: var(--bg-card); border-radius: 50%; position: absolute; }
+        .donut-content { position: relative; z-index: 1; text-align: center; }
+        .donut-content span { display: block; font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+
+        .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .swot-box { padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); }
+        .swot-box h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+        .swot-fortes { background-color: #f0fdf4; border-color: #bbf7d0; }
+        .swot-fortes h3 { color: #166534; }
+        .swot-atencao { background-color: #fff1f2; border-color: #fecdd3; }
+        .swot-atencao h3 { color: #9f1239; }
+        .topic-list { list-style: none; font-size: 0.9rem; }
+        .topic-list li { margin-bottom: 0.5rem; display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 0.2rem;}
+
+        textarea { width: 100%; height: 200px; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); font-family: monospace; resize: vertical; margin-bottom: 1rem; }
+
+        /* MODAL CUSTOMIZADO (Clean Code) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box { background: white; padding: 2rem; border-radius: var(--radius); width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); transform: translateY(-20px); transition: transform 0.3s; }
+        .modal-overlay.active .modal-box { transform: translateY(0); }
+        .modal-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem; color: var(--primary); }
+        .modal-text { margin-bottom: 1.5rem; color: var(--text-muted); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; padding: 1rem; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .sidebar h1 { width: 100%; border: none; margin-bottom: 0; padding-bottom: 0; }
+            .swot-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <nav class="sidebar">
+        <h1><a href="../raiz/index.html" style="color: white; text-decoration: none;">📚 IBFC - SEC/BA</a><br><span style="font-size: 0.8rem; font-weight: normal;">Lei Estadual 13.204/14</span></h1>
+        <button class="nav-btn active" onclick="NavigationController.switchView('dashboard')">📊 Dashboard</button>
+        <button class="nav-btn" onclick="NavigationController.switchView('simulador')">📝 Simulador Adaptativo</button>
+        <button class="nav-btn" onclick="NavigationController.switchView('dados')">💾 Salvar / Carregar</button>
+    </nav>
+
+    <main class="main-content">
+        <!-- TELA: DASHBOARD -->
+        <section id="view-dashboard" class="view-section active">
+            <h2>Métricas de Desempenho (Aprendizado Adaptativo)</h2>
+            <div class="dashboard-grid">
+                <div class="card chart-container">
+                    <h3>Desempenho Geral</h3>
+                    <div class="donut-chart" id="main-chart" style="--perc: 0%;">
+                        <div class="donut-content">
+                            <span id="chart-percent">0%</span>
+                            <small>Acertos</small>
+                        </div>
+                    </div>
+                    <p id="stats-summary">0 respondidas / 0 corretas</p>
+                </div>
+                
+                <div class="card">
+                    <h3>Análise de Foco (Tópicos da Lei)</h3>
+                    <div class="swot-grid">
+                        <div class="swot-box swot-fortes">
+                            <h3>💪 Pontos Fortes (>80%)</h3>
+                            <ul class="topic-list" id="swot-strong"></ul>
+                        </div>
+                        <div class="swot-box swot-atencao">
+                            <h3>⚠️ Pontos de Atenção (<60%)</h3>
+                            <ul class="topic-list" id="swot-weak"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Mapeamento do Banco de Questões</h3>
+                <p>Status: <span id="q-unanswered">0</span> Novas | <span id="q-wrong">0</span> Erradas | <span id="q-correct">0</span> Certas</p>
+                <div style="width: 100%; background: var(--border); height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; display: flex;">
+                    <div id="pb-correct" style="width: 0%; background: var(--success); height: 100%;"></div>
+                    <div id="pb-wrong" style="width: 0%; background: var(--danger); height: 100%;"></div>
+                    <div id="pb-unanswered" style="width: 100%; background: var(--border); height: 100%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA: SIMULADOR -->
+        <section id="view-simulador" class="view-section">
+            <div class="card" id="setup-container">
+                <h2>Simulador Adaptativo IBFC</h2>
+                <p>O algoritmo atual seleciona <strong>apenas</strong> questões não respondidas e questões que você errou anteriormente. O ciclo possui 20 questões.</p>
+                <br>
+                <button class="btn btn-primary" onclick="SimulationEngine.startNewCycle()">Iniciar Novo Ciclo (20 Questões)</button>
+            </div>
+
+            <div class="card" id="question-container" style="display: none;">
+                <div class="question-header">
+                    <span class="badge" id="q-topic">Tópico</span>
+                    <span style="font-weight: bold; color: var(--text-muted);" id="q-counter">Questão 1 de 20</span>
+                </div>
+                <div class="question-text" id="q-text">Carregando questão...</div>
+                <ul class="options-list" id="q-options"></ul>
+                
+                <div class="feedback-box" id="q-feedback">
+                    <h4 id="fb-title" style="margin-bottom: 5px;"></h4>
+                    <p id="fb-comment"></p>
+                </div>
+
+                <div class="simulator-actions">
+                    <button class="btn btn-primary" id="btn-confirm" onclick="SimulationEngine.confirmAnswer()">Confirmar Resposta</button>
+                    <button class="btn btn-success" id="btn-next" onclick="SimulationEngine.loadNextQuestion()" style="display: none;">Próxima Questão</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA: DADOS -->
+        <section id="view-dados" class="view-section">
+            <div class="card">
+                <h2>Persistência de Dados</h2>
+                <p style="margin-bottom: 1rem;">Cole um código salvo e clique em Importar, ou exporte seu progresso atual.</p>
+                <textarea id="data-io" placeholder="Seu JSON de progresso aparecerá aqui..."></textarea>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="DataManager.exportData()">Exportar Progresso</button>
+                    <button class="btn btn-success" onclick="DataManager.importData()">Importar Progresso</button>
+                    <button class="btn btn-danger" onclick="DataManager.promptClearData()">Zerar Tudo</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- COMPONENTE: MODAL CUSTOMIZADO -->
+<div class="modal-overlay" id="custom-modal">
+    <div class="modal-box">
+        <h2 class="modal-title" id="modal-title">Aviso</h2>
+        <p class="modal-text" id="modal-text">Mensagem</p>
+        <div class="modal-actions" id="modal-actions"></div>
+    </div>
+</div>
+
+<script>
+    /** ========================================================================
+     * BANCO DE QUESTÕES (Organizado em formato de linha única para otimização)
+     * Regra: Exclusivamente Lei Estadual 13.204/14 - Padrão IBFC.
+     ======================================================================== */
+    const questionBank = [
+        { id: "q1", topic: "Administração Direta e Indireta", text: "A IBFC frequentemente cobra a distinção entre os entes estatais. Nos termos da organização do Poder Executivo da Bahia (Lei 13.204/14), analise as afirmativas: I. As Secretarias de Estado, a exemplo da SEC, possuem personalidade jurídica própria de direito público. II. As Autarquias e Fundações Públicas integram a Administração Indireta. III. A criação de uma Secretaria de Estado pode ser feita por mero Decreto do Governador. Estão corretas as afirmativas:", options: ["I e II, apenas.", "II, apenas.", "I e III, apenas.", "II e III, apenas.", "I, II e III."], correctIndex: 1, comment: "Item I Falso (Secretarias são órgãos despersonalizados da Adm. Direta). Item II Verdadeiro. Item III Falso (Criação de órgãos, como Secretarias, exige Lei, não decreto - art. 84, VI da CF)." },
+        { id: "q2", topic: "Cargos em Comissão e Funções", text: "Sobre o regime de cargos e funções estabelecido na reorganização administrativa, classifique como Verdadeiro (V) ou Falso (F): ( ) As funções de confiança destinam-se exclusivamente a servidores efetivos. ( ) Os cargos em comissão, por serem de livre nomeação, não podem ser ocupados por servidores de carreira. ( ) Ambos destinam-se apenas às atribuições de direção, chefia e assessoramento. A sequência correta é:", options: ["V - F - V", "V - V - V", "F - F - V", "V - F - F", "F - V - F"], correctIndex: 0, comment: "A primeira é V (regra constitucional e estadual). A segunda é F (cargos em comissão PODEM ser ocupados por servidores de carreira, havendo inclusive percentuais mínimos em lei). A terceira é V." },
+        { id: "q3", topic: "Extinção de Entidades", text: "A Lei 13.204/14 autorizou a extinção da Empresa Baiana de Desenvolvimento Agrícola S.A. (EBDA). No que tange aos efeitos jurídicos e administrativos dessa extinção para o Estado, assinale a alternativa CORRETA:", options: ["O Estado da Bahia exime-se de qualquer passivo trabalhista da entidade extinta.", "Os bens móveis e imóveis da EBDA foram obrigatoriamente doados aos municípios.", "O Estado da Bahia sucede a entidade extinta em seus direitos e obrigações.", "As competências da EBDA foram transferidas integralmente para a iniciativa privada.", "Os servidores estáveis da EBDA foram sumariamente exonerados a bem do serviço público."], correctIndex: 2, comment: "Na extinção de uma entidade estatal, o ente criador (Estado da Bahia) a sucede em todos os direitos, obrigações e patrimônio. Servidores estáveis são redistribuídos/aproveitados, jamais exonerados sumariamente." },
+        { id: "q4", topic: "Princípios Fundamentais", text: "Considerando as diretrizes que norteiam a Administração Pública Estadual (art. 1º da Lei 13.204/14), analise as afirmativas abaixo: I. A promoção do desenvolvimento tem como foco a concentração de renda para posterior distribuição. II. A erradicação da pobreza é uma diretriz expressa da atuação do Poder Executivo. III. A redução das desigualdades restringe-se ao aspecto social, não abrangendo o aspecto regional. Assinale a correta:", options: ["I e II estão corretas.", "Apenas a II está correta.", "II e III estão corretas.", "Apenas a III está correta.", "Todas estão corretas."], correctIndex: 1, comment: "O art. 1º foca na erradicação da pobreza e redução das desigualdades SOCIAIS e REGIONAIS. A alternativa I é um absurdo econômico (pegadinha) e a III erra ao excluir o aspecto regional." },
+        { id: "q5", topic: "Estrutura da SEC", text: "No modelo adotado pela legislação baiana, os Conselhos Estaduais, a exemplo do Conselho Estadual de Educação, caracterizam-se por:", options: ["Serem entes da Administração Indireta com autonomia financeira plena.", "Possuírem natureza de empresa pública voltada à consultoria.", "Serem órgãos colegiados vinculados à respectiva Secretaria de Estado.", "Atuarem como instâncias do Poder Legislativo cedidas ao Executivo.", "Concentrarem a competência de ordenação de despesas da pasta."], correctIndex: 2, comment: "Conselhos são órgãos colegiados da Administração Direta, vinculados às suas respectivas Secretarias (SEC, no caso), garantindo a participação social e deliberação de políticas." },
+        { id: "q6", topic: "Criação de Secretarias (SDR)", text: "A reestruturação administrativa de 2014 criou a Secretaria de Desenvolvimento Rural (SDR). A IBFC exige o conhecimento específico das finalidades das pastas. Qual é o foco que justifica a separação da SDR em relação à Secretaria de Agricultura (SEAGRI)?", options: ["O controle sanitário exclusivo de portos e aeroportos.", "A formulação de políticas voltadas estritamente à agricultura familiar.", "O fomento e financiamento de grandes latifúndios de exportação.", "A gestão do policiamento ambiental nas divisas do Estado.", "A arrecadação de tributos sobre a circulação de maquinário agrícola."], correctIndex: 1, comment: "A grande marca da SDR na reforma foi a segregação de competências para dar atenção exclusiva e fortalecida à agricultura familiar e assentamentos." },
+        { id: "q7", topic: "Competências de Gestão", text: "De acordo com a normatização da máquina pública estadual, a competência originária para a ordenação de despesas e a gestão das dotações orçamentárias de uma Secretaria de Estado cabe ao(à):", options: ["Secretário da Fazenda, exclusivamente.", "Governador do Estado, de forma indelegável.", "Tribunal de Contas do Estado da Bahia (TCE/BA).", "Titular do órgão (Secretário de Estado da respectiva pasta).", "Auditor Geral do Estado."], correctIndex: 3, comment: "Aos titulares das pastas (Secretários) compete a ordenação de despesas dos respectivos órgãos sob sua gestão." },
+        { id: "q8", topic: "Servidores Públicos e Extinção", text: "Julgue (V) ou (F) sobre a situação funcional decorrente da extinção de órgãos na Lei 13.204/14: ( ) Ocupantes de cargos exclusivamente em comissão nos órgãos extintos mantiveram seus vínculos e foram redistribuídos. ( ) Servidores regidos pela CLT das empresas extintas tiveram seus contratos sumariamente rasgados sem sucessão trabalhista. ( ) Servidores com estabilidade reconhecida em autarquias extintas devem ser aproveitados na Administração Estadual. A sequência é:", options: ["F - F - V", "V - F - V", "F - V - F", "V - V - V", "F - F - F"], correctIndex: 0, comment: "Cargos em comissão são de livre exoneração (se o órgão acaba, eles são exonerados, logo a primeira é Falsa). O Estado sucede os direitos e deveres trabalhistas (segunda é Falsa). Servidor estável é aproveitado/redistribuído (Terceira é Verdadeira)." },
+        { id: "q9", topic: "Princípio da Eficiência", text: "A fusão e extinção de autarquias e empresas promovidas pela Lei 13.204/14 buscam otimizar a máquina pública. Essa reestruturação é a materialização direta de qual princípio constitucional expresso aplicável à Administração Pública?", options: ["Princípio da Legalidade.", "Princípio da Impessoalidade.", "Princípio da Razoabilidade.", "Princípio da Eficiência.", "Princípio da Continuidade."], correctIndex: 3, comment: "Enxugar a máquina, evitar sobreposição de competências e buscar melhores resultados com menos recursos é a essência do Princípio da Eficiência (inserido pela EC 19/98)." },
+        { id: "q10", topic: "Atribuições do Governador", text: "Dentre as competências reafirmadas pela estrutura administrativa baiana, assinale a alternativa que apresenta um ato privativo do Chefe do Poder Executivo Estadual, não passível de execução autônoma por um Secretário:", options: ["Aprovar o cardápio da merenda escolar da rede estadual.", "Nomear os Secretários de Estado que atuarão como seus auxiliares diretos.", "Autorizar o pagamento de diárias de motoristas da frota.", "Assinar termos de cooperação técnica para uso de ginásios.", "Instaurar sindicância para apurar atrasos de servidores administrativos."], correctIndex: 1, comment: "A nomeação e exoneração de Secretários de Estado (Ministros no âmbito federal) é competência privativa do Chefe do Executivo." },
+        { id: "q11", topic: "Secretaria de Igualdade", text: "Analise o enunciado: A Lei 13.204/14 manteve/estruturou pastas com forte apelo transversal. Qual secretaria é responsável primordialmente por formular políticas públicas de enfrentamento ao racismo estrutural e proteção de comunidades tradicionais na Bahia?", options: ["Secretaria de Direitos Humanos e Desenvolvimento Social (SJDHDS).", "Secretaria de Promoção da Igualdade Racial (SEPROMI).", "Secretaria de Relações Institucionais (SERIN).", "Secretaria de Políticas para as Mulheres (SPM).", "Secretaria de Assuntos Extraordinários."], correctIndex: 1, comment: "A SEPROMI tem o papel central na promoção da igualdade racial e no combate à intolerância religiosa e ao racismo." },
+        { id: "q12", topic: "Administração Indireta", text: "Analise as proposições sobre as entidades da Administração Indireta do Estado da Bahia: I. As Sociedades de Economia Mista assumem sempre a forma de sociedade anônima (S/A). II. As Empresas Públicas podem ser criadas com qualquer modalidade empresarial admitida em direito, mas seu capital deve ser 100% público. III. Autarquias exercem atividades de caráter econômico visando lucro. Assinale a correta:", options: ["Apenas I e II estão corretas.", "Apenas II e III estão corretas.", "Apenas I e III estão corretas.", "Todas estão corretas.", "Nenhuma está correta."], correctIndex: 0, comment: "A I está correta (toda Soc. Econ. Mista é S/A). A II está correta (Empresa Pública tem capital 100% público). A III está errada (Autarquias exercem atividades TÍPICAS de Estado, sem fins lucrativos)." },
+        { id: "q13", topic: "Controle e Recursos Humanos", text: "De acordo com a estrutura do Poder Executivo, as atividades de formulação de diretrizes centrais de Recursos Humanos (concursos, folha de pagamento) e de Administração Patrimonial são coordenadas de forma sistêmica pela:", options: ["Procuradoria Geral do Estado (PGE).", "Casa Civil.", "Secretaria da Fazenda (SEFAZ).", "Secretaria da Administração (SAEB).", "Auditoria Geral do Estado (AGE)."], correctIndex: 3, comment: "A SAEB é o órgão central do sistema de recursos humanos, licitações corporativas e patrimônio do Estado." },
+        { id: "q14", topic: "Fundações Públicas", text: "Julgue as afirmativas sobre as Fundações Públicas do Estado da Bahia (V/F): ( ) Pertencem à Administração Direta, possuindo autonomia apenas financeira. ( ) Sua criação autorizada por lei visa desenvolver atividades não exclusivas de Estado, como pesquisa e cultura. ( ) O patrimônio das Fundações Públicas é totalmente desvinculado dos cofres estaduais, não se sujeitando ao controle do Tribunal de Contas. A sequência é:", options: ["V - F - V", "F - V - V", "F - V - F", "V - V - F", "F - F - F"], correctIndex: 2, comment: "1) Falsa (pertencem à Administração Indireta). 2) Verdadeira (atuam na área social, pesquisa, cultura). 3) Falsa (recebem recursos públicos e se sujeitam SIM ao controle do TCE)." },
+        { id: "q15", topic: "Estabilidade e Cargos", text: "Um servidor ocupante EXCLUSIVAMENTE de cargo em comissão na Secretaria da Educação do Estado da Bahia (nível médio/técnico) foi exonerado no 4º ano de exercício. Inconformado, ele recorre administrativamente alegando estabilidade. A decisão correta sob a égide legal será:", options: ["Deferir o recurso, pois a estabilidade é alcançada após 3 anos de efetivo exercício.", "Deferir o recurso, desde que ele prove excelente avaliação de desempenho.", "Indeferir o recurso, pois cargos em comissão são de livre exoneração ad nutum e não geram estabilidade.", "Indeferir o recurso temporariamente, colocando-o em disponibilidade remunerada.", "Deferir o recurso, transformando seu cargo em efetivo por decurso de prazo."], correctIndex: 2, comment: "Cargo em comissão é 'ad nutum'. O servidor pode ser exonerado a qualquer tempo, sem necessidade de motivação complexa e NUNCA adquire estabilidade na função." },
+        { id: "q16", topic: "Articulação Política", text: "Na engrenagem do Governo Estadual, a Casa Civil e a Secretaria de Relações Institucionais (SERIN) possuem papéis vitais. Qual a principal atribuição da SERIN no contexto do Governo Baiano?", options: ["Gerir a arrecadação do IPVA e ICMS.", "Articular politicamente o Governo com a Assembleia Legislativa, Prefeitos e Movimentos Sociais.", "Comandar o contingente da Polícia Militar e Civil.", "Fiscalizar a aplicação dos recursos do Fundeb.", "Representar o Estado judicialmente perante o STF."], correctIndex: 1, comment: "A SERIN atua na articulação política (Relações Institucionais) com prefeitos, deputados, sociedade civil, etc. (A representação judicial é da PGE)." },
+        { id: "q17", topic: "Direitos Sociais", text: "A reestruturação administrativa deu ênfase a políticas afirmativas e sociais. A SJDHDS (Secretaria de Justiça, Direitos Humanos e Desenvolvimento Social) absorveu competências vitais. Dentre as atribuições gerais desta pasta, NÃO se inclui:", options: ["A promoção e defesa dos direitos humanos.", "A proteção e defesa do consumidor (PROCON).", "A coordenação do sistema socioeducativo estadual.", "A construção e operação de rodovias pedagiadas de grande porte.", "A política estadual de assistência social."], correctIndex: 3, comment: "Construção de rodovias é competência da SEINFRA (Secretaria de Infraestrutura). As demais são atribuições clássicas da área de Justiça e Direitos Humanos." },
+        { id: "q18", topic: "Transição Administrativa", text: "Com a extinção de um órgão estadual e a transferência de suas atribuições para uma nova Secretaria (conforme Lei 13.204/14), o que ocorre com os contratos administrativos vigentes celebrados pelo órgão extinto?", options: ["São declarados nulos de pleno direito por perda de objeto.", "Ficam suspensos até a realização de nova licitação obrigatória.", "São rescindidos unilateralmente sem direito a indenização à contratada.", "O Estado da Bahia, por meio do órgão sucessor, sub-roga-se nos direitos e obrigações desses contratos.", "Passam a ser administrados pelo Tribunal de Contas do Estado."], correctIndex: 3, comment: "Princípio da continuidade do serviço público. O Estado (através da nova pasta) assume (sub-roga-se) nos contratos em andamento para não paralisar serviços." },
+        { id: "q19", topic: "Cargos e Funções", text: "Analise: I. Todo cargo em comissão deve ser ocupado por servidor de carreira. II. A Função de Confiança é privativa de servidor efetivo. III. Funções de confiança não integram os quadros das empresas públicas, apenas da Administração Direta. Estão INCORRETAS as afirmativas:", options: ["I e II.", "I e III.", "II e III.", "I, II e III.", "Apenas a I."], correctIndex: 1, comment: "A I está incorreta (cargos em comissão podem ser ocupados por quem não é de carreira, respeitados percentuais de lei). A II está correta (regra de ouro). A III está incorreta (empresas públicas também possuem funções de confiança/gratificadas para seus empregados concursados)." },
+        { id: "q20", topic: "Objetivos da Lei", text: "De forma resumida e com base nos preceitos constitucionais refletidos na Lei 13.204/14, a reorganização administrativa do Estado da Bahia objetivou:", options: ["Centralizar a prestação de serviços nas fundações de direito privado.", "Promover a descentralização de todas as atividades típicas de Estado para ONGs.", "Aperfeiçoar o modelo de gestão, racionalizando recursos e fortalecendo políticas de inclusão.", "Elevar o déficit orçamentário para forçar ajuda federal.", "Extinguir a Administração Direta e governar via agências reguladoras independentes."], correctIndex: 2, comment: "Toda reforma busca aperfeiçoamento gerencial, economicidade (racionalizar) e, no caso da BA, houve forte diretriz nas pastas de inclusão (SDR, SEPROMI, etc.)." },
+        { id: "q21", topic: "Estrutura e Competências (SAEB)", text: "Acerca do sistema central da Administração Estadual Baiana, analise as afirmativas: I. A Secretaria da Administração (SAEB) atua como órgão central dos sistemas de Recursos Humanos e de Licitações. II. A SAEB possui competência para julgar, em última instância, os litígios fiscais e tributários do Estado. III. A gestão do património do Estado é uma atribuição sistémica da SAEB. Estão corretas:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Apenas a I.", "I, II e III."], correctIndex: 1, comment: "O item II é Falso (julgar litígios fiscais/tributários é competência da SEFAZ - Secretaria da Fazenda, através do seu conselho de contribuintes). I e III representam o núcleo da SAEB." },
+        { id: "q22", topic: "Regime Jurídico e Entidades", text: "A IBFC gosta de testar o conhecimento estrutural do candidato. Classifique como (V) Verdadeiro ou (F) Falso: ( ) Empresas Públicas e Sociedades de Economia Mista integram a Administração Direta. ( ) Os empregados das Empresas Públicas estaduais sujeitam-se ao regime celetista (CLT). ( ) A criação de uma Fundação Pública de direito privado prescinde (não necessita) de autorização legislativa. A sequência é:", options: ["F - V - F", "V - V - F", "F - F - V", "V - F - V", "F - V - V"], correctIndex: 0, comment: "1) Falsa (integram a Indireta). 2) Verdadeira (são empregados públicos celetistas, embora façam concurso). 3) Falsa (TODA entidade da Adm. Indireta precisa de lei para ser criada ou ter sua criação autorizada)." },
+        { id: "q23", topic: "Extinção de Órgãos e Servidores", text: "De acordo com a reorganização administrativa da Lei 13.204/14, caso um órgão seja extinto e não seja possível a imediata redistribuição/aproveitamento de um servidor público estável a ele vinculado, qual será a situação jurídica funcional deste servidor?", options: ["Exoneração mediante processo administrativo.", "Demissão a bem do serviço público.", "Disponibilidade com remuneração proporcional ao tempo de serviço.", "Aposentadoria compulsória com proventos integrais.", "Transferência compulsória para a iniciativa privada sem ónus para o Estado."], correctIndex: 2, comment: "Regra de ouro constitucional aplicada na Bahia: servidor estável de órgão extinto que não puder ser aproveitado de imediato ficará em disponibilidade com remuneração proporcional até o seu adequado aproveitamento." },
+        { id: "q24", topic: "Controlo Interno vs Externo", text: "Analise a seguinte situação hipotética: O Governador do Estado deseja fortalecer a fiscalização dos gastos das Secretarias antes do envio das contas ao Tribunal de Contas (TCE). Para este controlo INTERNO, ele deve acionar a:", options: ["Assembleia Legislativa da Bahia (ALBA).", "Ouvidoria da Polícia Militar.", "Procuradoria Geral do Estado (PGE).", "Auditoria Geral do Estado (AGE).", "Secretaria de Segurança Pública (SSP)."], correctIndex: 3, comment: "A AGE atua no sistema de controlo interno do Poder Executivo, fiscalizando contas, promovendo auditorias e apoiando o controlo externo (que é feito pelo TCE e Assembleia)." },
+        { id: "q25", topic: "Cargos em Comissão", text: "Sobre os cargos de provimento em comissão, a lei estadual estabelece diretrizes claras. Assinale a afirmativa INCORRETA ao padrão IBFC:", options: ["São de livre nomeação e exoneração pelo Governador do Estado.", "Destinam-se exclusivamente às atribuições de direção, chefia e assessoramento.", "A lei pode estabelecer um percentual mínimo destes cargos a ser preenchido por servidores de carreira.", "O servidor efetivo que ocupa cargo em comissão passa a acumular a estabilidade do cargo comissionado.", "Não dependem de aprovação prévia em concurso público de provas ou de provas e títulos."], correctIndex: 3, comment: "A pegadinha clássica: o servidor efetivo NÃO adquire 'estabilidade do cargo comissionado'. O cargo comissionado continua sendo de livre exoneração, ele apenas retorna ao seu cargo efetivo se perder o comissionado." },
+        { id: "q26", topic: "Secretarias Extraordinárias", text: "A legislação baiana permite a criação de Secretarias Extraordinárias. Acerca desta figura administrativa, é correto afirmar que:", options: ["Têm caráter permanente e orçamentação superior às Secretarias comuns.", "São criadas exclusivamente para gerir empresas estatais deficitárias.", "Visam conduzir assuntos ou programas de importância transitória, não integrando a estrutura definitiva.", "Possuem personalidade jurídica de direito privado e capital aberto.", "Podem ser criadas pelo Secretário da Administração por portaria simples."], correctIndex: 2, comment: "Secretarias Extraordinárias têm natureza transitória para lidar com missões específicas e temporárias de governo." },
+        { id: "q27", topic: "Procuradoria Geral do Estado (PGE)", text: "Analise as afirmações sobre a PGE na organização do Estado: I. É o órgão central do sistema de representação judicial e consultoria jurídica do Executivo. II. Os Procuradores do Estado são nomeados livremente sem concurso público. III. É uma Autarquia com independência orçamental desvinculada do Governador. Estão corretas:", options: ["I, apenas.", "I e II, apenas.", "II e III, apenas.", "I e III, apenas.", "I, II e III."], correctIndex: 0, comment: "II é falsa (exige concurso rigorosíssimo de provas e títulos). III é falsa (a PGE não é autarquia, integra a Administração Direta e responde ao Governador)." },
+        { id: "q28", topic: "Competências e Delegação", text: "A competência de ordenação de despesas (autorizar pagamentos, assinar empenhos) no âmbito de uma Secretaria Estadual é, originariamente, do Secretário de Estado. Sobre esta competência, julgue (V/F): ( ) É absolutamente indelegável por se tratar de matéria financeira. ( ) Pode ser delegada, nos termos da lei e de regulamentos, a outras autoridades do órgão. ( ) A delegação transfere em definitivo a titularidade da competência, isentando o Secretário. A sequência é:", options: ["F - V - F", "V - F - V", "F - F - V", "V - V - F", "F - V - V"], correctIndex: 0, comment: "1) Falso (a ordenação de despesas pode ser delegada a diretores, superintendentes, etc.). 2) Verdadeiro. 3) Falso (delegação é temporária e não retira a titularidade originária, podendo ser revogada)." },
+        { id: "q29", topic: "Conselhos Estaduais", text: "Os Conselhos Estaduais (como o de Educação e o de Saúde) são estruturas importantes na lei baiana. Assinale a característica inerente à imensa maioria destes órgãos colegiados na estrutura da Administração Pública:", options: ["São formados exclusivamente por membros natos do Poder Legislativo.", "Sua função é meramente decorativa, sem poder consultivo ou deliberativo.", "Atuam como mecanismos de descentralização do poder e garantia do controlo social.", "Substituem a figura do Secretário de Estado em caso de vacância.", "Seus membros recebem remuneração superior à dos Secretários de Estado."], correctIndex: 2, comment: "A essência dos conselhos é permitir a participação da sociedade civil e o controlo social sobre as políticas públicas (gestão democrática)." },
+        { id: "q30", topic: "Secretarias: Segurança vs Administração Penitenciária", text: "A estrutura de segurança pública sofreu divisões ao longo da história administrativa. Na Bahia, a administração e guarda do sistema prisional e dos detentos cabe precipuamente à:", options: ["Secretaria de Segurança Pública (SSP).", "Polícia Militar da Bahia.", "Secretaria de Administração Penitenciária e Ressocialização (SEAP).", "Secretaria de Justiça, Direitos Humanos e Desenvolvimento Social.", "Casa Civil do Estado."], correctIndex: 2, comment: "Embora a SSP cuide do policiamento (Civil, Militar, Técnica), o sistema prisional e a ressocialização possuem pasta própria: a SEAP." },
+        { id: "q31", topic: "Extinção de Entidades: Sucessão", text: "Quando a Lei 13.204/14 autorizou a extinção de entidades da administração indireta, uma das garantias legais para não causar o caos jurídico foi a regra da sucessão. Segundo esta regra:", options: ["Os contratos assinados pela entidade extinta foram automaticamente anulados.", "O Estado da Bahia ou a entidade que assumiu a competência sub-roga-se nos direitos e obrigações da extinta.", "As dívidas da entidade extinta prescreveram imediatamente.", "O Governo Federal assumiu o passivo financeiro da reforma baiana.", "As ações judiciais contra a entidade extinta foram extintas sem resolução do mérito."], correctIndex: 1, comment: "Sub-rogação é a transferência dos direitos e deveres para o sucessor (no caso, o próprio Estado ou o novo órgão que absorveu a função)." },
+        { id: "q32", topic: "Princípios da Administração", text: "Analise: A exoneração de um ocupante de cargo em comissão foi devidamente publicada no Diário Oficial do Estado para conhecimento de todos, contudo, o ato não apresentou uma motivação detalhada, por tratar-se de cargo 'ad nutum'. Quais princípios foram, respetivamente, atendidos e mitigados (dispensados na regra)?", options: ["Publicidade e Ampla Defesa (no ato imotivado).", "Impessoalidade e Legalidade.", "Eficiência e Publicidade.", "Moralidade e Economicidade.", "Continuidade e Impessoalidade."], correctIndex: 0, comment: "Ao publicar, atende-se à Publicidade. Por ser cargo de livre exoneração (ad nutum), dispensa-se processo administrativo e ampla defesa para a demissão/exoneração comum." },
+        { id: "q33", topic: "Funções de Confiança", text: "Assinale a alternativa que descreve CORRETAMENTE a condição para o exercício da Função de Confiança no Governo da Bahia:", options: ["Pode ser exercida por qualquer cidadão aprovado em entrevista simplificada.", "É restrita aos servidores aprovados em concurso público que possuam vínculo efetivo.", "Garante estabilidade no cargo de chefia após 5 anos ininterruptos.", "Não pode ser exercida por servidores na área da educação (SEC).", "É exclusiva para os ocupantes de cargos em comissão recrutados no setor privado."], correctIndex: 1, comment: "A IBFC não se cansa desta regra (Art. 37, V, CF): Funções de confiança são EXCLUSIVAS de servidores ocupantes de cargo EFETIVO." },
+        { id: "q34", topic: "Estrutura do Executivo (SEFAZ)", text: "Analise as afirmativas sobre a Secretaria da Fazenda (SEFAZ): I. É o órgão central de arrecadação de tributos estaduais. II. Coordena as políticas de gestão financeira e de contabilidade pública do Estado. III. Subordina-se hierarquicamente ao Tribunal de Contas do Estado. Estão corretas:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Todas estão corretas.", "Nenhuma está correta."], correctIndex: 0, comment: "A III é falsa. Nenhuma Secretaria do Executivo se subordina ao TCE. O TCE exerce controlo externo, o que não implica subordinação hierárquica." },
+        { id: "q35", topic: "Reforma: Secretaria de Comunicação", text: "No modelo da Administração Direta da Bahia, a Secretaria de Comunicação Social (SECOM) atua como um órgão finalístico ou meio? Assinale a afirmativa correta:", options: ["É órgão finalístico, focado em prestar serviços diretos de saúde à população.", "É órgão de controlo externo, subordinado à ALBA.", "É órgão de assistência direta ao Governador, responsável pela publicidade institucional e relação com a imprensa.", "É autarquia de direito privado focada em lucro publicitário.", "Integra a estrutura da Procuradoria Geral do Estado."], correctIndex: 2, comment: "A SECOM é um órgão de apoio/meio, prestando assistência direta ao Governo na área de comunicação oficial e transparência institucional." },
+        { id: "q36", topic: "Hierarquia e Vinculação", text: "Na organização administrativa estipulada pela lei, qual a diferença técnica entre a relação do Governador com uma Secretaria e a relação de uma Secretaria com uma Autarquia a ela associada?", options: ["Ambas as relações são de subordinação hierárquica rígida.", "A Secretaria tem vinculação (tutela) com o Governador e subordinação com a Autarquia.", "O Governador tem subordinação com a Autarquia e vinculação com a Secretaria.", "A Secretaria subordina-se ao Governador; já a Autarquia vincula-se (tutela administrativa) à Secretaria correspondente, sem subordinação hierárquica.", "Não há relação jurídica entre Secretarias e Autarquias no Estado da Bahia."], correctIndex: 3, comment: "Tema denso e comum na IBFC: Órgãos da Adm. Direta têm SUBORDINAÇÃO (hierarquia). Entidades da Adm. Indireta (Autarquias) sofrem apenas VINCULAÇÃO (supervisão ministerial/tutela), não há hierarquia direta." },
+        { id: "q37", topic: "Direitos e Promoção da Igualdade", text: "Julgue (V/F) sobre a estruturação de pastas transversais: ( ) A SEPROMI (Promoção da Igualdade Racial) visa apenas comunidades da capital. ( ) A política estadual para as Mulheres foi retirada do status de secretaria pela Lei 13.204/14. ( ) A SJDHDS articula a política estadual de assistência social (SUAS). A sequência correta é:", options: ["F - F - V", "V - F - V", "F - V - V", "V - V - F", "F - V - F"], correctIndex: 0, comment: "1) Falsa (é para todo o Estado). 2) Falsa (a SPM, Secretaria de Políticas para as Mulheres, manteve-se/consolidou-se como importante estrutura na Bahia). 3) Verdadeira." },
+        { id: "q38", topic: "Bens Públicos na Extinção", text: "Com a desmobilização de estruturas físicas de autarquias extintas, os bens imóveis pertencentes a estas entidades extintas:", options: ["Tornam-se automaticamente de domínio privado de particulares.", "São incorporados ao património do Estado da Bahia e geridos pela SAEB.", "Devem ser invadidos para reforma agrária.", "Revertem ao património da União.", "São doados ao Tribunal de Justiça da Bahia."], correctIndex: 1, comment: "Sendo o Estado da Bahia o sucessor legal da autarquia extinta, o património imobiliário reverte para o ente central, sendo a SAEB o órgão central gestor do património estadual." },
+        { id: "q39", topic: "Disposições Preliminares (Art. 1º)", text: "Revisando a finalidade primordial da reforma, a Administração Pública do Executivo visa promover o desenvolvimento. Esse desenvolvimento, conforme a lei, NÃO é apenas económico, mas deve obrigatoriamente visar:", options: ["A privatização completa do ensino médio.", "A construção de estádios desportivos em todos os municípios.", "A erradicação da pobreza e redução das desigualdades.", "A eliminação dos impostos sobre circulação de mercadorias.", "O aumento dos salários exclusivos dos Secretários de Estado."], correctIndex: 2, comment: "A IBFC vai tentar fazer o candidato esquecer o básico. O Art. 1º é taxativo: o norte de tudo é a erradicação da pobreza e redução de desigualdades sociais/regionais." },
+        { id: "q40", topic: "Administração Indireta: Fundações", text: "Para finalizar o bloco com padrão de dificuldade alta, analise: I. Fundações Públicas de Direito Público têm natureza autárquica (Autarquias Fundacionais). II. As Fundações Públicas não se submetem a licitação (Lei 8.666/14.133) por terem fins sociais. III. Seus quadros funcionais exigem a realização de concurso público. Estão corretas:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Apenas a III.", "I, II e III."], correctIndex: 1, comment: "O item II é absurdamente Falso. TODA entidade da Administração Direta e Indireta (incluindo Fundações Públicas) sujeita-se à obrigatoriedade de licitar. A I é correta (doutrina pacífica). A III é correta (exige concurso)." },
+        { id: "q41", topic: "Criação de Entidades", text: "A IBFC testa frequentemente o conhecimento sobre a criação de entes estatais (Art. 37, XIX, CF, refletido no Estado). Analise as afirmativas: I. As Autarquias são criadas diretamente por lei específica. II. A criação de Fundações Públicas é autorizada por lei específica, cabendo à lei complementar definir as suas áreas de atuação. III. As Secretarias de Estado podem ser criadas por Decreto do Governador. Estão corretas:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Apenas a I.", "I, II e III."], correctIndex: 0, comment: "I e II estão corretíssimas (texto literal da Constituição aplicável à Bahia). A III é Falsa, pois a criação e extinção de Secretarias (órgãos da Adm. Direta) exige Lei em sentido estrito." },
+        { id: "q42", topic: "Administração Direta", text: "Assinale a alternativa que apresenta EXCLUSIVAMENTE órgãos que integram a Administração Pública Direta do Estado da Bahia, sem personalidade jurídica própria:", options: ["Secretaria da Educação (SEC), Casa Civil e Procuradoria Geral do Estado (PGE).", "Secretaria de Segurança Pública (SSP), DETRAN e Casa Civil.", "Secretaria da Fazenda (SEFAZ), Junta Comercial do Estado da Bahia (JUCEB) e UNEB.", "Polícia Militar, Corpo de Bombeiros e EMBASA.", "Secretaria da Administração (SAEB), Auditoria Geral do Estado (AGE) e BAHIAGÁS."], correctIndex: 0, comment: "Apenas a alternativa 'A' contém exclusivamente órgãos da Adm. Direta. DETRAN e JUCEB são autarquias; UNEB é autarquia; EMBASA e BAHIAGÁS são sociedades de economia mista." },
+        { id: "q43", topic: "Cargos de Chefia e Subordinação", text: "Sobre os Secretários de Estado no âmbito do Poder Executivo Baiano, classifique (V) para Verdadeiro e (F) para Falso: ( ) São escolhidos livremente pelo Governador do Estado, dispensada a aprovação da Assembleia Legislativa. ( ) Atuam como auxiliares diretos e imediatos do Governador. ( ) Possuem mandato fixo de quatro anos, coincidente com o do Chefe do Executivo. A sequência correta é:", options: ["V - V - F", "F - V - F", "V - V - V", "F - F - V", "V - F - F"], correctIndex: 0, comment: "1) Verdadeiro (livre nomeação). 2) Verdadeiro (são auxiliares diretos). 3) Falso (não têm mandato fixo, sendo cargos de livre exoneração 'ad nutum')." },
+        { id: "q44", topic: "Princípio da Impessoalidade", text: "A reorganização administrativa da Lei 13.204/14 pauta-se nos princípios constitucionais. Se um Secretário de Estado utilizar publicidade institucional da sua pasta para promoção pessoal, com o seu nome e imagem, estará a violar DIRETA e FRONTALMENTE qual princípio?", options: ["Princípio da Eficiência.", "Princípio da Continuidade do Serviço Público.", "Princípio da Impessoalidade.", "Princípio da Autotutela.", "Princípio da Razoabilidade."], correctIndex: 2, comment: "A publicidade governamental deve ter caráter educativo, informativo ou de orientação social, não podendo constar nomes, símbolos ou imagens que caracterizem promoção pessoal (violação direta da Impessoalidade/Moralidade)." },
+        { id: "q45", topic: "Delegação de Competências", text: "A Lei de Processo Administrativo e as normas de organização estadual permitem a delegação de competências, salvo exceções legais. Assinale a competência que NÃO PODE ser delegada por um Secretário de Estado a um subordinado:", options: ["Autorização para a realização de pequenas despesas.", "A edição de atos de caráter normativo geral.", "A assinatura de ofícios a outras Secretarias.", "A gestão do ponto e frequência dos servidores.", "A autorização de férias dos funcionários do seu gabinete."], correctIndex: 1, comment: "Não podem ser delegadas: 1) edição de atos de caráter normativo; 2) decisão de recursos administrativos; 3) matérias de competência exclusiva (Art. 13 da Lei 9.784/99, aplicada de forma análoga e doutrinária nos estados)." },
+        { id: "q46", topic: "Gestão Patrimonial (SAEB)", text: "Acerca da alienação (venda) de bens imóveis pertencentes à Administração Pública Direta do Estado da Bahia (ex: um prédio antigo da SEC), analise as exigências: I. Exige-se autorização legislativa prévia. II. É obrigatória a realização de procedimento licitatório. III. O processo é coordenado de forma sistémica pela SAEB. Estão corretas as afirmativas:", options: ["I e II, apenas.", "II e III, apenas.", "I e III, apenas.", "Todas estão corretas.", "Apenas a II está correta."], correctIndex: 3, comment: "Vender imóveis da Adm. Direta e Autárquica exige lei autorizadora, licitação (regra geral: concorrência ou leilão) e o órgão central do património na Bahia é a SAEB." },
+        { id: "q47", topic: "Órgãos Colegiados vs Singulares", text: "A IBFC gosta de confundir a classificação dos órgãos. No Estado da Bahia, um órgão cuja atuação e decisão sejam formadas pela manifestação conjunta das vontades da pluralidade dos seus membros (ex: Conselho Estadual de Educação) classifica-se como:", options: ["Órgão Singular.", "Órgão Colegiado.", "Órgão Independente.", "Órgão Desconcentrado Simples.", "Órgão de Execução Monocrática."], correctIndex: 1, comment: "Quando a vontade do órgão provém de um grupo (pluralidade) de agentes que votam, chama-se Órgão Colegiado. Se fosse de apenas um agente (ex: o próprio Governador), seria Órgão Singular/Monocrático." },
+        { id: "q48", topic: "Extinção de Entidades (Servidores Celetistas)", text: "A Lei 13.204/14 autorizou a extinção de empresas de economia mista e sociedades controladas. No caso da extinção de uma Empresa Pública estadual (cujos empregados eram regidos pela CLT), a sucessão das obrigações trabalhistas pelo Estado da Bahia implica que:", options: ["Os empregados perdem o vínculo, pois não gozam da estabilidade do Art. 41 da Constituição Federal.", "Os empregados tornam-se automaticamente servidores estatutários do Estado.", "O Estado adquire a qualidade de sucessor trabalhista, assumindo os ónus das rescisões ou eventual aproveitamento legal.", "Os contratos de trabalho são transferidos para o Ministério Público do Trabalho.", "A dívida trabalhista é perdoada por tratar-se de reestruturação por força de lei."], correctIndex: 2, comment: "O Estado, ao extinguir a empresa, torna-se sucessor das obrigações trabalhistas. Como empregados de empresas públicas são celetistas (sem a estabilidade estrita do art. 41, reservada a estatutários da Adm. Direta/Autárquica), o Estado arca com o passivo trabalhista rescisório ou os aproveita se houver previsão legal específica." },
+        { id: "q49", topic: "Contrato de Gestão e Metas", text: "Com o objetivo de ampliar a autonomia gerencial, orçamentária e financeira dos órgãos da Administração Direta, a CF e as normativas estaduais preveem a assinatura de um instrumento jurídico específico. Assinale-o:", options: ["Termo de Ajustamento de Conduta (TAC).", "Contrato de Gestão.", "Convênio de Cooperação Técnica.", "Termo de Parceria Privada.", "Decreto Autônomo de Eficiência."], correctIndex: 1, comment: "O Contrato de Gestão (Art. 37, § 8º, CF) é o instrumento usado para ampliar a autonomia de órgãos/autarquias mediante fixação de metas de desempenho." },
+        { id: "q50", topic: "Sistemas Estruturantes do Estado", text: "Assinale a alternativa que associa INCORRETAMENTE a Secretaria de Estado à sua função como órgão central de um sistema estruturante do Governo Baiano:", options: ["SAEB – Órgão central do sistema de Recursos Humanos.", "SEFAZ – Órgão central do sistema de Administração Tributária e Financeira.", "PGE – Órgão central do sistema de Consultoria e Representação Judicial.", "SEC – Órgão central do sistema de Fiscalização Sanitária e Ambiental.", "SEPLAN – Órgão central do sistema de Planeamento Estratégico e Orçamento."], correctIndex: 3, comment: "A SEC cuida da Educação. A Fiscalização Sanitária é da SESAB (Saúde) e a Ambiental é do INEMA / SEMA (Meio Ambiente)." },
+        { id: "q51", topic: "Estabilidade vs Efetividade", text: "Analise a situação: João foi aprovado em concurso público para Técnico Administrativo da SEC/BA e tomou posse. Imediatamente após a posse, ele é considerado 'Efetivo', mas ainda não 'Estável'. Segundo as regras constitucionais vigentes, a estabilidade de João só será alcançada após:", options: ["2 anos de efetivo exercício e avaliação especial de desempenho.", "3 anos de efetivo exercício e aprovação em avaliação especial de desempenho por comissão.", "3 anos de idade no cargo e decreto do Governador.", "5 anos de efetivo exercício, dispensada qualquer avaliação.", "A conclusão imediata do estágio probatório de 12 meses."], correctIndex: 1, comment: "Efetividade adquire-se com a posse. Estabilidade exige 3 anos de efetivo exercício + aprovação na avaliação especial de desempenho (Art. 41, §4º, CF)." },
+        { id: "q52", topic: "Reforma: Secretaria de Turismo", text: "As políticas de fomento ao turismo na Bahia possuem enorme relevo económico. Na estrutura estadual (considerando as alterações administrativas gerais), a promoção do turismo é responsabilidade precípua da:", options: ["Secretaria de Cultura (SECULT).", "Secretaria do Turismo (SETUR).", "Secretaria de Desenvolvimento Econômico (SDE).", "Bahiatursa (como empresa pública única de fomento).", "Secretaria do Meio Ambiente (SEMA)."], correctIndex: 1, comment: "A SETUR é a secretaria finalística responsável pelas políticas de turismo (A Bahiatursa sofreu diversas reestruturações, mas a formulação central da política é da Secretaria de Estado)." },
+        { id: "q53", topic: "Órgãos Colegiados: CEE/BA", text: "Julgue (V/F) sobre o Conselho Estadual de Educação (CEE/BA): ( ) É órgão meramente consultivo, cabendo apenas ao Secretário da Educação a normatização. ( ) Exerce funções normativas, deliberativas e consultivas no sistema estadual de ensino. ( ) É composto exclusivamente por indicados políticos do Governador, sem participação da sociedade civil. A sequência é:", options: ["F - V - F", "V - F - V", "F - F - V", "V - V - F", "F - V - V"], correctIndex: 0, comment: "1) Falso (é normativo e deliberativo também). 2) Verdadeiro. 3) Falso (tem forte representação da sociedade civil, professores, etc.)." },
+        { id: "q54", topic: "Polícia Administrativa vs Polícia Judiciária", text: "A reestruturação administrativa mantem as funções típicas de segurança. A quem compete o exercício da polícia judiciária (investigação de crimes) e a apuração de infrações penais na Bahia, ressalvada a competência da União?", options: ["Polícia Militar.", "Secretaria de Segurança Pública diretamente pelos seus secretários.", "Polícia Civil.", "Corpo de Bombeiros Militar.", "Auditoria Geral do Estado."], correctIndex: 2, comment: "Polícia Administrativa/Ostensiva = PM. Polícia Judiciária/Investigativa = Polícia Civil." },
+        { id: "q55", topic: "Concessão e Permissão de Serviços", text: "A Administração Estadual, sob a diretriz de eficiência (Lei 13.204/14), pode transferir a execução de certos serviços públicos a particulares. Analise: I. A Concessão de serviço público exige sempre licitação prévia. II. A Permissão de serviço público pode ser feita sem licitação por ser a título precário. III. Ambas transferem a titularidade do serviço público ao particular. Estão corretas:", options: ["Apenas a I.", "I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Todas estão corretas."], correctIndex: 0, comment: "I está correta (art. 175 CF). II é Falsa (Permissão TAMBÉM exige licitação). III é Falsa (A titularidade nunca é transferida, transfere-se apenas a EXECUÇÃO do serviço)." },
+        { id: "q56", topic: "Disposições Finais: Extinção de EBDA", text: "A extinção da Empresa Baiana de Desenvolvimento Agrícola S.A. (EBDA) pela Lei 13.204/14 previu que as suas atividades de pesquisa e assistência técnica rural seriam absorvidas. Assinale a entidade estadual que passou a centralizar fortemente a política de assistência técnica e extensão rural (ATER) no estado após esta reforma:", options: ["SDR (através da autarquia BAHIATER).", "UNEB.", "Secretaria de Ciência e Tecnologia (SECTI).", "EMBASA.", "Secretaria do Meio Ambiente (SEMA)."], correctIndex: 0, comment: "A Superintendência Baiana de Assistência Técnica e Extensão Rural (BAHIATER), vinculada à SDR, foi o órgão pensado para absorver as políticas vitais de extensão rural após o fim da EBDA." },
+        { id: "q57", topic: "Terceiro Setor: OS e OSCIP", text: "O Governo Baiano faz uso intensivo do Terceiro Setor para gerir hospitais e programas. Sobre as Organizações Sociais (OS) e as OSCIPs, é correto afirmar que:", options: ["Fazem parte da Administração Pública Indireta do Estado.", "Possuem fins lucrativos rigorosos fiscalizados pelo TCE.", "São entidades privadas sem fins lucrativos que recebem delegação ou fomento do Estado para gerir serviços de interesse público.", "Os seus empregados são selecionados por concurso público de provas e títulos organizado pela SAEB.", "São criadas exclusivamente por lei ordinária aprovada na Assembleia."], correctIndex: 2, comment: "OS e OSCIPs pertencem ao Terceiro Setor. São entes privados, sem fins lucrativos, que atuam em parceria com o Estado. Não integram a Administração Indireta e não fazem concurso público estrito (fazem processo seletivo próprio)." },
+        { id: "q58", topic: "Fundos Especiais", text: "A gestão financeira das Secretarias muitas vezes envolve a operação de 'Fundos Especiais' (ex: Fundo Estadual de Saúde, Fundo de Combate à Pobreza). A característica central de um Fundo Especial na estrutura administrativa é:", options: ["Ter personalidade jurídica própria, como uma Autarquia.", "Ser uma conta bancária sem qualquer vinculação contábil.", "A afetação (vinculação) de receitas específicas à realização de determinados objetivos ou serviços públicos.", "Ser gerido obrigatoriamente pelo Banco do Brasil.", "A imunidade total contra auditorias do Tribunal de Contas."], correctIndex: 2, comment: "Fundos Especiais (Lei 4.320/64) são montantes de recursos vinculados a fins específicos. Não têm personalidade jurídica própria na Adm. Direta." },
+        { id: "q59", topic: "Avocação de Competências", text: "Assim como a delegação, a autoridade hierarquicamente superior (ex: um Secretário de Estado) pode chamar para si a decisão de um assunto que era de competência de um subordinado. A este ato dá-se o nome de:", options: ["Revogação.", "Anulação.", "Avocação.", "Convalidação.", "Sub-rogação."], correctIndex: 2, comment: "Avocação é o ato excepcional e temporário pelo qual o superior puxa para si a competência de um órgão subordinado." },
+        { id: "q60", topic: "Aposentadoria de Servidores", text: "Para finalizar com uma rasteira frequente da IBFC: O servidor público estadual ocupante APENAS de cargo de provimento em comissão, que não possui nenhum outro vínculo efetivo com a Administração, vincula-se a qual regime de previdência?", options: ["Regime Próprio de Previdência Social dos Servidores do Estado (RPPS/BA).", "Regime Geral de Previdência Social (RGPS - INSS).", "Fundo de Pensão Privado do Governo.", "Ele não tem direito a previdência, apenas ao salário.", "Fundo de Garantia do Tempo de Serviço (FGTS) exclusivamente."], correctIndex: 1, comment: "Pegadinha clássica e dolorosa: O ocupante EXCLUSIVAMENTE de cargo em comissão filia-se ao INSS (Regime Geral - RGPS), e não ao regime próprio dos estatutários." },
+        { id: "q61", topic: "Desconcentração vs Descentralização", text: "A reestruturação da máquina pública estadual envolve técnicas administrativas precisas. Quando o Governo da Bahia cria uma nova Secretaria de Estado (ex: SDR) para especializar o atendimento, e quando cria uma nova Autarquia, está a utilizar, respetivamente, os fenómenos da:", options: ["Descentralização e Desconcentração.", "Desconcentração e Descentralização.", "Delegação e Avocação.", "Descentralização em ambos os casos.", "Desconcentração em ambos os casos."], correctIndex: 1, comment: "Rasteira clássica! Criar órgãos internos (Secretarias) = DesConcentração (C de Criar Órgãos). Criar entidades (Autarquias) = DesCentralização (C de Criar Entidades com Personalidade)." },
+        { id: "q62", topic: "Criação de Entidades (Art. 37, XIX)", text: "No que tange à expansão da Administração Indireta, a IBFC adora a literalidade constitucional aplicada ao Estado. Analise: I. A lei específica CRIA diretamente as Autarquias. II. A lei específica AUTORIZA a criação de Empresas Públicas e Sociedades de Economia Mista. III. A lei específica AUTORIZA a criação de Fundações Públicas. Estão corretas:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Apenas a I.", "I, II e III."], correctIndex: 4, comment: "Todas estão corretas. Apenas a Autarquia é CRIADA diretamente pela lei. Para Empresa Pública, Sociedade de Economia Mista e Fundação, a lei apenas AUTORIZA, sendo necessário o registo dos atos constitutivos." },
+        { id: "q63", topic: "Nepotismo e Agentes Políticos", text: "A nomeação para cargos em comissão na estrutura das Secretarias deve observar a Súmula Vinculante nº 13 (Nepotismo). No entanto, de acordo com a jurisprudência pacificada do STF aplicável ao Governo da Bahia, a regra do nepotismo NÃO se aplica, em regra, à nomeação para o cargo de:", options: ["Superintendente de Educação.", "Diretor de Escola Estadual.", "Secretário de Estado.", "Chefe de Gabinete.", "Assessor Técnico."], correctIndex: 2, comment: "Pegadinha de alto nível! O cargo de Secretário de Estado é considerado cargo de natureza POLÍTICA. Para agentes políticos, a regra do nepotismo não se aplica automaticamente, salvo prova de falta de qualificação técnica ou fraude." },
+        { id: "q64", topic: "Acumulação de Cargos", text: "Um servidor aprovado para o cargo de Técnico Administrativo da SEC/BA (cargo estritamente burocrático de nível médio) foi também aprovado num concurso para Professor da rede municipal. Nos termos da Constituição e das regras estaduais:", options: ["A acumulação é lícita, pois trata-se de um cargo técnico e um de professor.", "A acumulação é ilícita, devendo ele optar por um dos cargos.", "A acumulação é lícita, desde que haja compatibilidade de horários, independentemente da natureza do cargo.", "A acumulação é lícita apenas se o cargo for na área da saúde.", "A acumulação é ilícita, pois é proibida qualquer acumulação de cargos públicos no Brasil."], correctIndex: 1, comment: "Atenção: A CF permite acumular um cargo de professor com outro 'técnico ou científico'. Contudo, a jurisprudência entende que 'Técnico Administrativo' de nível médio, com funções meramente burocráticas/rotineiras, NÃO é considerado cargo técnico para fins de acumulação. Logo, é ilícita." },
+        { id: "q65", topic: "Extinção de Órgãos e Cargos Vagos", text: "A Lei 13.204/14 extinguiu órgãos e entidades. Caso o Governador da Bahia decida extinguir um cargo público que se encontra VAGO, ele poderá fazê-lo através de:", options: ["Lei ordinária, obrigatoriamente.", "Decreto autónomo.", "Emenda à Constituição Estadual.", "Resolução da Secretaria da Administração.", "Portaria conjunta da SAEB e SEFAZ."], correctIndex: 1, comment: "Art. 84, VI da CF. O Governador pode usar Decreto Autónomo para organizar a administração (desde que não aumente despesa nem crie/extinga órgão) E para extinguir funções ou cargos públicos QUANDO VAGOS." },
+        { id: "q66", topic: "Agências Reguladoras Estaduais", text: "A AGERBA atua na regulação de serviços públicos (ex: transportes intermunicipais). Qual é a natureza jurídica de uma Agência Reguladora na estrutura da Administração Pública Estadual?", options: ["Fundação Pública de Direito Privado.", "Empresa Pública com capital fechado.", "Autarquia sob regime especial.", "Órgão Singular da Administração Direta.", "Sociedade de Economia Mista."], correctIndex: 2, comment: "As Agências Reguladoras são Autarquias sob Regime Especial, caracterizadas por maior autonomia financeira, administrativa e mandato fixo para os seus dirigentes." },
+        { id: "q67", topic: "Planeamento e Orçamento (SEPLAN)", text: "Na engrenagem do Estado, as políticas de desenvolvimento passam por três instrumentos fundamentais: PPA, LDO e LOA. A coordenação sistémica da elaboração destes instrumentos orçamentais é competência central da:", options: ["Secretaria da Fazenda (SEFAZ).", "Secretaria do Planeamento (SEPLAN).", "Casa Civil.", "Auditoria Geral do Estado (AGE).", "Secretaria da Administração (SAEB)."], correctIndex: 1, comment: "Cuidado para não confundir! A SEFAZ cuida da arrecadação e contabilidade. A SEPLAN (Planeamento) é quem coordena a elaboração das leis orçamentárias (PPA, LDO, LOA)." },
+        { id: "q68", topic: "Responsabilidade Civil do Estado", text: "Um motorista da frota oficial da SEC/BA, durante o exercício das suas funções, causou um acidente de trânsito, lesionando um particular. Nos termos da teoria adotada pelo Estado brasileiro, a responsabilidade civil do Estado da Bahia neste caso será:", options: ["Subjetiva, devendo a vítima provar dolo ou culpa do Estado.", "Objetiva, bastando a vítima provar a conduta do agente, o dano e o nexo causal.", "Solidária e integral, respondendo o Estado em qualquer hipótese de força maior.", "Subsidiária, devendo a vítima processar primeiro o motorista.", "Inexistente, pois o Estado não responde por atos de servidores de nível médio."], correctIndex: 1, comment: "O Estado (Adm. Direta) responde de forma OBJETIVA (Teoria do Risco Administrativo) pelos danos que os seus agentes causarem a terceiros (Art. 37, §6º, CF)." },
+        { id: "q69", topic: "Atos Administrativos", text: "Julgue (V/F) sobre os Atos Administrativos praticados pelos Secretários de Estado: ( ) A presunção de legitimidade dos atos administrativos é absoluta. ( ) A revogação de um ato administrativo atinge apenas atos lícitos e convenientes. ( ) A anulação de um ato ilegal possui, em regra, efeitos retroativos (ex tunc). A sequência correta é:", options: ["F - V - V", "V - F - V", "F - F - V", "V - V - F", "F - V - F"], correctIndex: 0, comment: "1) Falso (a presunção é RELATIVA, admite prova em contrário). 2) Verdadeiro (revoga-se o que é lícito, mas inoportuno). 3) Verdadeiro (anulação de ato ilegal retroage)." },
+        { id: "q70", topic: "Licitações (Lei 14.133) e SAEB", text: "A SAEB é o órgão central de licitações. Nas contratações estaduais para aquisição de bens e serviços COMUNS, a modalidade de licitação de uso obrigatório preferencial (salvo exceções legais) é o(a):", options: ["Concurso.", "Leilão.", "Concorrência.", "Pregão.", "Diálogo Competitivo."], correctIndex: 3, comment: "Para bens e serviços COMUNS (cujos padrões de desempenho e qualidade podem ser objetivamente definidos), a modalidade exigida/preferencial é o Pregão." },
+        { id: "q71", topic: "Poderes da Administração", text: "Quando a Secretaria da Educação (SEC) aplica uma sanção de advertência ou suspensão a um Técnico Administrativo que cometeu uma infração disciplinar, ela está a exercer precipuamente qual poder administrativo?", options: ["Poder de Polícia.", "Poder Regulamentar.", "Poder Disciplinar.", "Poder Vinculado.", "Poder Normativo."], correctIndex: 2, comment: "A aplicação de sanções a quem possui vínculo específico com a Administração (como os servidores públicos) decorre do Poder Disciplinar (que é um reflexo do Poder Hierárquico)." },
+        { id: "q72", topic: "Terceirização e Reforma", text: "A racionalização da máquina (Lei 13.204/14) ampliou o uso da terceirização. De acordo com o entendimento consolidado do STF aplicado à Administração Pública:", options: ["A terceirização é permitida apenas para atividades-meio (ex: limpeza e segurança).", "É lícita a terceirização de toda e qualquer atividade, meio ou fim, não se configurando vínculo empregatício entre a contratante e o terceirizado.", "A Administração Pública tem responsabilidade objetiva pelas dívidas trabalhistas da empresa terceirizada.", "É proibida a terceirização no âmbito das Secretarias de Estado.", "Os terceirizados devem prestar concurso público simplificado."], correctIndex: 1, comment: "O STF decidiu que é lícita a terceirização em todas as etapas do processo produtivo (atividades-meio e fim). A responsabilidade do Estado pelas dívidas é apenas SUBSIDIÁRIA e depende de prova de culpa in vigilando." },
+        { id: "q73", topic: "Consórcios Públicos", text: "Analise as afirmativas sobre os Consórcios Públicos (Lei 11.107) firmados pelo Estado da Bahia com Municípios para gerir serviços (ex: Policlínicas): I. Se o consórcio for de direito público, adquire a natureza de associação pública, integrando a Administração Indireta. II. Os consórcios podem ser celebrados sem qualquer protocolo de intenções prévio. III. Consórcios de direito privado não se sujeitam a licitação. Estão corretas:", options: ["Apenas a I.", "I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Todas estão corretas."], correctIndex: 0, comment: "I está correta (Consórcio de direito público = Associação Pública = Autarquia). II é Falsa (exige protocolo de intenções aprovado por lei). III é Falsa (todos os consórcios públicos licitam)." },
+        { id: "q74", topic: "Terceiro Setor: OS", text: "O Estado da Bahia qualificou uma entidade privada sem fins lucrativos como Organização Social (OS) para gerir um hospital. O instrumento jurídico assinado entre o Estado e esta OS denomina-se:", options: ["Termo de Parceria.", "Contrato de Concessão.", "Contrato de Gestão.", "Convênio Simples.", "Acordo de Acionistas."], correctIndex: 2, comment: "IBFC cobra muito: Organização Social (OS) assina CONTRATO DE GESTÃO. Organização da Sociedade Civil de Interesse Público (OSCIP) assina TERMO DE PARCERIA." },
+        { id: "q75", topic: "Controle da Administração", text: "O Tribunal de Contas do Estado (TCE/BA) exerce um papel fundamental. Qual das alternativas abaixo NÃO se enquadra nas competências constitucionais do TCE?", options: ["Apreciar as contas prestadas anualmente pelo Governador do Estado.", "Julgar as contas dos administradores de dinheiros públicos.", "Anular diretamente os atos administrativos ilegais do Governador com força de decisão judicial.", "Apreciar a legalidade das admissões de pessoal, exceto nomeações para cargo em comissão.", "Sustar, se não atendido, a execução de ato impugnado."], correctIndex: 2, comment: "O TCE não tem poder para anular (desfazer) diretamente o ato do Governador como se fosse o Judiciário. Ele pode sustar atos ou julgar contas, mas a anulação direta por ilegalidade é feita pela própria administração (autotutela) ou pelo Judiciário." },
+        { id: "q76", topic: "Teto Remuneratório", text: "Sobre o teto remuneratório dos servidores públicos do Poder Executivo Estadual, a Constituição determina que a remuneração não poderá exceder o subsídio mensal do(s):", options: ["Desembargadores do Tribunal de Justiça do Estado.", "Governador do Estado.", "Deputados Estaduais.", "Ministros do Supremo Tribunal Federal (em qualquer caso sem exceção).", "Secretários de Estado."], correctIndex: 1, comment: "Regra do Art. 37, XI da CF: No âmbito do Poder Executivo (municípios é Prefeito, Estados é o Governador, União são os Ministros do STF). Logo, o teto do Executivo Estadual é o subsídio do Governador." },
+        { id: "q77", topic: "Direitos e Vantagens (Estágio Probatório)", text: "Julgue (V/F): ( ) Durante o estágio probatório, o servidor estadual não pode exercer cargo em comissão. ( ) O servidor em estágio probatório reprovado na avaliação de desempenho será exonerado, e não demitido. ( ) A estabilidade abrange o cargo, mas não impede a perda da função em caso de extinção do órgão. A sequência é:", options: ["F - V - V", "V - F - V", "F - F - V", "V - V - F", "F - V - F"], correctIndex: 0, comment: "1) Falso (o servidor em estágio probatório PODE exercer cargo em comissão, geralmente na mesma esfera). 2) Verdadeiro (a penalidade administrativa é demissão; a reprovação gera exoneração, que não é pena). 3) Verdadeiro (estabilidade é no serviço público, o cargo pode ser extinto)." },
+        { id: "q78", topic: "Empresas Estatais", text: "Analise: I. Sociedades de Economia Mista e Empresas Públicas exploradoras de atividade económica estão sujeitas à falência. II. Os seus bens não gozam da prerrogativa da impenhorabilidade (salvo se prestadoras de serviço público exclusivo). III. Os seus empregados não possuem direito à estabilidade do art. 41. Assinale a correta:", options: ["I e II, apenas.", "I e III, apenas.", "II e III, apenas.", "Todas estão corretas.", "Apenas a III está correta."], correctIndex: 2, comment: "I é Falsa (Lei de Falências proíbe falência de Empresa Pública e Soc. de Econ. Mista). II é Verdadeira (bens penhoráveis na exploração económica). III é Verdadeira (celetistas não têm a estabilidade estatutária do 41)." },
+        { id: "q79", topic: "Órgãos Superiores vs Subalternos", text: "Na classificação estrutural, as Secretarias de Estado (ex: SEC, SAEB, SEFAZ) enquadram-se na categoria de órgãos:", options: ["Independentes.", "Autónomos.", "Superiores.", "Subalternos.", "Delegados."], correctIndex: 1, comment: "Governadoria = Órgão Independente. Secretarias de Estado = Órgãos Autónomos (têm ampla autonomia técnica, financeira e administrativa para gerir as suas pastas)." },
+        { id: "q80", topic: "Processo Administrativo", text: "Para encerrar: Um ato administrativo praticado por um Superintendente da SEC/BA continha um vício sanável relativo à competência (ele não era o competente, mas a lei não exigia competência exclusiva). Para não anular o ato e preservar os seus efeitos, a Secretaria optou por corrigir o defeito retroativamente. A este instituto dá-se o nome de:", options: ["Revogação.", "Anulação.", "Caducidade.", "Cassação.", "Convalidação."], correctIndex: 4, comment: "Convalidação é o conserto (cura) de um ato administrativo com vício sanável (geralmente competência ou forma), possuindo efeitos retroativos (ex tunc)." }
+    ];
+
+
+
+    /** ========================================================================
+     * GERENCIAMENTO DE ESTADO (Clean Code: Centralização de Dados)
+     * Para desenvolvedores iniciantes: O 'state' é onde guardamos as informações
+     * que mudam durante o uso do app (ex: o que o aluno acertou ou errou).
+     ======================================================================== */
+    let state = {
+        history: {} // Formato: { "q1": { correct: false, attempts: 1 } }
+    };
+    
+    // Variáveis auxiliares para controle da rodada atual (ciclo)
+    let currentCycle = [];
+    let currentQuestionIndex = 0;
+    let selectedOptionIndex = null;
+    let isAnswerLocked = false;
+
+    /** ========================================================================
+     * CONTROLE DE UI / NAVEGAÇÃO
+     * Responsável por trocar de telas e atualizar botões ativos.
+     ======================================================================== */
+    const NavigationController = {
+        switchView(viewId) {
+            // Esconde todas as seções
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            // Mostra a seção desejada
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            
+            // Atualiza botões do menu lateral
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // Se for dashboard, atualiza os gráficos
+            if (viewId === 'dashboard') {
+                DashboardController.updateMetrics();
+            }
+        }
+    };
+
+    /** ========================================================================
+     * COMPONENTE DE MODAL (Alertas e Confirmações seguras sem alert() nativo)
+     ======================================================================== */
+    const ModalComponent = {
+        show(title, message, type = 'alert', onConfirm = null, onCancel = null) {
+            const overlay = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-text').innerText = message;
+            
+            const actionsDiv = document.getElementById('modal-actions');
+            actionsDiv.innerHTML = ''; // Limpa botões anteriores
+
+            if (type === 'alert') {
+                const btnOk = document.createElement('button');
+                btnOk.className = 'btn btn-primary';
+                btnOk.innerText = 'OK';
+                btnOk.onclick = () => { this.close(); if(onConfirm) onConfirm(); };
+                actionsDiv.appendChild(btnOk);
+            } 
+            else if (type === 'confirm') {
+                // Botão de Cancelar
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'btn btn-outline';
+                btnCancel.innerText = 'Cancelar';
+                btnCancel.onclick = () => { this.close(); if(onCancel) onCancel(); };
+                
+                // Botão de Confirmar (Ação de risco)
+                const btnOk = document.createElement('button');
+                btnOk.className = 'btn btn-danger';
+                btnOk.innerText = 'Confirmar Ação';
+                btnOk.onclick = () => { this.close(); if(onConfirm) onConfirm(); };
+
+                actionsDiv.appendChild(btnCancel);
+                actionsDiv.appendChild(btnOk);
+            }
+            
+            overlay.classList.add('active');
+        },
+
+        close() {
+            document.getElementById('custom-modal').classList.remove('active');
+        }
+    };
+
+    /** ========================================================================
+     * MOTOR DO SIMULADOR (Regras de Negócio e Lógica Adaptativa)
+     * Tarefa Nova: Filtrar em 3 categorias. Usar apenas Não Respondidas + Erradas.
+     ======================================================================== */
+    const SimulationEngine = {
+        
+        startNewCycle() {
+            const cycleSize = 20;
+
+            // 1. Categorizando o Banco de Questões
+            const unanswered = [];
+            const wrong = [];
+            const correct = [];
+
+            questionBank.forEach(q => {
+                const record = state.history[q.id];
+                if (!record) {
+                    unanswered.push(q);
+                } else if (record.correct === false) {
+                    wrong.push(q);
+                } else {
+                    correct.push(q);
+                }
+            });
+
+            // 2. O Pool de seleção utiliza APENAS Erradas e Não Respondidas
+            let pool = [...wrong, ...unanswered];
+
+            // 3. Verificação de Escassez (Nova Funcionalidade solicitada)
+            if (pool.length < cycleSize && pool.length !== 0) {
+                // Se tem questões, mas não dá 20, avisamos, mas podemos rodar um ciclo menor.
+                // Mas a regra pede que, se não for suficiente para completar a sessão, pergunte.
+                ModalComponent.show(
+                    "Banco Insuficiente para Sessão Completa",
+                    `Você tem apenas ${pool.length} questões disponíveis (não respondidas + erradas), mas o ciclo padrão é de ${cycleSize}.\n\nDeseja REINICIAR todo o banco de questões (zerando as corretas) ou CANCELAR e voltar ao menu?`,
+                    "confirm",
+                    () => { this.restartBankLogic(); }, // Se confirmar
+                    () => { NavigationController.switchView('dashboard'); } // Se cancelar
+                );
+                return;
+            } 
+            else if (pool.length === 0) {
+                 ModalComponent.show(
+                    "Parabéns! Banco Esgotado",
+                    `Você já respondeu e acertou todas as ${questionBank.length} questões! Deseja REINICIAR o banco de questões para treinar novamente ou CANCELAR?`,
+                    "confirm",
+                    () => { this.restartBankLogic(); },
+                    () => { NavigationController.switchView('dashboard'); }
+                );
+                return;
+            }
+
+            // 4. Iniciar Sessão (Embaralhar o pool e pegar as 20 primeiras)
+            pool = pool.sort(() => Math.random() - 0.5); // Random simples
+            currentCycle = pool.slice(0, cycleSize);
+            currentQuestionIndex = 0;
+
+            // Trocar telas internas do simulador
+            document.getElementById('setup-container').style.display = 'none';
+            document.getElementById('question-container').style.display = 'block';
+            
+            this.renderCurrentQuestion();
+        },
+
+        // Função auxiliar para reclassificar corretas e erradas para "não respondidas"
+        restartBankLogic() {
+            state.history = {}; // Zera o histórico completamente
+            DataManager.autoSave(); // Salva
+            this.startNewCycle(); // Tenta iniciar de novo
+        },
+
+        renderCurrentQuestion() {
+            if (currentQuestionIndex >= currentCycle.length) {
+                document.getElementById('question-container').style.display = 'none';
+                document.getElementById('setup-container').style.display = 'block';
+                ModalComponent.show("Ciclo Finalizado", "Sessão concluída! Verifique seu desempenho no Dashboard.", "alert", () => {
+                    // Força clique virtual no botão do Dashboard
+                    document.querySelector('.nav-btn').click(); 
+                });
+                return;
+            }
+
+            const q = currentCycle[currentQuestionIndex];
+            selectedOptionIndex = null;
+            isAnswerLocked = false;
+
+            // Preenche textos HTML
+            document.getElementById('q-counter').innerText = `Questão ${currentQuestionIndex + 1} de ${currentCycle.length}`;
+            document.getElementById('q-topic').innerText = q.topic;
+            document.getElementById('q-text').innerText = q.text;
+
+            // Renderiza opções
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            const letters = ['A', 'B', 'C', 'D', 'E'];
+            
+            q.options.forEach((optText, index) => {
+                const li = document.createElement('li');
+                li.className = 'option-item';
+                li.innerHTML = `<span class="option-letter">${letters[index]})</span> <span>${optText}</span>`;
+                li.onclick = () => this.selectOption(index, li);
+                optionsContainer.appendChild(li);
+            });
+
+            // Reseta caixa de feedback
+            document.getElementById('q-feedback').className = 'feedback-box';
+            document.getElementById('btn-confirm').style.display = 'block';
+            document.getElementById('btn-next').style.display = 'none';
+        },
+
+        selectOption(index, htmlElement) {
+            if (isAnswerLocked) return; // Trava se já respondeu
+            
+            selectedOptionIndex = index;
+            // Remove classe 'selected' de todos
+            document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+            // Adiciona no clicado
+            htmlElement.classList.add('selected');
+        },
+
+        confirmAnswer() {
+            if (selectedOptionIndex === null) {
+                ModalComponent.show("Atenção", "Selecione uma alternativa antes de confirmar.");
+                return;
+            }
+
+            isAnswerLocked = true;
+            const q = currentCycle[currentQuestionIndex];
+            const isCorrect = (selectedOptionIndex === q.correctIndex);
+            
+            // GRAVAÇÃO DE DADOS (Atualiza o History)
+            if (!state.history[q.id]) {
+                state.history[q.id] = { attempts: 0, correct: false };
+            }
+            
+            state.history[q.id].attempts += 1;
+            state.history[q.id].correct = isCorrect; // Se errar, fica false. Se acertar, true.
+
+            // ATUALIZAÇÃO VISUAL
+            const optionsList = document.getElementById('q-options').children;
+            optionsList[selectedOptionIndex].classList.add(isCorrect ? 'correct' : 'wrong');
+            
+            if (!isCorrect) {
+                optionsList[q.correctIndex].classList.add('correct'); // Revela a certa
+            }
+
+            // FEEDBACK COMENTADO
+            const fbBox = document.getElementById('q-feedback');
+            document.getElementById('fb-title').innerText = isCorrect ? "✅ Correto!" : "❌ Incorreto";
+            document.getElementById('fb-comment').innerHTML = `<strong>Comentário do Professor:</strong> ${q.comment}`;
+            fbBox.className = `feedback-box show ${isCorrect ? 'success' : 'error'}`;
+
+            // Troca botões
+            document.getElementById('btn-confirm').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'block';
+
+            DataManager.autoSave(); // Salva no LocalStorage
+        },
+
+        loadNextQuestion() {
+            currentQuestionIndex++;
+            this.renderCurrentQuestion();
+        }
+    };
+
+    /** ========================================================================
+     * DASHBOARD CONTROLLER (Cálculo de Estatísticas e Atualização Visual)
+     ======================================================================== */
+    const DashboardController = {
+        updateMetrics() {
+            let correctCount = 0;
+            let wrongCount = 0;
+            let unansweredCount = 0;
+            const topicStats = {};
+
+            // Analisa todas as 80 questões para classificar
+            questionBank.forEach(q => {
+                if (!topicStats[q.topic]) {
+                    topicStats[q.topic] = { total: 0, acertadas: 0 };
+                }
+                topicStats[q.topic].total += 1;
+
+                const record = state.history[q.id];
+                if (!record) {
+                    unansweredCount++;
+                } else if (record.correct === true) {
+                    correctCount++;
+                    topicStats[q.topic].acertadas += 1;
+                } else {
+                    wrongCount++;
+                }
+            });
+
+            const totalExplored = correctCount + wrongCount;
+            const percentGlobal = totalExplored === 0 ? 0 : Math.round((correctCount / totalExplored) * 100);
+
+            // Atualiza UI Geral
+            const chart = document.getElementById('main-chart');
+            chart.style.setProperty('--perc', `${percentGlobal}%`);
+            document.getElementById('chart-percent').innerText = `${percentGlobal}%`;
+            document.getElementById('stats-summary').innerText = `${totalExplored} tentativas reais / ${correctCount} corretas definitivas`;
+
+            // Atualiza Barra de Progresso do Banco (Tricolor)
+            const total = questionBank.length;
+            document.getElementById('q-unanswered').innerText = unansweredCount;
+            document.getElementById('q-wrong').innerText = wrongCount;
+            document.getElementById('q-correct').innerText = correctCount;
+
+            document.getElementById('pb-correct').style.width = `${(correctCount/total)*100}%`;
+            document.getElementById('pb-wrong').style.width = `${(wrongCount/total)*100}%`;
+
+            // Atualiza Análise SWOT (Pontos Fortes e Fracos)
+            const ulStrong = document.getElementById('swot-strong');
+            const ulWeak = document.getElementById('swot-weak');
+            ulStrong.innerHTML = '';
+            ulWeak.innerHTML = '';
+
+            Object.keys(topicStats).forEach(topic => {
+                const stats = topicStats[topic];
+                // Só analisa se já respondeu alguma daquele tópico
+                const topicAnswered = questionBank.filter(q => q.topic === topic && state.history[q.id]).length;
+                
+                if (topicAnswered > 0) {
+                    const accRate = Math.round((stats.acertadas / topicAnswered) * 100);
+                    const li = `<li><span>${topic}</span> <strong>${accRate}%</strong></li>`;
+                    
+                    if (accRate >= 80) ulStrong.insertAdjacentHTML('beforeend', li);
+                    else if (accRate < 60) ulWeak.insertAdjacentHTML('beforeend', li);
+                }
+            });
+
+            if (ulStrong.innerHTML === '') ulStrong.innerHTML = "<li style='color:var(--text-muted);'>Continue treinando para formar pontos fortes.</li>";
+            if (ulWeak.innerHTML === '') ulWeak.innerHTML = "<li style='color:var(--text-muted);'>Nenhum ponto crítico detectado.</li>";
+        }
+    };
+
+    /** ========================================================================
+     * GERENCIADOR DE DADOS (LocalStorage e Exportação JSON)
+     ======================================================================== */
+    const DataManager = {
+        autoSave() {
+            localStorage.setItem('ibfc_simulado_db', JSON.stringify(state));
+        },
+
+        loadInitialData() {
+            const saved = localStorage.getItem('ibfc_simulado_db');
+            if (saved) {
+                try { state = JSON.parse(saved); } 
+                catch(e) { console.error("Erro ao carregar DB"); }
+            }
+            DashboardController.updateMetrics();
+        },
+
+        exportData() {
+            document.getElementById('data-io').value = JSON.stringify(state);
+            ModalComponent.show("Exportação Concluída", "Copie o texto gerado e guarde-o com segurança.");
+        },
+
+        importData() {
+            const input = document.getElementById('data-io').value;
+            if (!input.trim()) {
+                ModalComponent.show("Erro", "Cole o código antes de importar.");
+                return;
+            }
+            try {
+                const parsed = JSON.parse(input);
+                if (parsed.history) {
+                    state = parsed;
+                    this.autoSave();
+                    document.getElementById('data-io').value = '';
+                    ModalComponent.show("Sucesso", "Dados restaurados com sucesso!", "alert", () => {
+                        DashboardController.updateMetrics();
+                    });
+                } else throw new Error();
+            } catch(e) {
+                ModalComponent.show("Erro", "Código JSON inválido.");
+            }
+        },
+
+        promptClearData() {
+            ModalComponent.show(
+                "Atenção Extrema", 
+                "Tem certeza que deseja DELETAR TODO o seu progresso? Essa ação não tem volta.", 
+                "confirm", 
+                () => { // Se Confirmar
+                    state = { history: {} };
+                    this.autoSave();
+                    DashboardController.updateMetrics();
+                    ModalComponent.show("Limpo", "Todos os dados foram resetados.");
+                }
+            );
+        }
+    };
+
+    // INICIALIZAÇÃO DA APLICAÇÃO
+    window.onload = () => {
+        DataManager.loadInitialData();
+    };
+
+</script>
+</body>
+</html>

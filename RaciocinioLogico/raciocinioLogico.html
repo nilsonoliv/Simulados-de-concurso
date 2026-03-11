@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo IBFC - Raciocínio Lógico e Matemático</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Variáveis CSS para facilitar a manutenção de temas (Clean Code: Evitar Magic Colors) */
+        :root {
+            --bg-color: #f3f4f6;
+            --primary: #1e3a8a; 
+            --secondary: #2563eb; 
+            --accent: #10b981; 
+            --danger: #ef4444; 
+            --warning: #f59e0b; 
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #1f2937;
+        }
+
+        /* Gráfico de Rosca (Donut Chart) construído puramente com CSS (Performance Otimizada) */
+        .donut-chart {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--chart-color) calc(var(--percentage) * 1%), 
+                #e5e7eb calc(var(--percentage) * 1%)
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .donut-chart::before {
+            content: "";
+            position: absolute;
+            width: 85px;
+            height: 85px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
+        .donut-content {
+            position: relative;
+            z-index: 10;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: #374151;
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .donut-label {
+            font-size: 0.65rem;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+
+        /* Oculta elementos de forma segura */
+        .hide { display: none !important; }
+        
+        /* Estilos de interação dos botões de opções */
+        .option-btn {
+            transition: all 0.2s;
+            border: 2px solid #e5e7eb;
+        }
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--secondary);
+            background-color: #eff6ff;
+        }
+        .option-btn.selected {
+            border-color: var(--secondary);
+            background-color: #dbeafe;
+        }
+        .option-btn.correct {
+            border-color: var(--accent);
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .option-btn.wrong {
+            border-color: var(--danger);
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- MENU LATERAL (Sidebar) -->
+    <nav class="bg-blue-900 text-white w-full md:w-64 flex-shrink-0 shadow-lg z-20">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold tracking-tight text-blue-100">IBFC<span class="text-emerald-400">Edu</span></h1>
+            <p class="text-xs text-blue-300 mt-1"><a href="../raiz/index.html" style="text-decoration: none;">Simulado SEC/BA - RLM</a></p>
+        </div>
+        <ul class="flex md:flex-col mt-2 md:mt-6 px-4 gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+            <li>
+                <button onclick="navigate('dashboard')" id="nav-dashboard" class="w-full text-left px-4 py-3 rounded-lg bg-blue-800 text-white font-medium transition-colors hover:bg-blue-700 flex items-center gap-3">
+                    Painel (Métricas)
+                </button>
+            </li>
+            <li>
+                <button onclick="navigate('simulado')" id="nav-simulado" class="w-full text-left px-4 py-3 rounded-lg text-blue-200 font-medium transition-colors hover:bg-blue-800 flex items-center gap-3">
+                    Simulado Adaptativo
+                </button>
+            </li>
+            <li>
+                <button onclick="navigate('dados')" id="nav-dados" class="w-full text-left px-4 py-3 rounded-lg text-blue-200 font-medium transition-colors hover:bg-blue-800 flex items-center gap-3">
+                    Salvar / Carregar
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto bg-gray-50 relative w-full">
+        
+        <!-- TELA 1: DASHBOARD -->
+        <section id="view-dashboard" class="p-4 md:p-8 max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Métricas de Desempenho</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total Respondido -->
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between border border-gray-100">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium uppercase">Total Respondido</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-total">0/0</p>
+                    </div>
+                </div>
+                <!-- Desempenho Global -->
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between border border-gray-100">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium uppercase">Desempenho</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-percent">0%</p>
+                    </div>
+                    <div class="donut-chart" style="--percentage: 0; --chart-color: var(--accent);" id="chart-global">
+                        <div class="donut-content"><span id="chart-global-text">0</span>%</div>
+                    </div>
+                </div>
+                <!-- Ciclos -->
+                <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between border border-gray-100">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium uppercase">Ciclos Concluídos</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-cycles">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 text-center">
+                <button onclick="navigate('simulado'); checkAndStartCycle();" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-all transform hover:scale-105">
+                    Iniciar / Continuar Simulado
+                </button>
+            </div>
+        </section>
+
+        <!-- TELA 2: SIMULADO -->
+        <section id="view-simulado" class="p-4 md:p-8 max-w-4xl mx-auto hide h-full flex flex-col">
+            <!-- Introdução do Ciclo -->
+            <div id="simulado-intro" class="text-center mt-10">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">Pronto para treinar?</h2>
+                <p class="text-gray-600 mb-8 max-w-lg mx-auto">O algoritmo selecionará até 20 questões priorizando APENAS tópicos não vistos ou respondidos incorretamente.</p>
+                <button onclick="startCycle()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-all text-lg">
+                    Gerar Novo Ciclo
+                </button>
+            </div>
+
+            <!-- Área Ativa da Questão -->
+            <div id="simulado-active" class="hide flex-1 flex flex-col">
+                <div class="mb-6">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2 font-medium">
+                        <span id="cycle-progress-text">Questão 1</span>
+                        <span id="topic-badge" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">Tópico</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="cycle-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 5%"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 md:p-8 flex-1 flex flex-col border border-gray-100">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4" id="q-id-display">ID: #000</span>
+                    <h3 class="text-lg md:text-xl font-medium text-gray-800 mb-6 leading-relaxed" id="question-text">Carregando...</h3>
+                    <div class="space-y-3 mb-8 flex-1" id="options-container"></div>
+                    
+                    <div class="mt-auto border-t border-gray-100 pt-6 flex justify-between items-center gap-4">
+                        <button id="btn-responder" onclick="submitAnswer()" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3 px-8 rounded-lg transition-colors">Responder</button>
+                        <button id="btn-proxima" onclick="nextQuestion()" class="hide bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-8 rounded-lg transition-colors">Próxima</button>
+                    </div>
+                </div>
+
+                <div id="explanation-box" class="hide mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                    <h4 class="font-bold text-blue-900 mb-2">Gabarito Comentado</h4>
+                    <p id="explanation-text" class="text-gray-700 text-sm md:text-base leading-relaxed"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TELA 3: DADOS (Omitido visualmente o miolo p/ economizar espaço, lógica mantida via JS) -->
+        <section id="view-dados" class="p-4 md:p-8 max-w-4xl mx-auto hide">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Persistência de Dados</h2>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <p class="text-gray-600 mb-6">
+                    O simulador guarda o seu progresso automaticamente no navegador. 
+                    Para estudar noutro dispositivo ou fazer um backup manual, utilize as opções abaixo.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Exportar -->
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-3">Exportar Progresso</h3>
+                        <p class="text-sm text-gray-500 mb-3">Gere o código e guarde-o num local seguro.</p>
+                        <button onclick="exportData()" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded border border-blue-300 transition-colors mb-3">
+                            Gerar Código de Backup
+                        </button>
+                        <textarea id="export-area" readonly class="w-full h-32 p-3 text-xs font-mono bg-gray-50 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="O seu código aparecerá aqui..."></textarea>
+                        <button onclick="copyToClipboard()" id="btn-copy" class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            Copiar para a Área de Transferência
+                        </button>
+                    </div>
+
+                    <!-- Importar -->
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-3">Importar Progresso</h3>
+                        <p class="text-sm text-gray-500 mb-3">Cole o seu código de backup aqui para restaurar os dados.</p>
+                        <textarea id="import-area" class="w-full h-32 p-3 text-xs font-mono bg-white border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3" placeholder="Cole o código JSON aqui..."></textarea>
+                        <button onclick="importData()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                            Restaurar Dados
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-10 pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-bold text-red-600 mb-2">Zona de Perigo</h3>
+                    <button onclick="confirmHardReset()" class="bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2 px-4 rounded border border-red-200 transition-colors">
+                        Apagar Todo o Histórico
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL CUSTOMIZADO (Design System) -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center hide opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="modal-content">
+            <h3 id="modal-title" class="text-xl font-bold text-center text-gray-800 mb-2">Título</h3>
+            <p id="modal-message" class="text-gray-600 text-center mb-6">Mensagem</p>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center" id="modal-buttons"></div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * BANCO DE QUESTÕES (DB)
+         * Caro Desenvolvedor Júnior: Cole as questões geradas no outro bloco dentro 
+         * deste array const 'db'. Ele atua como nossa fonte única de verdade (SSOT).
+         * ============================================================================
+         */
+        const db = [
+            // [COLE AQUI AS QUESTÕES GERADAS NA PARTE 2]
+        ];
+
+        /**
+         * ============================================================================
+         * ESTADO GLOBAL DA APLICAÇÃO (State Management)
+         * Evitamos variáveis soltas. Agrupamos o estado do utilizador num objeto
+         * para facilitar serialização (JSON.stringify) e armazenamento local.
+         * ============================================================================
+         */
+        let userStats = {
+            history: {}, // Estrutura: { [questionId]: { correct: boolean, seenAt: number } }
+            cyclesCompleted: 0
+        };
+        let currentCycle = []; // Guarda as questões do ciclo atual (até 20)
+        let currentIndex = 0;  // Ponteiro para a questão ativa no ciclo
+        let isAnswered = false; // Flag de controle (State Machine simplificada)
+        let selectedIndex = -1; // Índice da alternativa selecionada
+
+        /**
+         * Inicialização do App (Lifecycle: Component Did Mount)
+         */
+        window.onload = () => {
+            loadLocalData();
+            navigate('dashboard');
+        };
+
+        /**
+         * Roteamento (Router Simplificado)
+         * Alterna a visibilidade das seções baseando-se no ID.
+         * @param {string} view - Nome da view ('dashboard', 'simulado', 'dados')
+         */
+        function navigate(view) {
+            // Oculta todas as views (Evitamos Array.from iterando sobre as classes)
+            document.getElementById('view-dashboard').classList.add('hide');
+            document.getElementById('view-simulado').classList.add('hide');
+            document.getElementById('view-dados').classList.add('hide');
+            
+            // Exibe a view solicitada
+            document.getElementById(`view-${view}`).classList.remove('hide');
+            
+            // Atualiza dados na montagem do dashboard
+            if(view === 'dashboard') updateDashboard();
+        }
+
+        /**
+         * ============================================================================
+         * MOTOR ADAPTATIVO (Core Logic)
+         * Responsabilidade: Filtrar, embaralhar e montar o ciclo de questões.
+         * ============================================================================
+         */
+        function checkAndStartCycle() {
+            // Se já existe um ciclo em andamento, retoma a tela ativa.
+            if (currentCycle.length > 0 && currentIndex < currentCycle.length) {
+                document.getElementById('simulado-intro').classList.add('hide');
+                document.getElementById('simulado-active').classList.remove('hide');
+            } else {
+                document.getElementById('simulado-intro').classList.remove('hide');
+                document.getElementById('simulado-active').classList.add('hide');
+            }
+        }
+
+        function startCycle() {
+            // 1. Filtra as NUNCA RESPONDIDAS (não existem no histórico)
+            let unseen = db.filter(q => !userStats.history[q.id]);
+            
+            // 2. Filtra as ERRADAS (existem no histórico e a flag correct é false)
+            let wrong = db.filter(q => userStats.history[q.id] && userStats.history[q.id].correct === false);
+
+            // 3. Agrupa o pool de questões elegíveis
+            let pool = [...wrong, ...unseen];
+            
+            // 4. Embaralha (Shuffle) usando Fisher-Yates clássico
+            shuffleArray(pool);
+
+            // REGRA DE NEGÓCIO: O ciclo exige 20 questões (ou limite que definirmos).
+            // Se o pool for menor que 20 e o DB tiver 20 ou mais, significa que o aluno
+            // já acertou a maioria. Precisamos perguntar se ele quer reiniciar.
+            const cycleSize = 20;
+            if (pool.length < cycleSize && db.length >= cycleSize) {
+                showModal(
+                    "Questões Insuficientes",
+                    `Restam apenas ${pool.length} questões erradas ou não vistas. Deseja reiniciar o banco de questões (reclassificar certas e erradas como não respondidas) para gerar um ciclo completo ou cancelar?`,
+                    "warning",
+                    () => { resetBankAndStart(); }, // Callback do Confirmar
+                    true, // Exibe botão Cancelar
+                    () => { navigate('dashboard'); } // Callback do Cancelar
+                );
+                return; // Interrompe a execução atual
+            }
+
+            // Se o pool for menor que 20 (mas o DB inteiro for < 20), usa o que tem.
+            let sizeToSlice = Math.min(pool.length, cycleSize);
+            currentCycle = pool.slice(0, sizeToSlice);
+            currentIndex = 0;
+
+            // Transição de UI
+            document.getElementById('simulado-intro').classList.add('hide');
+            document.getElementById('simulado-active').classList.remove('hide');
+
+            renderQuestion();
+        }
+
+        /**
+         * Zera o histórico do utilizador e inicia um novo ciclo (Reset Bank)
+         */
+        function resetBankAndStart() {
+            userStats.history = {}; // Zera o dicionário de histórico
+            saveLocalData();
+            startCycle(); // Reinvoca o motor
+        }
+
+        /**
+         * Renderiza a questão atual do ciclo no DOM
+         */
+        function renderQuestion() {
+            isAnswered = false;
+            selectedIndex = -1;
+            let q = currentCycle[currentIndex];
+            
+            // Atualiza barra de progresso
+            document.getElementById('cycle-progress-text').innerText = `Questão ${currentIndex + 1} de ${currentCycle.length}`;
+            document.getElementById('cycle-progress-bar').style.width = `${((currentIndex) / currentCycle.length) * 100}%`;
+            
+            // Popula Cabeçalhos
+            document.getElementById('q-id-display').innerText = `ID: #${String(q.id).padStart(3, '0')}`;
+            document.getElementById('topic-badge').innerText = q.topic;
+            document.getElementById('question-text').innerText = q.text;
+            
+            // Gera as alternativas no DOM
+            let optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = ''; // Limpa opções anteriores
+
+            const letters = ['A', 'B', 'C', 'D', 'E'];
+            
+            // Iteração direta no array de opções da questão
+            q.options.forEach((opt, idx) => {
+                let btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-lg option-btn flex items-center gap-4 bg-white";
+                btn.innerHTML = `<span class="font-bold text-gray-500 w-6">${letters[idx]})</span> <span>${opt}</span>`;
+                btn.onclick = () => selectOption(idx);
+                optsContainer.appendChild(btn);
+            });
+
+            // Restaura estado inicial dos botões de ação
+            document.getElementById('btn-responder').classList.remove('hide');
+            document.getElementById('btn-responder').disabled = true;
+            document.getElementById('btn-proxima').classList.add('hide');
+            document.getElementById('explanation-box').classList.add('hide');
+        }
+
+        /**
+         * Gerencia a seleção visual de uma alternativa
+         * @param {number} idx - Índice da opção clicada
+         */
+        function selectOption(idx) {
+            if (isAnswered) return; // Trava se já respondeu
+            selectedIndex = idx;
+            
+            // Remove a classe 'selected' de todos os botões (Usamos forEach no NodeList, s/ Array.from)
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.option-btn')[idx].classList.add('selected');
+            
+            document.getElementById('btn-responder').disabled = false;
+        }
+
+        /**
+         * Valida a resposta, atualiza as métricas e exibe o gabarito
+         */
+        function submitAnswer() {
+            if (selectedIndex === -1 || isAnswered) return;
+            isAnswered = true;
+            
+            let q = currentCycle[currentIndex];
+            let btns = document.querySelectorAll('.option-btn');
+            let isCorrect = (selectedIndex === q.answer);
+
+            // Feedback Visual: Pinta a correta de verde
+            btns[q.answer].classList.add('correct');
+            
+            // Se errou, pinta a selecionada de vermelho
+            if (!isCorrect) {
+                btns[selectedIndex].classList.add('wrong');
+            }
+
+            // Atualiza ou insere a questão no objeto de histórico
+            userStats.history[q.id] = {
+                correct: isCorrect,
+                seenAt: new Date().getTime()
+            };
+            saveLocalData();
+
+            // Exibe o gabarito comentado
+            document.getElementById('explanation-text').innerText = q.explanation;
+            document.getElementById('explanation-box').classList.remove('hide');
+
+            // Troca botões
+            document.getElementById('btn-responder').classList.add('hide');
+            document.getElementById('btn-proxima').classList.remove('hide');
+        }
+
+        /**
+         * Avança para a próxima questão ou finaliza o ciclo
+         */
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex >= currentCycle.length) {
+                userStats.cyclesCompleted++;
+                saveLocalData();
+                showModal(
+                    "Ciclo Concluído!", 
+                    `Excelente! Você finalizou um ciclo de ${currentCycle.length} questões. Volte ao painel para ver sua evolução.`,
+                    "success",
+                    () => { navigate('dashboard'); currentCycle = []; }
+                );
+            } else {
+                renderQuestion();
+            }
+        }
+
+        /**
+         * Atualiza as métricas da tela inicial
+         */
+        function updateDashboard() {
+            // Conta as chaves do dicionário de histórico
+            let totalAnswered = Object.keys(userStats.history).length;
+            
+            // Conta quantas vezes a propriedade 'correct' é verdadeira
+            let correctCount = Object.values(userStats.history).filter(h => h.correct).length;
+            
+            // Evita divisão por zero
+            let globalPercent = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+
+            document.getElementById('stat-total').innerText = `${totalAnswered}/${db.length}`;
+            document.getElementById('stat-cycles').innerText = userStats.cyclesCompleted;
+            document.getElementById('stat-percent').innerText = `${globalPercent}%`;
+            
+            // Atualização do Gráfico CSS
+            let chart = document.getElementById('chart-global');
+            document.getElementById('chart-global-text').innerText = globalPercent;
+            chart.style.setProperty('--percentage', globalPercent);
+            
+            if (globalPercent >= 80) chart.style.setProperty('--chart-color', 'var(--accent)');
+            else if (globalPercent >= 60) chart.style.setProperty('--chart-color', 'var(--warning)');
+            else chart.style.setProperty('--chart-color', 'var(--danger)');
+        }
+
+        /**
+         * Modal Customizado Reutilizável (Sem alerts nativos)
+         * Adicionado suporte a cancelCallback conforme solicitado.
+         */
+        function showModal(title, message, type = "info", confirmCallback = null, showCancel = false, cancelCallback = null) {
+            let modal = document.getElementById('custom-modal');
+            let content = document.getElementById('modal-content');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+
+            let btnContainer = document.getElementById('modal-buttons');
+            btnContainer.innerHTML = '';
+            
+            if (showCancel) {
+                let btnCancel = document.createElement('button');
+                btnCancel.className = "px-4 py-2 bg-gray-200 text-gray-800 rounded font-medium hover:bg-gray-300 transition-colors";
+                btnCancel.innerText = "Cancelar";
+                btnCancel.onclick = () => {
+                    closeModal();
+                    if (cancelCallback) cancelCallback();
+                };
+                btnContainer.appendChild(btnCancel);
+            }
+
+            let btnConfirm = document.createElement('button');
+            btnConfirm.className = `px-4 py-2 text-white rounded font-medium transition-colors ${type === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`;
+            btnConfirm.innerText = "Confirmar";
+            btnConfirm.onclick = () => {
+                closeModal();
+                if (confirmCallback) confirmCallback();
+            };
+            btnContainer.appendChild(btnConfirm);
+
+            modal.classList.remove('hide');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal() {
+            let modal = document.getElementById('custom-modal');
+            let content = document.getElementById('modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => { modal.classList.add('hide'); }, 300);
+        }
+
+        function confirmHardReset() {
+            showModal("Atenção!", "Deseja apagar permanentemente o histórico?", "danger", () => {
+                userStats = { history: {}, cyclesCompleted: 0 };
+                saveLocalData();
+                navigate('dashboard');
+            }, true);
+        }
+
+        function saveLocalData() { localStorage.setItem('ibfc_sim_stats', JSON.stringify(userStats)); }
+        function loadLocalData() {
+            let saved = localStorage.getItem('ibfc_sim_stats');
+            if (saved) { try { userStats = JSON.parse(saved); } catch(e) {} }
+        }
+
+        /**
+         * Funcionalidades de Exportação e Importação Manual (Base64)
+         */
+        function exportData() {
+            let json = JSON.stringify(userStats);
+            let b64 = btoa(json); // Ofuscação básica em Base64
+            document.getElementById('export-area').value = b64;
+            showModal("Sucesso", "Código de backup gerado com sucesso.", "success");
+        }
+
+        function copyToClipboard() {
+            let text = document.getElementById('export-area').value;
+            if (!text) {
+                showModal("Aviso", "Gere o código primeiro antes de copiar.", "warning");
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                let btn = document.getElementById('btn-copy');
+                btn.innerText = "Copiado com sucesso!";
+                btn.classList.add('text-emerald-600');
+                setTimeout(() => {
+                    btn.innerText = "Copiar para a Área de Transferência";
+                    btn.classList.remove('text-emerald-600');
+                }, 2000);
+            });
+        }
+
+        function importData() {
+            let b64 = document.getElementById('import-area').value.trim();
+            if (!b64) {
+                showModal("Aviso", "Cole o código no campo indicado.", "warning");
+                return;
+            }
+            try {
+                let json = atob(b64);
+                let parsed = JSON.parse(json);
+                if (parsed.history !== undefined) {
+                    userStats = parsed;
+                    saveLocalData();
+                    currentCycle = []; // Reseta o ciclo ativo
+                    document.getElementById('import-area').value = '';
+                    showModal("Importação Concluída", "Os seus dados foram restaurados com sucesso!", "success", () => navigate('dashboard'));
+                } else {
+                    throw new Error("Formato inválido");
+                }
+            } catch (e) {
+                showModal("Erro", "Código inválido. Certifique-se de que copiou o código completo.", "danger");
+            }
+        }
+
+        /**
+         * Algoritmo de Embaralhamento (Fisher-Yates)
+         * @param {Array} array - O array a ser mutado
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+    </script>
+</body>
+</html>
