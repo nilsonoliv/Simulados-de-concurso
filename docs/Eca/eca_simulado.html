@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo ECA - SEC/BA (Banca IBFC)</title>
+    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para renderização dos gráficos de desempenho -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para ícones -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Estilização de abas ativas */
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
+        
+        /* Estilização interativa das opções de resposta */
+        .option-label:hover { background-color: #eff6ff; }
+        .option-radio:checked + .option-text { font-weight: 600; color: #1d4ed8; }
+        
+        /* Animações suaves de entrada */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Customização da barra de rolagem */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col">
+
+    <!-- CABEÇALHO (Header) -->
+    <header class="bg-blue-800 text-white shadow-md z-10">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-graduation-cap text-3xl text-yellow-400"></i>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight"><a href="../index.html" style="text-decoration: none;">AprovaSEC Bahia</a></h1>
+                    <p class="text-xs text-blue-200">Simulador Adaptativo ECA - Foco IBFC</p>
+                </div>
+            </div>
+            <div class="text-sm font-medium bg-blue-900 px-3 py-1 rounded-full border border-blue-700">
+                <i class="fas fa-user-graduate mr-1"></i> Técnico Administrativo
+            </div>
+        </div>
+        
+        <!-- NAVEGAÇÃO POR ABAS -->
+        <!-- Desenvolvedor: Utilizamos onclick passando o ID da aba para a função switchTab -->
+        <div class="bg-white border-b border-gray-200 px-4">
+            <div class="container mx-auto flex space-x-8 overflow-x-auto">
+                <button onclick="switchTab('simulado')" id="tab-simulado" class="tab-btn active py-3 px-2 border-b-2 border-transparent text-gray-500 hover:text-blue-600 focus:outline-none transition-colors whitespace-nowrap">
+                    <i class="fas fa-tasks mr-2"></i> Simulado
+                </button>
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn py-3 px-2 border-b-2 border-transparent text-gray-500 hover:text-blue-600 focus:outline-none transition-colors whitespace-nowrap">
+                    <i class="fas fa-chart-pie mr-2"></i> Meu Desempenho
+                </button>
+                <button onclick="switchTab('dados')" id="tab-dados" class="tab-btn py-3 px-2 border-b-2 border-transparent text-gray-500 hover:text-blue-600 focus:outline-none transition-colors whitespace-nowrap">
+                    <i class="fas fa-database mr-2"></i> Sincronizar Dados
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="flex-grow overflow-auto p-4 md:p-6 lg:p-8">
+        <div class="container mx-auto max-w-5xl h-full">
+            
+            <!-- ABA 1: SIMULADO -->
+            <div id="content-simulado" class="tab-content h-full fade-in">
+                
+                <!-- 1.1 Tela de Configuração Inicial -->
+                <div id="setup-screen" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center max-w-2xl mx-auto mt-10">
+                    <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-play text-3xl ml-1"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Pronto para treinar?</h2>
+                    <p class="text-gray-600 mb-8">Padrão IBFC (Múltipla escolha A-E). As questões sorteadas não se repetem na mesma bateria.</p>
+                    
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <select id="simulado-size" class="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="5">Bateria Rápida (5 questões)</option>
+                            <option value="10" selected>Padrão (10 questões)</option>
+                            <option value="15">Intenso (15 questões)</option>
+                        </select>
+                        <button onclick="startSimulado()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow transition-colors flex items-center justify-center">
+                            Iniciar Bateria <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1.2 Tela de Execução da Questão -->
+                <div id="question-screen" class="hidden h-full flex flex-col">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-grow flex flex-col">
+                        
+                        <div class="bg-gray-50 border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+                            <span id="question-counter" class="text-sm font-semibold text-gray-500 tracking-wider uppercase">Questão X de Y</span>
+                            <span id="question-topic" class="text-xs font-medium bg-blue-100 text-blue-800 px-3 py-1 rounded-full">Tema</span>
+                        </div>
+                        
+                        <div class="p-6 md:p-8 flex-grow overflow-auto">
+                            <!-- Enunciado dinâmico -->
+                            <p id="question-text" class="text-lg text-gray-800 font-medium mb-6 leading-relaxed text-justify whitespace-pre-line"></p>
+                            
+                            <!-- Opções geradas via JS -->
+                            <form id="options-form" class="space-y-3"></form>
+
+                            <!-- Feedback de Correção (Oculto inicialmente) -->
+                            <div id="feedback-section" class="hidden mt-8 rounded-lg border p-5 fade-in">
+                                <div class="flex items-start mb-3">
+                                    <div id="feedback-icon" class="mt-1 mr-3"></div>
+                                    <div>
+                                        <h3 id="feedback-title" class="text-lg font-bold"></h3>
+                                        <p id="feedback-explanation" class="text-gray-700 mt-2 text-sm leading-relaxed"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rodapé com Botões de Ação -->
+                        <div class="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3">
+                            <button id="btn-confirm" onclick="confirmAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                                Confirmar Resposta
+                            </button>
+                            <button id="btn-next" onclick="nextQuestion()" class="hidden bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                                Próxima Questão <i class="fas fa-chevron-right ml-1"></i>
+                            </button>
+                            <button id="btn-finish" onclick="finishSimulado()" class="hidden bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                                Concluir Simulado <i class="fas fa-check-circle ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1.3 Tela de Resumo da Sessão -->
+                <div id="summary-screen" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center max-w-3xl mx-auto mt-10 fade-in">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Simulado Concluído!</h2>
+                    <p class="text-gray-500 mb-8">Veja o desempenho da sua sessão atual.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center mb-8">
+                        <div class="w-full max-w-[250px] mx-auto">
+                            <canvas id="sessionChart"></canvas>
+                        </div>
+                        <div class="text-left space-y-4">
+                            <div class="bg-green-50 border border-green-100 p-4 rounded-lg flex justify-between items-center">
+                                <span class="text-green-800 font-medium"><i class="fas fa-check-circle mr-2 text-green-500"></i> Acertos</span>
+                                <span id="session-correct" class="text-2xl font-bold text-green-600">0</span>
+                            </div>
+                            <div class="bg-red-50 border border-red-100 p-4 rounded-lg flex justify-between items-center">
+                                <span class="text-red-800 font-medium"><i class="fas fa-times-circle mr-2 text-red-500"></i> Erros</span>
+                                <span id="session-incorrect" class="text-2xl font-bold text-red-600">0</span>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg flex justify-between items-center">
+                                <span class="text-blue-800 font-medium"><i class="fas fa-percentage mr-2 text-blue-500"></i> Aproveitamento</span>
+                                <span id="session-percentage" class="text-2xl font-bold text-blue-600">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="returnToSetup()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow transition-colors">
+                        Voltar ao Início
+                    </button>
+                </div>
+            </div>
+
+            <!-- ABA 2: DASHBOARD E SWOT -->
+            <div id="content-dashboard" class="tab-content hidden h-full fade-in space-y-6">
+                <!-- Cards de Métricas Gerais -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="text-gray-500 text-sm font-medium mb-1">Questões Resolvidas</div>
+                        <div id="dash-total" class="text-3xl font-bold text-gray-800">0</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="text-gray-500 text-sm font-medium mb-1">Taxa de Acerto Geral</div>
+                        <div id="dash-taxa" class="text-3xl font-bold text-blue-600">0%</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="text-gray-500 text-sm font-medium mb-1">Simulados Realizados</div>
+                        <div id="dash-simulados" class="text-3xl font-bold text-gray-800">0</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Gráfico: Evolução no Tempo -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 lg:col-span-2">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-chart-line mr-2 text-blue-500"></i> Evolução no Tempo</h3>
+                        <div class="h-64 relative w-full">
+                            <canvas id="historyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Análise SWOT (Diagnóstico) -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-microscope mr-2 text-purple-500"></i> Análise SWOT (Tópicos)</h3>
+                        <div class="flex-grow overflow-auto pr-2 space-y-4">
+                            <div>
+                                <h4 class="text-sm font-bold text-green-700 uppercase tracking-wider mb-2"><i class="fas fa-arrow-up mr-1"></i> Pontos Fortes (>80%)</h4>
+                                <ul id="swot-strengths" class="space-y-2"></ul>
+                            </div>
+                            <div class="pt-2 border-t border-gray-100">
+                                <h4 class="text-sm font-bold text-red-700 uppercase tracking-wider mb-2"><i class="fas fa-exclamation-triangle mr-1"></i> Atenção (<70%)</h4>
+                                <ul id="swot-weaknesses" class="space-y-2"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gráfico: Desempenho por Tópico -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-chart-bar mr-2 text-blue-500"></i> Desempenho por Tópico</h3>
+                    <div class="h-64 relative w-full">
+                        <canvas id="topicChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 3: DADOS (PERSISTÊNCIA) -->
+            <div id="content-dados" class="tab-content hidden h-full fade-in">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-3xl mx-auto mt-6">
+                    <div class="text-center mb-8">
+                        <i class="fas fa-cloud-download-alt text-4xl text-blue-500 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Sincronização de Progresso</h2>
+                        <p class="text-gray-600 mt-2 text-sm">Gere um código de backup para salvar seu progresso localmente.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-file-export mr-2 text-blue-600"></i> Exportar</h3>
+                            <button onclick="exportData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors mb-3">Gerar Código</button>
+                            <textarea id="export-area" readonly class="w-full h-24 p-2 text-xs border border-gray-300 rounded bg-white font-mono" placeholder="Código gerado..."></textarea>
+                            <button onclick="copyToClipboard()" id="btn-copy" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-1 px-4 rounded transition-colors text-sm">Copiar Código</button>
+                        </div>
+
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-file-import mr-2 text-green-600"></i> Importar</h3>
+                            <textarea id="import-area" class="w-full h-24 p-2 text-xs border border-gray-300 rounded bg-white font-mono" placeholder="Cole o código..."></textarea>
+                            <button onclick="importData()" class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors">Restaurar Dados</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                        <button onclick="clearData()" class="text-red-500 hover:text-red-700 text-sm font-medium">Apagar todos os dados</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MOTOR JAVASCRIPT: Lógica Central, Estado e Renderização -->
+    <script>
+        /**
+         * ============================================================================
+         * 1. BANCO DE QUESTÕES (MOCK DATA)
+         * ============================================================================
+         * Desenvolvedor Junior: Cole aqui dentro da const questionBank as questões geradas.
+         * O formato esperado é um array de objetos JSON.
+         */
+        const questionBank = [
+            // COLE AQUI AS QUESTÕES DA PARTE 1 E PARTE 2 QUE O ASSISTENTE GERAR
+            {id: 1, topic: "Direito à Educação", text: "Conforme o ECA, no que se refere ao direito à educação, analise as afirmativas abaixo:\n\nI. É garantido o acesso à escola pública e gratuita próxima de sua residência, garantindo-se vagas no mesmo estabelecimento a irmãos que frequentem qualquer etapa ou ciclo de ensino da educação básica.\nII. É direito da criança e do adolescente contestar critérios avaliativos, podendo recorrer às instâncias escolares superiores.\nIII. Os dirigentes de estabelecimentos de ensino fundamental devem comunicar ao Conselho Tutelar os casos de maus-tratos envolvendo seus alunos.\n\nAssinale a alternativa que apresenta a(s) afirmativa(s) CORRETA(S) de acordo com o padrão de cobrança da IBFC:", options: ["Apenas a afirmativa I está correta.", "Apenas as afirmativas I e II estão corretas.", "Apenas as afirmativas II e III estão corretas.", "Apenas as afirmativas I e III estão corretas.", "Todas as afirmativas estão corretas."], answer: 2, explanation: "A afirmativa I está INCORRETA, pois o ECA (Art. 53, V) garante vagas no mesmo estabelecimento a irmãos que frequentem a *MESMA* etapa ou ciclo de ensino. A IBFC adora trocar 'mesma etapa' por 'qualquer etapa'. II (Art. 53, III) e III (Art. 56, I) estão literais e corretas."},
+            {id: 2, topic: "Convivência Familiar e Comunitária", text: "Sobre os prazos e regras do acolhimento institucional ou familiar (Art. 19), tema recorrentemente exigido pela banca IBFC, assinale a alternativa inteiramente CORRETA:", options: ["A permanência não se prolongará por mais de 24 (vinte e quatro) meses, salvo comprovada necessidade.", "A situação da criança ou adolescente deve ser reavaliada, no máximo, a cada 6 (seis) meses.", "A reavaliação periódica dispensa relatório da equipe interprofissional, desde que o juiz autorize.", "A permanência em programa de acolhimento institucional não se prolongará por mais de 18 (dezoito) meses, salvo comprovada necessidade que atenda ao seu superior interesse.", "O acolhimento institucional é sempre preferencial ao acolhimento familiar em razão da fiscalização estatal."], answer: 3, explanation: "Art. 19, § 2º: O prazo máximo é de 18 meses. Cuidado com materiais antigos que diziam 24 meses. Além disso, a reavaliação (Art. 19, § 1º) agora é feita a cada 3 meses (e não 6) com base em relatório interdisciplinar. A alternativa D é a única com a redação atualizada do ECA."},
+            {id: 3, topic: "Educação - Deveres do Estado", text: "Considerando os deveres do Estado elencados no Artigo 54 do ECA, julgue as assertivas com V (Verdadeiro) ou F (Falso) e assinale a sequência correta:\n\n( ) Ensino fundamental, obrigatório e gratuito, inclusive para os que a ele não tiveram acesso na idade própria.\n( ) Atendimento educacional especializado aos portadores de deficiência exclusivo na rede regular de ensino.\n( ) Oferta de ensino noturno regular, adequado às condições do adolescente trabalhador.", options: ["V - F - V", "V - V - V", "F - V - F", "V - F - F", "F - F - V"], answer: 0, explanation: "A segunda afirmação é FALSA. O texto literal do Art. 54, III diz 'preferencialmente na rede regular de ensino' e não 'exclusivo'. A IBFC frequentemente troca 'preferencialmente' por 'exclusivamente' para confundir o candidato."},
+            {id: 4, topic: "Convivência - Família Substituta", text: "A colocação em família substituta far-se-á mediante guarda, tutela ou adoção. Sobre essas modalidades, e em estrita obediência ao ECA, assinale a alternativa incorreta:", options: ["A guarda obriga a prestação de assistência material, moral e educacional, conferindo o direito de opor-se a terceiros, inclusive aos pais.", "A tutela será deferida, nos termos da lei civil, a pessoa de até 18 anos incompletos.", "A adoção atribui a condição de filho ao adotado, com os mesmos direitos e deveres, inclusive sucessórios.", "A guarda destina-se a regularizar a posse de fato, podendo ser deferida, liminar ou incidentalmente.", "O deferimento da tutela ou adoção pressupõe a prévia destituição do poder familiar dos pais biológicos ou a sua perda, não sendo a guarda sujeita a essa obrigatoriedade imediata."], answer: 1, explanation: "A incorreta é a B. Art. 36: A tutela será deferida, nos termos da lei civil, a pessoa de até 18 (dezoito) anos incompletos. Esta alternativa na verdade descreve quem *recebe* a tutela, mas está correta. A pegadinha está na formulação: A alternativa diz 'a pessoa DE até 18 anos', confundindo quem exerce com quem recebe. Contudo, prestando atenção à regra geral, a tutela exige a prévia perda/destituição do poder familiar (Art 36 p.u). O erro técnico está em afirmar 'até 18 anos incompletos', quando aos 18 já alcança a maioridade civil e cessam os efeitos da proteção tutelar do menor."},
+            {id: 5, topic: "Atribuições Escolares e Conselho Tutelar", text: "O dirigente escolar do Colégio Estadual XYZ constatou que um aluno, Carlos (14 anos), apresenta elevada quantidade de faltas injustificadas e está na iminência da evasão escolar. Segundo a letra seca do ECA aplicável pela banca IBFC, o diretor deve comunicar ao Conselho Tutelar:", options: ["Imediatamente após a segunda falta consecutiva.", "Somente após esgotados todos os recursos escolares.", "Imediatamente, suspendendo a matrícula do aluno preventivamente.", "Apenas se as faltas vierem acompanhadas de baixo rendimento ou suspeita de maus-tratos.", "Após convocar a Polícia Militar para buscar o adolescente em casa."], answer: 1, explanation: "Art. 56, II do ECA: Os dirigentes de estabelecimentos de ensino fundamental comunicarão ao Conselho Tutelar os casos de reiteração de faltas injustificadas e de evasão escolar, *esgotados os recursos escolares*."},
+            {id: 6, topic: "Convivência - Conceitos Familiares", text: "A Banca IBFC cobra conceitos literais sobre o núcleo familiar. Segundo o ECA, entende-se por 'família extensa ou ampliada':", options: ["A comunidade formada exclusivamente pelos pais e seus descendentes.", "A unidade formada por laços sanguíneos até o 4º grau, independentemente de convivência.", "A família substituta que recebe a criança na modalidade de adoção definitiva.", "Aquela que se estende para além da unidade de pais e filhos ou da unidade do casal, formada por parentes próximos com os quais a criança ou adolescente convive e mantém vínculos de afinidade e afetividade.", "A comunidade inserida no mesmo ambiente escolar ou eclesiástico que ofereça suporte emocional à criança abandonada."], answer: 3, explanation: "A alternativa D apresenta a cópia exata do Art. 25, Parágrafo único, do ECA que define família extensa ou ampliada."},
+            {id: 7, topic: "Educação Profissional e Trabalho", text: "Considerando a intersecção entre o direito à profissionalização, à proteção no trabalho e os princípios educacionais, analise o texto do ECA e indique a alternativa correta sobre restrições de idade:", options: ["É proibido qualquer trabalho a menores de 16 anos, salvo na condição de aprendiz, a partir dos 12 anos.", "É proibido qualquer trabalho a menores de 14 anos, salvo na condição de aprendiz.", "O trabalho do adolescente pode ser realizado em período noturno (após as 22h) se for para sustento da família.", "A formação técnico-profissional do adolescente deve ser feita preferencialmente em detrimento do ensino regular.", "A lei não prevê idade mínima para estágios não remunerados se vinculados ao projeto escolar."], answer: 1, explanation: "Art. 60 do ECA (texto literal da lei infraconstitucional): 'É proibido qualquer trabalho a menores de quatorze anos de idade, salvo na condição de aprendiz'. Note que a IBFC usa a literalidade do ECA, embora a CF/88 imponha restrição de 16 anos regra geral. Trabalho noturno é vedado (Art. 67)."},
+            {id: 8, topic: "Educação - Atendimento Integral", text: "O poder público deve zelar pela permanência do educando na escola. Para tanto, o ECA preceitua em seu Art. 54, inciso VII, o atendimento no ensino fundamental através de programas suplementares. Dentre as alternativas abaixo, qual NÃO é um programa suplementar expressamente citado na letra da lei?", options: ["Material didático-escolar.", "Transporte.", "Alimentação.", "Assistência à saúde.", "Bolsa de incentivo financeiro mensal."], answer: 4, explanation: "Art. 54, VII do ECA: Atendimento no ensino fundamental, através de programas suplementares de material didático-escolar, transporte, alimentação e assistência à saúde. Não há menção expressa a 'bolsa de incentivo financeiro mensal' neste inciso."},
+            {id: 9, topic: "Adoção - Estágio de Convivência", text: "Maria e João, residentes na Itália, desejam adotar uma criança no Brasil. Segundo o ECA (Art. 46, § 3º), em caso de adoção por pessoa ou casal residente ou domiciliado fora do País, o estágio de convivência deverá ser cumprido obrigatoriamente no território nacional. Qual o prazo estipulado e sua respectiva prorrogação?", options: ["No mínimo 15 dias, improrrogável.", "No mínimo 30 dias, prorrogável a critério exclusivo do juiz sem prazo máximo.", "No mínimo 30 dias e no máximo 45 dias, prorrogável uma única vez por igual período, mediante decisão fundamentada.", "Apenas 15 dias caso a criança possua menos de 2 anos de idade.", "Dispensado integralmente em caso de adoção internacional por brasileiros natos."], answer: 2, explanation: "Art. 46, § 3º: O estágio de convivência será de, no mínimo, 30 (trinta) dias e, no máximo, 45 (quarenta e cinco) dias, prorrogável uma única vez por igual período... Pegadinha rigorosa sobre prazos numéricos muito cobrada pela IBFC."},
+            {id: 10, topic: "Acolhimento Familiar", text: "Com base nas normas do ECA sobre o acolhimento, analise a afirmativa: 'A inclusão da criança ou adolescente em programas de acolhimento familiar terá preferência a seu acolhimento institucional, observado, em qualquer caso, o caráter provisório e excepcional da medida.'", options: ["A afirmativa é Falsa, pois a ordem de preferência é discricionária do promotor de justiça.", "A afirmativa é Verdadeira e corresponde fielmente ao texto da lei (Art. 34, § 1º).", "A afirmativa é Falsa, pois o acolhimento institucional é prioridade para facilitar visitações.", "A afirmativa é Verdadeira em parte, pois exclui adolescentes infratores dessa regra.", "A afirmativa é Falsa, pois a medida tem caráter definitivo e não provisório."], answer: 1, explanation: "A afirmativa está perfeita e corresponde ao Art. 34, § 1º do ECA. A IBFC gosta de mudar as palavras 'familiar' e 'institucional' para criar pegadinhas, atente-se que o familiar tem PREFERÊNCIA sobre o institucional."},
+            {id: 11, topic: "Direito à Educação - Avaliações", text: "O estudante do ensino público possui o direito fundamental garantido pelo ECA de contestar critérios avaliativos. Qual a extensão formal desse direito assegurada pela lei (Art. 53, III)?", options: ["Pode recorrer apenas ao professor responsável pela disciplina.", "Pode recorrer às instâncias escolares superiores.", "Pode contestar, porém é vedado o recurso às secretarias estaduais de educação.", "O direito de contestação é exclusivo aos pais, o adolescente não tem legitimidade.", "Pode recorrer diretamente à Vara da Infância e da Juventude, pulando a escola."], answer: 1, explanation: "Art. 53, III: Direito de contestar critérios avaliativos, podendo recorrer às instâncias escolares superiores. A banca costuma limitar essa instância ou colocar a justiça como via primária para confundir."},
+            {id: 12, topic: "Convivência - Suspensão do Poder Familiar", text: "O ECA estabelece restrições duras para a perda e suspensão do poder familiar. Conforme o Art. 23 do Estatuto, qual dos motivos abaixo NÃO constitui fundamento, por si só, para a perda ou suspensão do poder familiar?", options: ["A prática reiterada de castigos imoderados.", "O abandono afetivo e material de forma intencional e cruel.", "A submissão do filho à exploração sexual ou comercial.", "A falta ou a carência de recursos materiais.", "O abuso de autoridade por parte do responsável, ameaçando a vida do infante."], answer: 3, explanation: "Art. 23: A falta ou a carência de recursos materiais não constitui motivo suficiente para a perda ou a suspensão do poder familiar. É uma pegadinha clássica em provas de Tribunais e Educação; a pobreza não gera destituição, gera inclusão em programas sociais (Art. 23, § 1º)."},
+            {id: 13, topic: "Adoção - Regras Gerais", text: "A banca IBFC costuma confundir o candidato nas vedações da adoção. Assinale a alternativa que reflete corretamente uma regra do ECA sobre o processo de adoção:", options: ["O adotante deve ser pelo menos dezesseis anos mais velho que o adotando.", "Irmãos e ascendentes (avós) podem adotar, desde que comprovem estabilidade financeira.", "É permitida a adoção por procuração pública com fins específicos.", "Admite-se a adoção conjunta por divorciados sem acordo sobre a guarda e visitas.", "Maiores de dezesseis anos de idade podem adotar livremente."], answer: 0, explanation: "Art. 42, § 3º: O adotante há de ser, pelo menos, 16 anos mais velho que o adotando. As outras são vedações: ascendentes/irmãos NÃO adotam; NÃO pode por procuração; adotantes devem ser MAIORES de 18 anos; divorciados só adotam se houver acordo de guarda e visitas acordado."},
+            {id: 14, topic: "Educação - Infrações Administrativas", text: "Se o diretor de uma escola, ciente de maus-tratos cometidos pelo padrasto de um aluno, deixa propositalmente de comunicar a suspeita à autoridade competente para 'não envolver a escola em confusão', ele incorre em:", options: ["Crime inafiançável com pena de reclusão.", "Infração administrativa punível apenas com advertência verbal do Ministério Público.", "Infração administrativa sujeita a pena de multa de três a vinte salários de referência.", "Falta leve trabalhista, não prevista diretamente no ECA.", "Ato de improbidade administrativa, sem multa em dinheiro."], answer: 2, explanation: "Art. 245 do ECA: Trata-se de Infração Administrativa o ato de deixar o professor ou responsável por estabelecimento de atenção à saúde e de ensino de comunicar à autoridade competente os casos de suspeita/confirmação de maus-tratos. A pena é multa de 3 a 20 salários, aplicando-se o dobro em caso de reincidência."},
+            {id: 15, topic: "Direito à Cultura e Esporte", text: "No que concerne ao direito ao esporte e cultura, o ECA preconiza que o processo educacional e as atividades extra-curriculares devem respeitar características próprias das crianças e adolescentes. Julgue as alternativas abaixo:", options: ["As atividades esportivas não integram o direito à educação, sendo fomento exclusivo dos pais.", "Os valores culturais, artísticos e históricos do contexto social da criança devem ser submetidos à aprovação da diretoria antes de ensinados.", "Garante-se a estes a liberdade da criação e o acesso às fontes de cultura.", "É vedado aos municípios destinar recursos para espaços de lazer, focado estritamente na sala de aula.", "Apenas adolescentes têm direito à liberdade de criação em processos educacionais."], answer: 2, explanation: "Art. 58 do ECA: No processo educacional respeitar-se-ão os valores culturais, artísticos e históricos próprios do contexto social da criança e do adolescente, garantindo-se a estes a liberdade da criação e o acesso às fontes de cultura."},
+            {id: 16, topic: "Direito à Educação - Deveres dos Pais", text: "A IBFC costuma exigir a literalidade sobre o papel da família na educação. Segundo o ECA (Art. 55 e 53), julgue as afirmativas abaixo:\n\nI. Os pais ou responsável têm a obrigação de matricular seus filhos ou pupilos na rede regular de ensino.\nII. É direito dos pais ou responsáveis ter ciência do processo pedagógico, sendo-lhes vedada, contudo, a participação na definição das propostas educacionais.\nIII. A falta de recursos materiais dos pais justifica a não efetivação da matrícula escolar no ensino fundamental.\n\nAssinale a alternativa que indica a(s) afirmativa(s) CORRETA(S):", options: ["Apenas a I.", "Apenas a II.", "Apenas a I e a II.", "Apenas a II e a III.", "Todas as afirmativas estão corretas."], answer: 0, explanation: "A afirmativa I está corretíssima (cópia do Art. 55). A II está FALSA, pois o Art. 53, parágrafo único, garante aos pais o direito de *participar* da definição das propostas educacionais. A III está FALSA, pois a carência de recursos materiais não isenta o dever de matrícula, nem é motivo para perda do poder familiar (Art. 23)."},
+            {id: 17, topic: "Prevenção e Autorização para Viajar", text: "A respeito da autorização para viajar (Art. 83), tema atualizado e com alto índice de cobrança em provas de nível médio, assinale a alternativa inteiramente CORRETA conforme o ECA:", options: ["Nenhuma criança ou adolescente menor de 18 anos poderá viajar para fora da comarca onde reside desacompanhado dos pais ou de responsável sem expressa autorização judicial.", "Nenhuma criança ou adolescente menor de 16 (dezesseis) anos poderá viajar para fora da comarca onde reside desacompanhado dos pais ou de responsável sem expressa autorização judicial.", "A autorização judicial é exigida mesmo quando a criança viajar acompanhada de ascendente ou colateral maior, até o terceiro grau.", "A autorização judicial é dispensável apenas se a viagem for para o exterior, desde que acompanhado por um dos pais.", "A idade limite para viajar desacompanhado sem autorização judicial dentro do território nacional é de 12 anos completos."], answer: 1, explanation: "Art. 83 (Redação dada pela Lei nº 13.812/2019): Nenhuma criança ou adolescente menor de 16 (dezesseis) anos poderá viajar para fora da comarca onde reside desacompanhado sem autorização judicial. A IBFC adora testar se o candidato sabe que a idade mudou de 12 para 16 anos!"},
+            {id: 18, topic: "Direitos Fundamentais - Liberdade", text: "O direito à liberdade compreende diversos aspetos fundamentais para a formação da criança e do adolescente. De acordo com o Art. 16 do ECA, NÃO é um aspeto expressamente listado como componente do direito à liberdade:", options: ["Ir, vir e estar nos logradouros públicos e espaços comunitários, ressalvadas as restrições legais.", "Crença e culto religioso.", "Participação na vida política, na forma da lei.", "Acesso irrestrito e desacompanhado a espetáculos públicos e diversões noturnas de qualquer classificação.", "Brincar, praticar esportes e divertir-se."], answer: 3, explanation: "A alternativa D está INCORRETA (e portanto é o gabarito). O acesso a diversões e espetáculos é regulado e classificado por faixas etárias e horários (Art. 74), não sendo 'irrestrito e desacompanhado' em qualquer situação."},
+            {id: 19, topic: "Tratamento Cruel e Degradante", text: "A Lei Menino Bernardo introduziu importantes conceitos no ECA. Considerando a definição legal, qual a diferença entre 'castigo físico' e 'tratamento cruel ou degradante' estabelecida no diploma?", options: ["Castigo físico envolve uso de força que resulta em dor, enquanto o tratamento cruel humilha, ameaça gravemente ou ridiculariza a criança.", "Castigo físico é qualquer ação disciplinar dos professores, e tratamento degradante é exclusivo dos pais.", "Não há distinção legal, ambos são tratados sob a mesma tipificação penal de tortura.", "Tratamento cruel ou degradante resulta obrigatoriamente em lesão corporal permanente.", "Castigo físico restringe-se ao ambiente doméstico; tratamento cruel refere-se ao ambiente escolar."], answer: 0, explanation: "Art. 18-A, Parágrafo único. I - Castigo físico: ação de natureza disciplinar ou punitiva aplicada com o uso da força física sobre a criança ou o adolescente que resulte em sofrimento físico ou lesão. II - Tratamento cruel ou degradante: conduta ou forma cruel de tratamento em relação à criança ou ao adolescente que humilhe, ameace gravemente ou ridicularize."},
+            {id: 20, topic: "Conselho Tutelar - Atribuições", text: "O Conselho Tutelar é órgão permanente e autônomo, não jurisdicional. Dentre as atribuições abaixo, assinale aquela que NÃO compete ao Conselho Tutelar, sendo exclusiva da Autoridade Judiciária (Juiz):", options: ["Requisitar serviços públicos nas áreas de saúde, educação e serviço social.", "Declarar a perda ou a suspensão do poder familiar.", "Atender e aconselhar os pais ou responsável, aplicando medidas como encaminhamento a cursos ou programas de orientação.", "Requisitar certidões de nascimento e de óbito de criança ou adolescente quando necessário.", "Representar ao Ministério Público para efeito das ações de perda ou suspensão do poder familiar."], answer: 1, explanation: "O Conselho Tutelar NÃO tem poder de jurisdição. Ele não pode 'declarar/decretar' perda de guarda, tutela ou poder familiar, tampouco autorizar adoção. Ele apenas REPRESENTA (pede, informa) ao Ministério Público para que este inicie a ação perante o Juiz. (Art. 136, inciso XI)."},
+            {id: 21, topic: "Adoção - Entrega Voluntária", text: "Sobre o procedimento aplicável à gestante ou mãe que manifeste interesse em entregar o seu filho para adoção (Art. 19-A), assinale a afirmativa CORRETA ao estilo de análise minuciosa da IBFC:", options: ["A gestante será encaminhada à autoridade policial para lavratura de termo de responsabilidade.", "Após o nascimento, a criança será obrigatoriamente entregue a um familiar biológico, proibindo-se a adoção por terceiros.", "O consentimento da mãe para a adoção só terá validade se prestado após o nascimento da criança, em audiência perante o juiz.", "A gestante que procurar a Justiça será submetida a processo investigatório penal por abandono de incapaz preventivo.", "O Conselho Tutelar deferirá, imediatamente, a adoção da criança para a primeira família na fila de espera."], answer: 2, explanation: "Art. 166, § 1º: O consentimento materno tem regras estritas. A mãe será ouvida pelo juiz, e o consentimento só é válido APÓS o nascimento, na presença do juiz e do Ministério Público. Qualquer anuência prévia ao parto ou sem as formalidades é nula."},
+            {id: 22, topic: "Educação Profissionalizante", text: "No que tange ao direito à profissionalização e à proteção no trabalho (Art. 63 do ECA), a formação técnico-profissional obedecerá aos seguintes princípios, EXCETO:", options: ["Garantia de acesso e frequência obrigatória ao ensino regular.", "Atividade compatível com o desenvolvimento do adolescente.", "Horário especial para o exercício das atividades.", "Substituição do ensino regular por carga horária intensiva de labor técnico, a critério do empregador.", "Respeito à condição peculiar de pessoa em desenvolvimento."], answer: 3, explanation: "A alternativa D está flagrantemente incorreta e contraria a essência do ECA. O trabalho/aprendizagem NUNCA pode substituir o ensino regular. O Art. 63, I, exige 'garantia de acesso e frequência obrigatória ao ensino regular'."},
+            {id: 23, topic: "Educação - Deveres do Estado (Dados e Recenseamento)", text: "Complete a lacuna conforme o § 3º do Art. 54 do ECA: 'Compete ao poder público __________ os educandos no ensino fundamental, fazer-lhes a chamada e zelar, junto aos pais ou responsável, pela frequência à escola.'", options: ["aprovar", "recensear", "financiar integralmente", "transferir", "avaliar psicologicamente"], answer: 1, explanation: "Art. 54, § 3º: Compete ao poder público RECENSEAR os educandos no ensino fundamental, fazer-lhes a chamada e zelar, junto aos pais ou responsável, pela frequência à escola. O censo escolar é a base para a implementação das políticas públicas de educação."},
+            {id: 24, topic: "Medidas de Proteção", text: "As medidas de proteção à criança e ao adolescente são aplicáveis sempre que os direitos reconhecidos no ECA forem ameaçados ou violados. Segundo o Art. 98, essas ameaças/violações NÃO decorrem de:", options: ["Ação ou omissão da sociedade ou do Estado.", "Falta, omissão ou abuso dos pais ou responsável.", "Em razão de sua conduta (da própria criança ou adolescente).", "Falta de recursos materiais e pobreza extrema da família, que configura violação por presunção.", "Ação omissiva continuada do poder público em prover vagas escolares."], answer: 3, explanation: "Art. 98 elenca expressamente 3 hipóteses: I - ação ou omissão da sociedade/Estado; II - falta, omissão ou abuso dos pais/responsável; III - em razão de sua conduta. A pobreza extrema (alternativa D) não é, por presunção automática, uma ameaça que gera medida coercitiva de proteção como acolhimento (Art. 23), mas sim inclusão em programas sociais."},
+            {id: 25, topic: "Conselho Tutelar - Composição", text: "A estruturação do Conselho Tutelar é alvo constante da IBFC. Em cada Município haverá, no mínimo, 1 (um) Conselho Tutelar como órgão integrante da administração pública local. Qual é a composição exata exigida pelo ECA?", options: ["Composto por 3 (três) membros, escolhidos pela população local para mandato de 3 (três) anos.", "Composto por 5 (cinco) membros, nomeados pelo Prefeito para mandato de 4 (quatro) anos.", "Composto por 5 (cinco) membros, escolhidos pela população local para mandato de 4 (quatro) anos, permitida recondução por novos processos de escolha.", "Composto por 7 (sete) membros, de notório saber jurídico, escolhidos pela população para mandato de 2 (dois) anos.", "Composto por 5 (cinco) membros, indicados pelas escolas da rede pública para mandato vitalício."], answer: 2, explanation: "Art. 132: O Conselho Tutelar é composto de 5 (cinco) membros, escolhidos pela população local para mandato de 4 (quatro) anos, permitida recondução por novos processos de escolha. A pegadinha comum é dizer que são nomeados pelo prefeito ou alterar a quantidade de membros/anos."},
+            {id: 26, topic: "Comunicação Obrigatória - Maus Tratos", text: "O Art. 13 do ECA impõe uma obrigação inescusável aos profissionais. Os casos de suspeita ou confirmação de castigo físico, de tratamento cruel ou degradante e de maus-tratos contra criança ou adolescente serão obrigatoriamente comunicados:", options: ["À Polícia Federal e ao Ministério Público da União.", "Apenas à direção da escola, que arquivará em pasta própria do aluno.", "Ao Conselho Tutelar da respectiva localidade, sem prejuízo de outras providências legais.", "Ao Juizado Especial de Pequenas Causas da comarca.", "Às instâncias escolares superiores exclusivamente."], answer: 2, explanation: "Art. 13: Serão obrigatoriamente comunicados ao Conselho Tutelar da respectiva localidade, sem prejuízo de outras providências legais. Guarde isto: suspeita de maus-tratos -> Conselho Tutelar. É a rota principal exigida em provas educacionais."},
+            {id: 27, topic: "Direito à Vida e à Saúde", text: "A banca IBFC costuma cruzar os direitos. No ambiente escolar, a prevenção à saúde é vital. O ECA determina no Art. 14, § 1º, que é OBRIGATÓRIA a vacinação das crianças nos casos recomendados por quem?", options: ["Pela Organização Mundial de Saúde apenas.", "Pelos diretores das escolas públicas e privadas do município.", "Pelas autoridades sanitárias.", "Pelo Conselho Tutelar local mediante resolução própria.", "Pelos pais, sendo a vacinação totalmente facultativa baseada em crença religiosa."], answer: 2, explanation: "Art. 14, § 1º: É obrigatória a vacinação das crianças nos casos recomendados pelas *autoridades sanitárias*. A escola pode e deve cobrar a carteira de vacinação como requisito (sem impedir matrícula contínua, mas notificando conselho tutelar se houver negligência reiterada)."},
+            {id: 28, topic: "Convivência - Colocação em Família Substituta", text: "Sobre os requisitos gerais para a colocação em família substituta, analise as opções e assinale a afirmativa INCORRETA formulada nos moldes da IBFC:", options: ["Sempre que possível, a criança ou o adolescente será previamente ouvido por equipe interprofissional, respeitado seu estágio de desenvolvimento.", "Tratando-se de maior de 12 (doze) anos de idade, será necessário seu consentimento colhido em audiência.", "Não se deferirá colocação em família substituta a pessoa que revele, por qualquer modo, incompatibilidade com a natureza da medida.", "A colocação em família substituta estrangeira constitui medida excepcional, somente admissível na modalidade de adoção.", "Na apreciação do pedido levar-se-á em conta o grau de parentesco, garantindo aos avós, impreterivelmente, o direito à adoção em primeiro lugar."], answer: 4, explanation: "A alternativa E está incorreta pois o ECA proíbe expressamente a adoção por ascendentes (avós não podem adotar os netos, Art. 42, § 1º). As alternativas A, B, C e D são cópias exatas e literais do Art. 28 e seus parágrafos."},
+            {id: 29, topic: "Acesso à Justiça", text: "Segundo o Estatuto, é garantido o acesso de toda criança e adolescente à Defensoria Pública, ao Ministério Público e ao Poder Judiciário (Art. 141). Qualquer criança ou adolescente tem legitimidade para:", options: ["Ingressar em juízo pessoalmente ou por intermédio de representação sem a necessidade de assistência jurídica gratuita.", "Recorrer apenas de decisões referentes a questões escolares.", "Postular as medidas cabíveis independentemente de assistência de advogado, na forma estritamente prevista em lei civil padrão para maiores.", "Acesso à gratuidade de justiça e assistência judiciária integral apenas se comprovar extrema miséria.", "É garantida a assistência judiciária gratuita e integral aos necessitados, estendendo-se isenção de custas."], answer: 4, explanation: "Art. 141, § 1º: A assistência judiciária gratuita será prestada aos que dela necessitarem. § 2º: As ações judiciais da competência da Justiça da Infância e da Juventude são isentas de custas e emolumentos (salvo má-fé)."},
+            {id: 30, topic: "Disposições Preliminares - Conceito Etário", text: "Uma questão clássica da IBFC sobre as 'Disposições Preliminares' (Art. 2º). Considera-se criança, para os efeitos desta Lei, a pessoa até doze anos de idade incompletos, e adolescente aquela entre doze e dezoito anos de idade. Em casos expressos em lei, aplica-se excepcionalmente este Estatuto às pessoas:", options: ["Entre 18 (dezoito) e 24 (vinte e quatro) anos de idade.", "Entre 16 (dezesseis) e 21 (vinte e um) anos de idade.", "Entre 18 (dezoito) e 21 (vinte e um) anos de idade.", "Sem limite de idade, desde que comprovada deficiência intelectual grave.", "Entre 18 (dezoito) e 25 (vinte e cinco) anos de idade, se matriculados no ensino superior."], answer: 2, explanation: "Art. 2º, parágrafo único: Nos casos expressos em lei, aplica-se excepcionalmente este Estatuto às pessoas entre dezoito e vinte e um anos de idade. Exemplo clássico: cumprimento de medida socioeducativa que se estende até o limite de 21 anos."}
+        ];
+
+        /**
+         * ============================================================================
+         * 2. ARQUITETURA DE ESTADO (STATE MANAGEMENT)
+         * ============================================================================
+         * Separamos o estado global (salvo em cache) do estado da sessão (temporário).
+         */
+        
+        // Estado Global: Acumula estatísticas ao longo de todos os acessos.
+        let globalData = {
+            history: [],       // Array de objetos { date, score, total, percentage }
+            topicStats: {},    // Objeto indexado por tópicos para a análise SWOT
+            totalAnswered: 0,
+            totalCorrect: 0
+        };
+        
+        // Estado da Sessão: Gerencia o simulado que está ocorrendo AGORA.
+        let sessionState = {
+            questions: [],     // Questões selecionadas para o simulado atual
+            currentIndex: 0,   // Índice da questão que o usuário está visualizando
+            correct: 0,
+            incorrect: 0,
+            selectedOption: null
+        };
+
+        // Instâncias do Chart.js (armazenadas para podermos destruí-las antes de recriar)
+        let sessionChartInstance = null;
+        let historyChartInstance = null;
+        let topicChartInstance = null;
+
+        /**
+         * ============================================================================
+         * 3. INICIALIZAÇÃO DA APLICAÇÃO (LIFECYCLE)
+         * ============================================================================
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLocalData(); // Busca dados salvos anteriormente no LocalStorage
+            updateDashboardCards(); // Atualiza os números gerais no HTML
+        });
+
+        /**
+         * ============================================================================
+         * 4. NAVEGAÇÃO E UI (ROUTING SIMPLIFICADO)
+         * ============================================================================
+         * Função responsável por alternar entre as abas simulando uma SPA pura.
+         * @param {string} tabId - O sufixo do ID da aba (ex: 'simulado', 'dashboard')
+         */
+        function switchTab(tabId) {
+            // Passo 1: Oculta todos os conteúdos de abas usando a classe 'hidden' do Tailwind
+            const contents = document.querySelectorAll('.tab-content');
+            // Nota sobre Clean Code: iteramos o NodeList diretamente com forEach (sem Array.from)
+            contents.forEach(el => el.classList.add('hidden'));
+            
+            // Passo 2: Remove as classes visuais de 'aba ativa' de todos os botões
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(el => el.classList.remove('active', 'border-blue-500', 'text-blue-600', 'font-semibold'));
+            
+            // Passo 3: Exibe o conteúdo alvo e ativa visualmente o botão clicado
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}`).classList.add('active', 'border-blue-500', 'text-blue-600', 'font-semibold');
+
+            // Se o usuário entrou no Dashboard, precisamos recalcular e renderizar os gráficos
+            if(tabId === 'dashboard') {
+                renderDashboardCharts();
+                generateSWOT();
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 5. LÓGICA DO SIMULADOR (CORE BUSINESS LOGIC)
+         * ============================================================================
+         */
+
+        /** Inicia uma nova bateria de questões */
+        function startSimulado() {
+            if (questionBank.length === 0) {
+                alert("O Banco de Questões está vazio. Por favor, cole as questões no código-fonte.");
+                return;
+            }
+
+            const sizeSelect = document.getElementById('simulado-size').value;
+            const size = parseInt(sizeSelect, 10);
+            
+            // Reseta o estado da sessão atual
+            sessionState = {
+                questions: [],
+                currentIndex: 0,
+                correct: 0,
+                incorrect: 0,
+                selectedOption: null
+            };
+
+            // Lógica Adaptativa e Anti-repetição:
+            // Utilizamos o operador spread [...] para clonar o array nativamente (Sem Array.from)
+            // Em seguida, ordenamos aleatoriamente (shuffle matemático simples)
+            let shuffledBank = [...questionBank].sort(() => 0.5 - Math.random());
+            
+            // Cortamos o array embaralhado pelo tamanho solicitado pelo usuário
+            sessionState.questions = shuffledBank.slice(0, size);
+
+            // Alterna visibilidade da UI
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('question-screen').classList.remove('hidden');
+            
+            renderQuestion(); // Renderiza a primeira questão
+        }
+
+        /** Constrói o HTML da questão atual na tela */
+        function renderQuestion() {
+            const currentQ = sessionState.questions[sessionState.currentIndex];
+            sessionState.selectedOption = null; // Limpa seleção anterior
+
+            // Atualiza Metadados (Cabeçalho da questão)
+            document.getElementById('question-counter').innerText = `Questão ${sessionState.currentIndex + 1} de ${sessionState.questions.length}`;
+            document.getElementById('question-topic').innerText = currentQ.topic;
+            document.getElementById('question-text').innerText = currentQ.text;
+
+            // Injeção de Opções (A-E)
+            const form = document.getElementById('options-form');
+            form.innerHTML = ''; // Limpa as opções da questão anterior
+            
+            const labels = ['A', 'B', 'C', 'D', 'E'];
+            
+            // Percorre as opções dinamicamente. Índice 0 é A, 1 é B, etc.
+            currentQ.options.forEach((optionText, index) => {
+                const optElement = document.createElement('label');
+                optElement.className = 'option-label flex items-start p-4 rounded-lg border border-gray-200 cursor-pointer transition-colors bg-white hover:border-blue-300';
+                
+                // Estrutura HTML do Radio Button estilizado
+                optElement.innerHTML = `
+                    <div class="flex items-center h-5">
+                        <input id="opt-${index}" name="answer" type="radio" value="${index}" 
+                               class="option-radio w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500" 
+                               onchange="selectOption(${index})">
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <span class="font-bold text-gray-700 mr-2">${labels[index]})</span>
+                        <span class="option-text text-gray-700 leading-relaxed">${optionText}</span>
+                    </div>
+                `;
+                form.appendChild(optElement);
+            });
+
+            // Restaura o visual inicial dos botões e esconde o feedback
+            document.getElementById('feedback-section').classList.add('hidden');
+            
+            const btnConfirm = document.getElementById('btn-confirm');
+            btnConfirm.classList.remove('hidden');
+            btnConfirm.disabled = true;
+            btnConfirm.className = "bg-blue-300 text-white font-semibold py-2 px-6 rounded-lg transition-colors cursor-not-allowed"; // Estado desativado
+            
+            document.getElementById('btn-next').classList.add('hidden');
+            document.getElementById('btn-finish').classList.add('hidden');
+        }
+
+        /** Registra a opção selecionada e libera o botão de confirmar */
+        function selectOption(index) {
+            sessionState.selectedOption = index;
+            const btn = document.getElementById('btn-confirm');
+            btn.disabled = false;
+            btn.className = "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors cursor-pointer"; // Estado ativado
+        }
+
+        /** Avalia a resposta, atualiza estatísticas e exibe o gabarito comentado */
+        function confirmAnswer() {
+            if(sessionState.selectedOption === null) return;
+
+            const q = sessionState.questions[sessionState.currentIndex];
+            const isCorrect = (sessionState.selectedOption === q.answer);
+
+            // Atualiza métricas locais da sessão
+            if(isCorrect) {
+                sessionState.correct++;
+            } else {
+                sessionState.incorrect++;
+            }
+
+            // Atualiza métricas Globais
+            globalData.totalAnswered++;
+            if(isCorrect) globalData.totalCorrect++;
+            
+            // Lógica de contagem por Tópico (para o SWOT)
+            if(!globalData.topicStats[q.topic]) {
+                globalData.topicStats[q.topic] = { correct: 0, incorrect: 0 };
+            }
+            if(isCorrect) {
+                globalData.topicStats[q.topic].correct++;
+            } else {
+                globalData.topicStats[q.topic].incorrect++;
+            }
+
+            // ================= Manipulação Visual Pós-Resposta =================
+            const feedbackSection = document.getElementById('feedback-section');
+            const feedbackIcon = document.getElementById('feedback-icon');
+            const feedbackTitle = document.getElementById('feedback-title');
+            
+            feedbackSection.classList.remove('hidden', 'bg-green-50', 'border-green-200', 'bg-red-50', 'border-red-200');
+            
+            // Trava todos os inputs e aplica cores de Acerto/Erro
+            const inputs = document.querySelectorAll('input[name="answer"]');
+            inputs.forEach((input, idx) => {
+                input.disabled = true;
+                const parentDiv = input.closest('label');
+                
+                if(idx === q.answer) {
+                    // Pinta a opção correta de verde
+                    parentDiv.classList.add('bg-green-50', 'border-green-400', 'ring-2', 'ring-green-500');
+                } else if(idx === sessionState.selectedOption && !isCorrect) {
+                    // Pinta a opção errada que o usuário marcou de vermelho
+                    parentDiv.classList.add('bg-red-50', 'border-red-400', 'ring-2', 'ring-red-500');
+                } else {
+                    // Esmaece as demais
+                    parentDiv.classList.add('opacity-50');
+                }
+            });
+
+            // Textos do Feedback
+            if(isCorrect) {
+                feedbackSection.classList.add('bg-green-50', 'border-green-200');
+                feedbackIcon.innerHTML = '<i class="fas fa-check-circle text-2xl text-green-500"></i>';
+                feedbackTitle.innerText = "Excelente! Resposta correta.";
+                feedbackTitle.className = "text-lg font-bold text-green-800";
+            } else {
+                feedbackSection.classList.add('bg-red-50', 'border-red-200');
+                feedbackIcon.innerHTML = '<i class="fas fa-times-circle text-2xl text-red-500"></i>';
+                feedbackTitle.innerText = "Incorreto. Atenção ao detalhe da lei!";
+                feedbackTitle.className = "text-lg font-bold text-red-800";
+            }
+
+            document.getElementById('feedback-explanation').innerHTML = `<strong>Comentário IBFC:</strong> ${q.explanation}`;
+
+            // Troca os botões
+            document.getElementById('btn-confirm').classList.add('hidden');
+            
+            if(sessionState.currentIndex < sessionState.questions.length - 1) {
+                document.getElementById('btn-next').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-finish').classList.remove('hidden');
+            }
+
+            saveLocalData(); // Salva estado parcial
+            updateDashboardCards();
+        }
+
+        function nextQuestion() {
+            sessionState.currentIndex++;
+            renderQuestion();
+        }
+
+        /** Finaliza o ciclo do simulado atual e grava no histórico */
+        function finishSimulado() {
+            const percentage = Math.round((sessionState.correct / sessionState.questions.length) * 100);
+            
+            // Insere no histórico global
+            globalData.history.push({
+                date: new Date().toISOString(),
+                score: sessionState.correct,
+                total: sessionState.questions.length,
+                percentage: percentage
+            });
+            saveLocalData();
+            updateDashboardCards();
+
+            // Transição para tela de resumo
+            document.getElementById('question-screen').classList.add('hidden');
+            document.getElementById('summary-screen').classList.remove('hidden');
+
+            document.getElementById('session-correct').innerText = sessionState.correct;
+            document.getElementById('session-incorrect').innerText = sessionState.incorrect;
+            document.getElementById('session-percentage').innerText = `${percentage}%`;
+
+            // Desenha Gráfico de Rosca da Sessão
+            const ctx = document.getElementById('sessionChart').getContext('2d');
+            if(sessionChartInstance) sessionChartInstance.destroy();
+            
+            sessionChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Acertos', 'Erros'],
+                    datasets: [{
+                        data: [sessionState.correct, sessionState.incorrect],
+                        backgroundColor: ['#10B981', '#EF4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+            });
+        }
+
+        function returnToSetup() {
+            document.getElementById('summary-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+
+        /**
+         * ============================================================================
+         * 6. RENDENRIZAÇÃO DE GRÁFICOS E SWOT
+         * ============================================================================
+         */
+        function updateDashboardCards() {
+            document.getElementById('dash-total').innerText = globalData.totalAnswered;
+            const taxa = globalData.totalAnswered > 0 ? Math.round((globalData.totalCorrect / globalData.totalAnswered) * 100) : 0;
+            document.getElementById('dash-taxa').innerText = `${taxa}%`;
+            document.getElementById('dash-simulados').innerText = globalData.history.length;
+        }
+
+        function renderDashboardCharts() {
+            // GRÁFICO 1: Histórico de Linha
+            const histCtx = document.getElementById('historyChart').getContext('2d');
+            if(historyChartInstance) historyChartInstance.destroy(); // Previne vazamento de memória do Chart.js
+            
+            const labels = globalData.history.map((_, i) => `Simulado ${i+1}`);
+            const data = globalData.history.map(h => h.percentage);
+
+            historyChartInstance = new Chart(histCtx, {
+                type: 'line',
+                data: {
+                    labels: labels.length > 0 ? labels : ['Nenhum dado'],
+                    datasets: [{
+                        label: 'Aproveitamento (%)',
+                        data: data.length > 0 ? data : [0],
+                        borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2, fill: true, tension: 0.3, pointBackgroundColor: '#1D4ED8'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+            });
+
+            // GRÁFICO 2: Barras de Tópicos
+            const topicCtx = document.getElementById('topicChart').getContext('2d');
+            if(topicChartInstance) topicChartInstance.destroy();
+
+            // Usamos Object.keys (nativo, sem Array.from) para extrair tópicos
+            const topicLabels = Object.keys(globalData.topicStats);
+            const topicDataCorrect = topicLabels.map(t => globalData.topicStats[t].correct);
+            const topicDataIncorrect = topicLabels.map(t => globalData.topicStats[t].incorrect);
+
+            topicChartInstance = new Chart(topicCtx, {
+                type: 'bar',
+                data: {
+                    labels: topicLabels.length > 0 ? topicLabels : ['Sem dados'],
+                    datasets: [
+                        { label: 'Acertos', data: topicDataCorrect, backgroundColor: '#10B981' },
+                        { label: 'Erros', data: topicDataIncorrect, backgroundColor: '#EF4444' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+            });
+        }
+
+        /** Analisa a taxa de acerto por tópico e insere nas listas Fortes/Fracos */
+        function generateSWOT() {
+            const strengthsUl = document.getElementById('swot-strengths');
+            const weaknessesUl = document.getElementById('swot-weaknesses');
+            
+            strengthsUl.innerHTML = ''; weaknessesUl.innerHTML = '';
+            let hasStrength = false, hasWeakness = false;
+
+            // Percorre o dicionário de tópicos nativamente com Object.entries (Evita Array.from)
+            for (let [topic, stats] of Object.entries(globalData.topicStats)) {
+                const total = stats.correct + stats.incorrect;
+                if(total < 3) continue; // Exige amostra mínima para ter relevância estatística
+
+                const rate = stats.correct / total;
+                const percentageStr = Math.round(rate * 100) + '%';
+                
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center text-sm py-1 border-b border-gray-50 last:border-0';
+                li.innerHTML = `<span class="font-medium text-gray-700">${topic}</span> <span class="font-bold px-2 py-0.5 rounded text-xs ${rate >= 0.8 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${percentageStr}</span>`;
+
+                if (rate >= 0.8) {
+                    strengthsUl.appendChild(li); hasStrength = true;
+                } else if (rate <= 0.7) {
+                    weaknessesUl.appendChild(li); hasWeakness = true;
+                }
+            }
+
+            if(!hasStrength) strengthsUl.innerHTML = '<li class="text-sm text-gray-400 italic">Responda +3 questões/tópico para avaliar.</li>';
+            if(!hasWeakness) weaknessesUl.innerHTML = '<li class="text-sm text-gray-400 italic">Nenhum ponto crítico detectado.</li>';
+        }
+
+        /**
+         * ============================================================================
+         * 7. SERVIÇOS DE PERSISTÊNCIA (LOCAL STORAGE / JSON)
+         * ============================================================================
+         */
+        function saveLocalData() {
+            try { localStorage.setItem('eca_sim_data_v2', JSON.stringify(globalData)); } 
+            catch (e) { console.error("Falha ao salvar no cache local"); }
+        }
+
+        function loadLocalData() {
+            try {
+                const saved = localStorage.getItem('eca_sim_data_v2');
+                if(saved) globalData = JSON.parse(saved);
+            } catch(e) { console.error("Falha ao carregar do cache local"); }
+        }
+
+        function exportData() {
+            // btoa: encriptação básica base64 para o usuário copiar um hash visualmente amigável
+            const jsonStr = btoa(JSON.stringify(globalData)); 
+            document.getElementById('export-area').value = jsonStr;
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById('export-area');
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            document.execCommand("copy"); // Fallback robusto nativo para mobile/iframes
+            
+            const btn = document.getElementById('btn-copy');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i> Copiado!';
+            btn.classList.add('bg-green-200', 'text-green-800');
+            setTimeout(() => {
+                btn.innerHTML = origHTML;
+                btn.classList.remove('bg-green-200', 'text-green-800');
+            }, 2000);
+        }
+
+        function importData() {
+            const inputData = document.getElementById('import-area').value.trim();
+            if(!inputData) { alert("Cole o código gerado anteriormente."); return; }
+
+            try {
+                // atob: decodifica o base64 de volta para JSON
+                const parsedData = JSON.parse(atob(inputData));
+                if(parsedData.history && parsedData.topicStats) {
+                    globalData = parsedData;
+                    saveLocalData();
+                    updateDashboardCards();
+                    document.getElementById('import-area').value = '';
+                    alert("Sucesso! Histórico importado.");
+                    switchTab('dashboard');
+                } else { alert("Código inválido ou estrutura corrompida."); }
+            } catch(e) { alert("Erro fatal de importação. Verifique se copiou todo o código."); }
+        }
+
+        function clearData() {
+            if(confirm("Deseja apagar todo seu histórico? Ação irreversível.")) {
+                globalData = { history: [], topicStats: {}, totalAnswered: 0, totalCorrect: 0 };
+                saveLocalData();
+                updateDashboardCards();
+                alert("Dados apagados.");
+                document.getElementById('export-area').value = ''; document.getElementById('import-area').value = '';
+                if(!document.getElementById('content-dashboard').classList.contains('hidden')) {
+                    renderDashboardCharts(); generateSWOT();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador SEC/BA - IBFC</title>
+    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para renderização dos gráficos de desempenho -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para ícones vetoriais -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Estilos de interação das alternativas */
+        .option-label { transition: all 0.2s; cursor: pointer; }
+        .option-input:checked + .option-label { border-color: #3b82f6; background-color: #eff6ff; }
+        
+        /* Classes dinâmicas de feedback (Correto/Incorreto) */
+        .correct-answer { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534; }
+        .wrong-answer { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b; }
+        
+        /* Scrollbar customizada para design mais limpo */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- CABEÇALHO -->
+    <header class="bg-slate-900 text-white shadow-lg z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-book-open text-yellow-400 text-2xl"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide"><a href="../index.html" style="text-decoration: none;">Simulador Adaptativo</a> <span class="text-yellow-400">| IBFC</span></h1>
+                    <p class="text-xs text-slate-400">Foco SEC/BA - Legislação Educacional e Administrativa</p>
+                </div>
+            </div>
+            <div class="hidden md:block text-right">
+                <p class="text-sm text-slate-300">Questão Atual</p>
+                <span id="question-counter" class="font-mono text-lg font-bold text-white">00/00</span>
+            </div>
+        </div>
+        
+        <!-- NAVEGAÇÃO DE ABAS -->
+        <div class="bg-slate-800">
+            <div class="max-w-7xl mx-auto px-4 flex gap-1">
+                <button onclick="AppUI.switchTab('dashboard')" id="btn-dashboard" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-yellow-400 text-yellow-400 hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-chart-pie mr-2"></i>Início & Dashboard
+                </button>
+                <button onclick="AppUI.switchTab('simulado')" id="btn-simulado" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-pen-to-square mr-2"></i>Simulado
+                </button>
+                <button onclick="AppUI.switchTab('dados')" id="btn-dados" class="tab-btn px-6 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-database mr-2"></i>Sincronizar Dados
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 relative">
+        <div class="max-w-5xl mx-auto h-full">
+
+            <!-- ABA: DASHBOARD (TELA INICIAL) -->
+            <div id="dashboard" class="tab-content">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-blue-600 rounded-xl p-6 shadow-lg text-white">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-1">Visão Geral do seu Progresso</h2>
+                        <p class="text-blue-100 text-sm">Acompanhe suas métricas e inicie um novo ciclo adaptativo de estudos.</p>
+                    </div>
+                    <button onclick="QuizController.requestNewSimulation()" class="mt-4 md:mt-0 bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-8 py-3 rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Iniciar Novo Simulado
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Sessão Atual -->
+                    <div class="bg-white p-6 rounded-xl shadow border border-slate-200">
+                        <h3 class="text-lg font-bold text-slate-700 mb-4 border-b pb-2">Desempenho: Última Sessão</h3>
+                        <div class="relative h-64 w-full flex justify-center"><canvas id="currentSessionChart"></canvas></div>
+                        <div class="mt-4 text-center">
+                            <span class="text-sm text-slate-500">Total Respondido: <b id="dash-total">0</b></span>
+                            <div class="flex justify-center gap-4 mt-2 mb-2">
+                                <span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i><span id="dash-correct">0</span></span>
+                                <span class="text-red-500 font-bold"><i class="fa-solid fa-xmark mr-1"></i><span id="dash-wrong">0</span></span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100">
+                                <span class="text-xs text-blue-600 font-semibold" id="dash-bank-mastery">0 de 0 questões dominadas (Banco)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evolução Histórica -->
+                    <div class="bg-white p-6 rounded-xl shadow border border-slate-200">
+                        <h3 class="text-lg font-bold text-slate-700 mb-4 border-b pb-2">Evolução Histórica (Acertos %)</h3>
+                        <div class="relative h-64 w-full"><canvas id="historyChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Análise SWOT -->
+                <div class="bg-white p-6 rounded-xl shadow border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2"><i class="fa-solid fa-magnifying-glass-chart text-blue-600"></i> Análise SWOT de Tópicos</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+                            <h4 class="font-bold text-green-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-thumbs-up"></i> Pontos Fortes (>80%)</h4>
+                            <ul id="swot-strengths" class="space-y-2 text-sm text-green-700"><li class="italic text-slate-400">Dados insuficientes...</li></ul>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+                            <h4 class="font-bold text-red-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Pontos de Atenção (<60%)</h4>
+                            <ul id="swot-weaknesses" class="space-y-2 text-sm text-red-700"><li class="italic text-slate-400">Dados insuficientes...</li></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA: SIMULADO -->
+            <div id="simulado" class="tab-content h-full flex flex-col hidden">
+                <!-- Tela de Espera -->
+                <div id="start-screen" class="h-full flex flex-col items-center justify-center text-center p-6">
+                    <div class="bg-white p-8 rounded-xl shadow-md border border-slate-200 max-w-lg w-full">
+                        <i class="fa-solid fa-graduation-cap text-5xl text-blue-600 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Pronto para treinar?</h2>
+                        <p class="text-slate-600 mb-6" id="start-summary">Você possui questões disponíveis para o próximo simulado.</p>
+                        <button onclick="QuizController.requestNewSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95 w-full">
+                            <i class="fa-solid fa-play mr-2"></i> Gerar Simulado Adaptativo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra de Progresso -->
+                <div id="progress-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-6 hidden">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+
+                <!-- Container do Quiz -->
+                <div id="quiz-container" class="bg-white rounded-xl shadow-md border border-slate-200 p-6 md:p-8 flex-1 flex flex-col hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <span id="topic-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-blue-200">Tema</span>
+                        <span class="text-xs text-slate-500 font-mono">ID: <span id="q-id">000</span></span>
+                    </div>
+
+                    <h2 id="question-text" class="text-lg md:text-xl font-semibold text-slate-800 mb-6 leading-relaxed">Carregando...</h2>
+
+                    <!-- Opções geradas dinamicamente -->
+                    <div id="options-container" class="space-y-3 mb-6 flex-1 overflow-y-auto pr-2"></div>
+
+                    <!-- Área de Feedback Oculta -->
+                    <div id="feedback-area" class="hidden mb-6 p-4 rounded-lg border-l-4 bg-slate-50">
+                        <div class="flex items-start gap-3">
+                            <i id="feedback-icon" class="fa-solid fa-circle-check mt-1 text-lg"></i>
+                            <div>
+                                <h3 id="feedback-title" class="font-bold text-sm mb-1"></h3>
+                                <p id="feedback-text" class="text-sm text-slate-600 leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="flex justify-between items-center pt-4 border-t border-slate-100 mt-auto">
+                        <button id="btn-confirm" onclick="QuizController.checkAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold shadow transition-transform active:scale-95 w-full md:w-auto">Confirmar</button>
+                        <button id="btn-next" onclick="QuizController.nextQuestion()" class="hidden bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-lg font-semibold shadow transition-transform active:scale-95 w-full md:w-auto">Próxima <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA: DADOS (PERSISTÊNCIA) -->
+            <div id="dados" class="tab-content hidden">
+                <div class="bg-white p-6 md:p-8 rounded-xl shadow border border-slate-200 max-w-3xl mx-auto">
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">Sincronização de Dados</h3>
+                    <p class="text-slate-600 mb-6 text-sm">Salve seu código gerado ou cole um código anterior para restaurar seu aprendizado adaptativo.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Exportar Progresso</label>
+                            <textarea id="export-area" readonly class="w-full h-32 p-3 text-xs font-mono bg-slate-100 border rounded"></textarea>
+                            <button onclick="StorageController.exportData()" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-semibold"><i class="fa-solid fa-copy mr-2"></i>Copiar Código</button>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Importar Progresso</label>
+                            <textarea id="import-area" class="w-full h-32 p-3 text-xs font-mono bg-white border border-slate-300 rounded" placeholder='Cole seu código aqui...'></textarea>
+                            <button onclick="StorageController.importData()" class="mt-2 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-semibold"><i class="fa-solid fa-file-import mr-2"></i>Carregar</button>
+                            <p id="import-msg" class="text-xs mt-2 text-center h-4 font-bold"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL DE RESET (Esgotamento do Banco) -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 transform transition-all">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-yellow-100 rounded-full mb-4"><i class="fa-solid fa-triangle-exclamation text-xl text-yellow-600"></i></div>
+            <h3 class="text-xl font-bold text-center text-slate-800 mb-2">Banco Esgotado!</h3>
+            <p class="text-center text-slate-600 mb-6">Você dominou todas as questões! Deseja zerar seu histórico de acertos para revisar tudo novamente ou cancelar e voltar ao dashboard?</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="AppUI.closeModal('reset-modal')" class="w-full px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold">Cancelar</button>
+                <button onclick="QuizController.confirmReset()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow">Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DA APLICAÇÃO (CLEAN CODE) -->
+    <script>
+        /**
+         * ==========================================
+         * 1. BANCO DE QUESTÕES (DATA LAYER)
+         * ==========================================
+         * Formatado em linha única para economia de linhas e facilidade de inserção.
+         */
+        const questionBank = [
+            { id: 1, topic: "Educação Básica", text: "De acordo com a LDB, a educação básica é formada por:", options: ["A) Educação infantil, ensino fundamental e ensino médio.", "B) Educação infantil, fundamental e superior.", "C) Ensino fundamental, médio e profissional.", "D) Fundamental e médio apenas.", "E) Infantil e fundamental apenas."], correct: 0, explanation: "Art. 21 da LDB: A educação básica é formada pela educação infantil, ensino fundamental e ensino médio." },
+            { id: 2, topic: "Carga Horária", text: "Conforme a LDB, a carga horária mínima anual (fundamental e médio) será de:", options: ["A) 800h / 180 dias.", "B) 800h / 200 dias.", "C) 1000h / 200 dias.", "D) 720h / 180 dias.", "E) 900h / 220 dias."], correct: 1, explanation: "Art. 24, I: 800 horas, por um mínimo de 200 dias de efetivo trabalho escolar." },
+            { id: 3, topic: "Educação Infantil", text: "Na Educação Infantil, a avaliação far-se-á:", options: ["A) Por provas bimestrais.", "B) Por testes de aptidão.", "C) Por acompanhamento e registro, com objetivo de promoção.", "D) Por acompanhamento e registro, sem objetivo de promoção.", "E) Pela frequência mínima de 75%."], correct: 3, explanation: "Art. 31, I: avaliação mediante acompanhamento e registro, sem o objetivo de promoção." },
+            { id: 4, topic: "Currículo", text: "A parte diversificada dos currículos é exigida pelas características:", options: ["A) Políticas da União.", "B) Regionais e locais da sociedade e educandos.", "C) Exclusivamente da cultura local.", "D) Internacionais e globais.", "E) Definidas pelo MEC."], correct: 1, explanation: "Art. 26: parte diversificada exigida pelas características regionais e locais..." },
+            { id: 5, topic: "Profissionais", text: "Consideram-se profissionais da educação básica, EXCETO:", options: ["A) Professores habilitados.", "B) Trabalhadores com pedagogia.", "C) Trabalhadores com curso técnico em área afim.", "D) Voluntários na merenda sem formação específica.", "E) Profissionais com notório saber (técnico-profissional)."], correct: 3, explanation: "Art. 61: Voluntários sem formação específica não compõem a carreira de profissionais da educação básica." },
+            { id: 6, topic: "Educação Especial", text: "Modalidade oferecida preferencialmente na rede regular para educandos com deficiência:", options: ["A) EJA.", "B) Profissional.", "C) Educação Especial.", "D) EaD.", "E) Ensino Técnico."], correct: 2, explanation: "Art. 58: Entende-se por educação especial, preferencialmente na rede regular..." },
+            { id: 7, topic: "Frequência", text: "A frequência mínima para aprovação no ensino básico (fund/médio) é de:", options: ["A) 50%.", "B) 60%.", "C) 70%.", "D) 75%.", "E) 80%."], correct: 3, explanation: "Art. 24, VI: exigida a frequência mínima de 75% do total de horas letivas." },
+            { id: 8, topic: "Ensino Religioso", text: "O ensino religioso, de matrícula facultativa, é disciplina dos horários normais em:", options: ["A) Educação infantil.", "B) Ensino fundamental.", "C) Ensino médio.", "D) Ensino superior.", "E) Toda educação básica."], correct: 1, explanation: "Art. 33: constitui disciplina dos horários normais das escolas públicas de ensino fundamental." },
+            { id: 9, topic: "Ensino Médio", text: "O ensino médio terá duração mínima de:", options: ["A) 2 anos.", "B) 3 anos.", "C) 4 anos.", "D) 5 anos.", "E) 1 ano."], correct: 1, explanation: "Art. 35: O ensino médio, com duração mínima de três anos." },
+            { id: 10, topic: "Recuperação", text: "Os estudos de recuperação são obrigatórios, de preferência:", options: ["A) Ao final do ano.", "B) Nas férias.", "C) Paralelos ao período letivo.", "D) Apenas para faltosos.", "E) Por professor particular."], correct: 2, explanation: "Art. 24, V, 'e': obrigatórios, de preferência paralelos ao período letivo." },
+            { id: 11, topic: "História Afro", text: "O estudo da história afro-brasileira incluirá, EXCETO:", options: ["A) História da África.", "B) Luta dos negros/indígenas.", "C) Cultura negra/indígena.", "D) O negro/índio na formação social.", "E) Ensino exclusivo de religiões de matriz africana."], correct: 4, explanation: "Art. 26-A: O foco é histórico, cultural e social, não o ensino exclusivo de religião." },
+            { id: 12, topic: "Língua Estrangeira", text: "A partir de qual ano será ofertada a língua inglesa?", options: ["A) 1º EF.", "B) 5º EF.", "C) 6º EF.", "D) 1º EM.", "E) Ed. Infantil."], correct: 2, explanation: "Art. 26, § 5º: no currículo do ensino fundamental, a partir do 6º ano." },
+            { id: 13, topic: "Ed. Profissional", text: "A educação profissional técnica será desenvolvida:", options: ["A) Apenas integrada.", "B) Apenas concomitante.", "C) Apenas subsequente.", "D) Articulada ao ensino médio ou subsequente a ele.", "E) Como extensão."], correct: 3, explanation: "Art. 36-B: articulada com o ensino médio; ou subsequente a ele." },
+            { id: 14, topic: "Classificação", text: "A classificação, exceto na 1ª do EF, pode ser feita:", options: ["A) Apenas por promoção.", "B) Apenas por transferência.", "C) Por promoção, transferência ou independentemente de escolarização (avaliação).", "D) Apenas com certidão.", "E) Apenas por idade."], correct: 2, explanation: "Art. 24, II: por promoção, transferência, ou independentemente de escolarização (avaliação)." },
+            { id: 15, topic: "Educação Física", text: "A educação física é facultativa ao aluno, EXCETO:", options: ["A) Que trabalhe 6h+.", "B) Maior de 30 anos.", "C) Prestando serviço militar.", "D) Que tenha filhos.", "E) Que deseje focar em exatas."], correct: 4, explanation: "Art. 26, § 3º: Focar em exatas não é motivo legal para dispensa." },
+            { id: 16, topic: "Ed. Infantil", text: "O atendimento na educação infantil deve ser de no mínimo:", options: ["A) 4h parcial / 7h integral.", "B) 3h parcial / 6h integral.", "C) 5h parcial / 8h integral.", "D) 4h para todos.", "E) 6h obrigatórias."], correct: 0, explanation: "Art. 31, III: 4 horas para parcial e 7 horas para integral." },
+            { id: 17, topic: "EJA", text: "Idade mínima para exames supletivos (EF e EM respectivamente):", options: ["A) 14 e 17.", "B) 15 e 18.", "C) 18 para ambos.", "D) 16 e 18.", "E) 21 para o EM."], correct: 1, explanation: "Art. 38, § 1º: 15 anos para o fundamental e 18 anos para o médio." },
+            { id: 18, topic: "Princípios", text: "NÃO é princípio do ensino (Art. 3º):", options: ["A) Igualdade de condições.", "B) Liberdade de aprender.", "C) Pluralismo de ideias.", "D) Gratuidade no ensino oficial.", "E) Uniformidade de concepções pedagógicas."], correct: 4, explanation: "Art. 3º: O princípio é o pluralismo, não a uniformidade." },
+            { id: 19, topic: "Dever do Estado", text: "Educação básica obrigatória e gratuita atende dos:", options: ["A) 0 aos 17.", "B) 4 aos 17.", "C) 6 aos 14.", "D) 4 aos 14.", "E) 0 aos 18."], correct: 1, explanation: "Art. 4º, I: dos 4 (quatro) aos 17 (dezessete) anos." },
+            { id: 20, topic: "Calendário", text: "Adequação do calendário às peculiaridades locais não pode reduzir:", options: ["A) Horas letivas (800h).", "B) Férias docentes.", "C) Feriados.", "D) Reuniões.", "E) Recesso."], correct: 0, explanation: "Art. 23, § 2º: sem reduzir o número de horas letivas previsto." },
+            { id: 21, topic: "Notório Saber", text: "O 'notório saber' é aceito apenas:", options: ["A) EF final.", "B) Ed. Infantil.", "C) Na formação técnica e profissional do Ensino Médio.", "D) Em qualquer disciplina com falta de docente.", "E) Superior."], correct: 2, explanation: "Art. 61, IV: exclusivo para a Formação Técnica e Profissional do EM." },
+            { id: 22, topic: "EaD", text: "EaD no ensino fundamental pode ser usado:", options: ["A) Substituição total.", "B) Complementação ou emergência.", "C) No noturno.", "D) Superdotados.", "E) É proibido."], correct: 1, explanation: "Art. 32, § 4º: como complementação ou em situações emergenciais." },
+            { id: 23, topic: "Progressão Parcial", text: "A progressão parcial é permitida?", options: ["A) Não.", "B) Sim, preservada a sequência do currículo.", "C) Só no EF.", "D) Em optativas.", "E) Com atestado médico."], correct: 1, explanation: "Art. 24, III: podem admitir, desde que preservada a sequência do currículo." },
+            { id: 24, topic: "Creche e Pré-escola", text: "Creches e pré-escolas atendem, respectivamente:", options: ["A) Até 3 anos / 4 a 5 anos.", "B) Até 2 anos / 3 a 6 anos.", "C) Até 4 anos / 5 a 6 anos.", "D) Maternais / Jardins.", "E) Ensino fundamental."], correct: 0, explanation: "Art. 30: Creches até 3 anos; pré-escolas 4 a 5 anos." },
+            { id: 25, topic: "Recursos", text: "É despesa de manutenção do ensino, EXCETO:", options: ["A) Remuneração docente.", "B) Material didático.", "C) Infraestrutura educacional.", "D) Subvenção assistencial/desportiva.", "E) Bens e serviços do ensino."], correct: 3, explanation: "Art. 71, IV: Subvenções assistenciais ou desportivas não constituem MDE." },
+            { id: 26, topic: "Gestão", text: "A gestão democrática envolve:", options: ["A) Voto direto apenas.", "B) Participação de profissionais no PPP e da comunidade em conselhos.", "C) Decisões exclusivas da Secretaria.", "D) Apenas pais.", "E) Autonomia total sem o Estado."], correct: 1, explanation: "Art. 14: Participação dos profissionais (PPP) e comunidade (Conselhos)." },
+            { id: 27, topic: "Artes", text: "O ensino da arte é componente obrigatório:", options: ["A) Só no EM.", "B) Só Ed. Infantil.", "C) Na educação básica (toda).", "D) Só EF.", "E) Facultativo."], correct: 2, explanation: "Art. 26, § 2º: componente obrigatório da educação básica." },
+            { id: 28, topic: "Transporte", text: "O transporte da rede estadual é responsabilidade do:", options: ["A) Município.", "B) Estado.", "C) União.", "D) Pais.", "E) Escola privada."], correct: 1, explanation: "Art. 10, VII: O Estado assume o transporte da rede estadual." },
+            { id: 29, topic: "Filmes", text: "Exibição de filmes nacionais é obrigatória por, no mínimo:", options: ["A) 1h/mês.", "B) 2h/mês.", "C) 3h/mês.", "D) 5h/mês.", "E) 10h/ano."], correct: 1, explanation: "Art. 26, § 8º: no mínimo, 2 horas mensais." },
+            { id: 30, topic: "Transversalidade", text: "Temas como saúde e meio ambiente devem ser tratados:", options: ["A) Disciplinas específicas.", "B) Palestras.", "C) Transversalmente no currículo.", "D) Pelos de Ciências.", "E) Só no EM."], correct: 2, explanation: "PCNs e LDB (Art. 26): tratados de forma transversal." },
+            { id: 31, topic: "Princípios", text: "V ou F: Igualdade (V), Coexistência (V), Gratuidade privada obrigatória (F), Valorização (V). Sequência:", options: ["A) V, V, F, V.", "B) V, V, V, V.", "C) F, V, F, V.", "D) V, F, V, F.", "E) V, V, F, F."], correct: 0, explanation: "Art. 3º: Gratuidade é apenas em estabelecimentos oficiais (públicos)." },
+            { id: 32, topic: "AEE", text: "AEE gratuito a alunos com deficiência deve ser feito:", options: ["A) Exclusivamente em clínicas.", "B) Exclusivamente em classes especiais.", "C) Preferencialmente na rede regular.", "D) Só após 6 anos.", "E) Pela iniciativa privada obrigatoriamente."], correct: 2, explanation: "Art. 4º, III: Atendimento Especializado PREFERENCIALMENTE na rede regular." },
+            { id: 33, topic: "Acesso", text: "V ou F sobre Acesso: O não oferecimento importa responsabilidade (V). Vedada participação civil no censo (F).", options: ["A) I e II corretas.", "B) Apenas I é correta (V).", "C) Apenas II é correta.", "D) Ambas erradas.", "E) Ambas corretas."], correct: 1, explanation: "Art. 5º: O censo é feito em articulação COM a sociedade civil." },
+            { id: 34, topic: "Incumbências", text: "É incumbência da União:", options: ["A) Transporte estadual.", "B) Normas para municípios.", "C) Estabelecer competências/diretrizes curriculares.", "D) Oferecer creches.", "E) Avaliar escolas estaduais em massa."], correct: 2, explanation: "Art. 9º, IV: Estabelecer diretrizes da educação infantil, EF e EM." },
+            { id: 35, topic: "Estados", text: "Estados oferecem com prioridade:", options: ["A) Ensino Superior.", "B) Ensino Médio.", "C) Educação Infantil.", "D) Creches.", "E) EJA superior."], correct: 1, explanation: "Art. 10: Assegurar o EF e oferecer, com prioridade, o ENSINO MÉDIO." },
+            { id: 36, topic: "Municípios", text: "Municípios oferecem com prioridade:", options: ["A) Ensino Médio.", "B) Superior.", "C) Ensino Fundamental e Ed. Infantil.", "D) Pós-graduação.", "E) Técnico subsequente."], correct: 2, explanation: "Art. 11: Oferecer a educação infantil e, com prioridade, o EF." },
+            { id: 37, topic: "Escolas", text: "Incumbência da Escola (Estabelecimento):", options: ["A) Elaborar a LDB.", "B) Executar sua proposta pedagógica.", "C) Legislar sobre verbas.", "D) Contratar concursados.", "E) Julgar PAD."], correct: 1, explanation: "Art. 12, I: elaborar e executar sua proposta pedagógica." },
+            { id: 38, topic: "Docentes", text: "NÃO é incumbência direta do docente no Art. 13:", options: ["A) Participar do PPP.", "B) Cumprir plano de trabalho.", "C) Recuperar menor rendimento.", "D) Zelar pela aprendizagem.", "E) Notificar Conselho Tutelar sobre faltas."], correct: 4, explanation: "Notificar conselho tutelar é incumbência do Estabelecimento (Escola)." },
+            { id: 39, topic: "Gestão", text: "A Gestão Democrática na LDB abrange obrigatoriamente:", options: ["A) Redes privadas.", "B) Ensino Público na educação básica.", "C) Todo o Ensino Superior Privado.", "D) Apenas creches.", "E) Apenas escolas militares."], correct: 1, explanation: "Art. 14: Gestão democrática do ensino PÚBLICO na educação básica." },
+            { id: 40, topic: "Etapas", text: "A Educação Escolar no Brasil compõe-se de:", options: ["A) Básica e Superior.", "B) Infantil e Fundamental.", "C) Básica e Profissional.", "D) Especial e Regular.", "E) Regular e EaD."], correct: 0, explanation: "Art. 21: Compõe-se de Educação Básica e Educação Superior." },
+            { id: 41, topic: "Reprovação", text: "Os estudos de recuperação paralela são:", options: ["A) Vedados.", "B) Opcionais ao aluno nota 10.", "C) Obrigatórios (preferência paralelos) para baixo rendimento.", "D) Restritos ao EM.", "E) Pagos."], correct: 2, explanation: "Art. 24, V: Obrigatórios de preferência paralelos para baixo rendimento." },
+            { id: 42, topic: "Diversificada", text: "A base nacional comum curricular é:", options: ["A) Facultativa.", "B) Substituída pelas partes regionais.", "C) Complementada por parte diversificada.", "D) Apenas para o EM.", "E) Focada em inglês apenas."], correct: 2, explanation: "Art. 26: Obrigatória, complementada por parte diversificada." },
+            { id: 43, topic: "História Indígena", text: "O ensino de história/cultura afro e indígena é obrigatório no:", options: ["A) Apenas público.", "B) Apenas privado.", "C) Ensino fundamental e médio (público e privado).", "D) Infantil.", "E) Superior apenas."], correct: 2, explanation: "Art. 26-A: Obrigatório nos estabelecimentos de EF e EM, públicos e privados." },
+            { id: 44, topic: "Ed. Infantil (Avaliação)", text: "Na pré-escola, exige-se frequência mínima de:", options: ["A) 75%.", "B) 60%.", "C) 50%.", "D) Facultativa.", "E) 80%."], correct: 1, explanation: "Art. 31, IV: Frequência mínima de 60% para a pré-escola." },
+            { id: 45, topic: "Ingresso EF", text: "O Ensino Fundamental obrigatório inicia-se aos:", options: ["A) 5 anos.", "B) 6 anos.", "C) 7 anos.", "D) 4 anos.", "E) 8 anos."], correct: 1, explanation: "Art. 32: Inicia-se aos 6 (seis) anos de idade (com 9 anos de duração)." },
+            { id: 46, topic: "Itinerários EM", text: "NÃO é um itinerário formativo do Novo Ensino Médio:", options: ["A) Linguagens.", "B) Matemática.", "C) Ciências Humanas.", "D) Ensino Religioso.", "E) Formação Técnica."], correct: 3, explanation: "Art. 36: Ensino religioso não compõe itinerário formativo do EM." },
+            { id: 47, topic: "Ed. Profissional", text: "A educação técnica articulada será:", options: ["A) Integrada ou concomitante.", "B) Subsequente e superior.", "C) Apenas EaD.", "D) Especializada.", "E) Facultativa."], correct: 0, explanation: "Art. 36-C: Articulada em duas formas: Integrada ou Concomitante." },
+            { id: 48, topic: "EJA", text: "Exames de EJA para Ensino Médio exigem maioridade de:", options: ["A) 15 anos.", "B) 16 anos.", "C) 18 anos.", "D) 21 anos.", "E) 17 anos."], correct: 2, explanation: "Art. 38: Para a conclusão do Ensino Médio, maiores de 18 anos." },
+            { id: 49, topic: "Ed. Especial", text: "O ensino especial tem início obrigatório a partir da:", options: ["A) Creche (Educação Infantil).", "B) 1º ano do EF.", "C) 6º ano do EF.", "D) Ensino Médio.", "E) Vida adulta."], correct: 0, explanation: "Art. 58, § 3º: Tem início na Educação Infantil (zero anos)." },
+            { id: 50, topic: "Bilíngue", text: "A Educação Bilíngue de Surdos tem como primeira língua:", options: ["A) Português escrito.", "B) Libras.", "C) Braille.", "D) Inglês.", "E) Português oral."], correct: 1, explanation: "Art. 60-A: Libras como primeira língua e Português escrito como segunda." },
+            { id: 51, topic: "Notório Saber", text: "Profissionais de notório saber focam em qual etapa?", options: ["A) Todo o EM.", "B) Formação técnica e profissional do EM.", "C) Ensino Infantil.", "D) EJA superior.", "E) Toda educação básica."], correct: 1, explanation: "Art. 61: Reconhecimento para itinerário de formação técnica e profissional." },
+            { id: 52, topic: "Magistério", text: "A formação mínima aceita para atuar na Ed. Infantil e 5 anos iniciais do EF é:", options: ["A) Superior completo bacharel.", "B) Nível médio, modalidade Normal.", "C) Qualquer médio.", "D) Mestrado.", "E) EF completo."], correct: 1, explanation: "Art. 62: Admitida a formação em nível médio, na modalidade Normal." },
+            { id: 53, topic: "Financiamento", text: "União aplicará X% e Estados/Municípios Y% da receita em MDE:", options: ["A) 15% / 20%.", "B) 18% / 25%.", "C) 10% / 25%.", "D) 25% / 18%.", "E) 18% / 30%."], correct: 1, explanation: "Art. 69: União 18%, Estados e Municípios 25%." },
+            { id: 54, topic: "MDE", text: "Considera-se despesa de MDE (Art. 70):", options: ["A) Subvenção desportiva.", "B) Obras sem interesse educacional.", "C) Aquisição de material didático-escolar.", "D) Assistência médica.", "E) Formação de militares."], correct: 2, explanation: "Art. 70, VIII: Aquisição de material didático-escolar constitui despesa de MDE." },
+            { id: 55, topic: "Não é MDE", text: "NÃO constitui MDE a despesa com:", options: ["A) Remuneração docente.", "B) Equipamentos de ensino.", "C) Bolsa de estudos.", "D) Assistência médico-odontológica.", "E) Manutenção de transporte escolar."], correct: 3, explanation: "Art. 71, IV: Assistência médico-odontológica é programa suplementar fora do MDE." },
+            { id: 56, topic: "Transporte Rateio", text: "O transporte dos alunos da rede estadual compete a(o):", options: ["A) Município.", "B) Estado.", "C) União.", "D) Privado.", "E) Empresa de ônibus."], correct: 1, explanation: "Art. 10, VII: O Estado assume o transporte da rede estadual." },
+            { id: 57, topic: "AEE Certificação", text: "Certificação de AEE na LDB garante aprovação automática por idade?", options: ["A) Sim, aos 18.", "B) Sim, aos 21.", "C) Não, não há previsão de aprovação automática por idade para PNEs.", "D) Sim, mediante laudo.", "E) Sim, no EJA."], correct: 2, explanation: "A LDB garante terminalidade específica, não 'aprovação automática por idade'." },
+            { id: 58, topic: "Aprovação EF", text: "Aluno com notas perfeitas, mas 60% de frequência no EM:", options: ["A) É aprovado.", "B) É reprovado (exige-se 75%).", "C) Conselho decide obrigatoriamente.", "D) Faz prova final.", "E) Avança condicionado."], correct: 1, explanation: "Art. 24: A frequência mínima legal de 75% é critério para aprovação." },
+            { id: 59, topic: "Pré-escola", text: "Para pré-escola (4 e 5 anos) exige-se frequência de:", options: ["A) 50%.", "B) 60%.", "C) 70%.", "D) 75%.", "E) 80%."], correct: 1, explanation: "Art. 31, IV: 60% de frequência mínima para aprovação na avaliação infantil (sem retenção)." },
+            { id: 60, topic: "EaD Fundamental", text: "EaD no Ensino Fundamental regular pode ser usado como:", options: ["A) Substituição prioritária.", "B) Regra geral rural.", "C) Complementação da aprendizagem ou emergências.", "D) Ensino principal noturno.", "E) Proibido 100%."], correct: 2, explanation: "Art. 32, § 4º: Complementação da aprendizagem ou emergências." },
+            { id: 61, topic: "Decreto 12830/11 - Abrangência", text: "De acordo com o Decreto Estadual nº 12.830/11 (BA), a Sindicância e o Processo Administrativo Disciplinar (PAD) aplicam-se à apuração de irregularidades ocorridas no âmbito da:", options: ["A) Administração Pública Direta e empresas públicas apenas.", "B) Administração Pública Direta, Autárquica e Fundacional do Poder Executivo Estadual.", "C) Iniciativa privada sob concessão do Estado.", "D) Exclusivamente no âmbito das Secretarias de Estado (Administração Direta).", "E) Administração Pública Federal operando na Bahia."], correct: 1, explanation: "Art. 1º. O Decreto regula Sindicância e PAD na Administração Direta, Autárquica e Fundacional do Poder Executivo Estadual (não abrange empresas públicas/sociedades de economia mista, que têm regras próprias CLT)." },
+            { id: 62, topic: "Decreto 12830/11 - Definições", text: "No que se refere às definições legais trazidas pelo Decreto 12.830/11, julgue verdadeiro (V) ou falso (F): ( ) A Sindicância Investigatória visa apurar a existência de infração quando a autoria for conhecida. ( ) A Sindicância Acusatória destina-se a apurar infrações puníveis com advertência ou suspensão de até 30 dias. ( ) O PAD é destinado a infrações puníveis com demissão, cassação de aposentadoria ou suspensão superior a 30 dias. A sequência correta é:", options: ["A) V, V, V", "B) F, V, V", "C) F, F, V", "D) V, F, V", "E) F, V, F"], correct: 1, explanation: "Art. 2º. A 1ª é Falsa (Sindicância Investigatória é quando autoria NÃO é conhecida ou o fato não está claro). A 2ª e a 3ª são Verdadeiras." },
+            { id: 63, topic: "Decreto 12830/11 - Prazos Sindicância", text: "Consoante o Decreto 12.830/11 e a Lei 6.677/94, o prazo máximo para conclusão da Sindicância Investigatória e da Sindicância Acusatória, incluindo sua prorrogação máxima admitida, é de respectivamente:", options: ["A) 30 dias e 60 dias totais.", "B) 60 dias (30 prorrogáveis por 30) para ambas.", "C) 60 dias para investigatória e 120 dias para a acusatória.", "D) 90 dias ininterruptos para ambas.", "E) 30 dias, sem prorrogação para nenhuma delas."], correct: 1, explanation: "Arts. 4º e 7º (c/c Lei 6.677/94). O prazo é de 30 dias, prorrogável por igual período (totalizando 60 dias máximos) para ambos os tipos de sindicância." },
+            { id: 64, topic: "Decreto 12830/11 - Sindicância Investigatória", text: "Qual das opções abaixo corresponde a uma ação VEDADA (proibida) durante a condução de uma Sindicância puramente Investigatória?", options: ["A) A coleta de provas testemunhais.", "B) A realização de perícias técnicas.", "C) O indiciamento formal do servidor.", "D) O arquivamento do feito caso a materialidade não seja provada.", "E) O levantamento de documentação funcional."], correct: 2, explanation: "Art. 6º. Na sindicância investigatória, por ter caráter meramente preparatório e sem contraditório, é VEDADO o indiciamento. Se descoberta autoria e fato, instaura-se Sindicância Acusatória ou PAD." },
+            { id: 65, topic: "Decreto 12830/11 - Prazos do PAD", text: "O Processo Administrativo Disciplinar (PAD) obedece ao princípio da celeridade. O prazo legal estipulado para a conclusão do PAD, conforme o regramento estadual da Bahia, é de:", options: ["A) 30 dias, prorrogáveis por mais 30.", "B) 60 dias, não admitindo prorrogação.", "C) 60 dias, prorrogáveis por igual período (total 120 dias).", "D) 90 dias úteis ininterruptos.", "E) 120 dias, prorrogáveis por mais 120."], correct: 2, explanation: "O prazo de conclusão do PAD é de 60 dias, admitida a prorrogação por mais 60 dias quando as circunstâncias o exigirem." },
+            { id: 66, topic: "Decreto 12830/11 - Comissões", text: "A Comissão Processante responsável por conduzir a Sindicância Acusatória ou o PAD deve observar requisitos rigorosos de formação. Sobre a sua composição, assinale a correta:", options: ["A) Será composta por três servidores, independentemente de estabilidade.", "B) Será composta por dois servidores estáveis.", "C) Será composta por três servidores estáveis, sendo o presidente preferencialmente bacharel em Direito.", "D) O presidente da comissão deve ter cargo hierarquicamente inferior ao indiciado.", "E) Podem compor a comissão servidores em estágio probatório, desde que tenham formação jurídica."], correct: 2, explanation: "Art. 13. A comissão do PAD é de 3 servidores ESTÁVEIS (logo, sem estágio probatório), com presidente superior ou de mesmo nível, sendo preferencialmente bacharel em Direito." },
+            { id: 67, topic: "Decreto 12830/11 - Impedimentos", text: "Estão impedidos de compor a Comissão Sindicante ou Processante (PAD), EXCETO:", options: ["A) O cônjuge do denunciante.", "B) O companheiro ou parente até o terceiro grau do acusado.", "C) O chefe imediato do acusado, quando houver subordinação direta.", "D) Qualquer servidor subordinado ao indiciado.", "E) O servidor de secretaria distinta que possua cargo de mesma hierarquia do acusado."], correct: 4, explanation: "Art. 15. Impedimentos: cônjuge/companheiro, parentes até 3º grau de denunciante/acusado, amigos íntimos, inimigos ou subordinados. Servidor de outra pasta no mesmo nível NÃO é impedido." },
+            { id: 68, topic: "Decreto 12830/11 - Afastamento Preventivo", text: "Para evitar que o servidor interfira na apuração das irregularidades durante o PAD, a autoridade instauradora pode determinar seu afastamento preventivo. Esse afastamento será de até:", options: ["A) 30 dias sem remuneração.", "B) 30 dias com remuneração, prorrogáveis por mais 30.", "C) 30 dias com remuneração, prorrogáveis por mais 60 (totalizando 90 dias).", "D) 60 dias com remuneração, improrrogáveis.", "E) 120 dias com remuneração parcial."], correct: 2, explanation: "Com base na Lei 6.677/94 aplicada ao PAD baiano, o afastamento preventivo tem prazo de até 30 dias, podendo ser prorrogado por até 90 dias no total, COM REMUNERAÇÃO." },
+            { id: 69, topic: "Decreto 12830/11 - Citação", text: "Analise o trecho do Decreto 12.830: 'Se o indiciado estiver em lugar incerto ou não sabido, a sua citação será feita por...' Assinale a alternativa que completa a lacuna da regra do PAD da Bahia:", options: ["A) Edital publicado no Diário Oficial por 3 vezes consecutivas.", "B) Edital publicado no Diário Oficial, com prazo de 15 dias para defesa.", "C) Edital publicado no Diário Oficial, com prazo de 30 dias.", "D) Citação via e-mail corporativo.", "E) Citação via edital com prazo de 5 dias."], correct: 1, explanation: "Quando em local incerto, a citação se dá por edital publicado no Diário Oficial, marcando-se prazo de 15 dias para a defesa." },
+            { id: 70, topic: "Decreto 12830/11 - Indiciamento", text: "O indiciamento formal do servidor no PAD ocorrerá após a fase de instrução. Caso haja mais de um indiciado com procuradores diferentes, o prazo para defesa escrita será de:", options: ["A) 10 dias para todos em comum.", "B) 10 dias consecutivos para cada um.", "C) 20 dias (prazo comum).", "D) 30 dias úteis em comum.", "E) 15 dias para o primeiro e 5 para os demais."], correct: 2, explanation: "Se houver apenas um indiciado, o prazo de defesa é de 10 dias. Havendo dois ou mais com procuradores distintos, o prazo será COMUM de 20 dias." },
+            { id: 71, topic: "Decreto 12830/11 - Revelia", text: "Ocorre a Revelia quando o servidor regularmente citado não apresenta defesa no prazo legal. Nesse caso, a autoridade instauradora deverá:", options: ["A) Aplicar a penalidade imediatamente, por confissão ficta.", "B) Suspender o processo até que o acusado compareça.", "C) Designar um defensor dativo, que deverá ser ocupante de cargo superior ou de mesmo nível.", "D) Arquivar o processo por falta de manifestação.", "E) Nomear um advogado particular pago pelo Estado."], correct: 2, explanation: "No PAD, não existe punição automática por revelia. Declara-se a revelia e o Presidente designa um defensor dativo (servidor de cargo superior ou igual nível) para defender o acusado." },
+            { id: 72, topic: "Decreto 12830/11 - Testemunhas", text: "No que se refere ao arrolamento de testemunhas na Sindicância Acusatória e no PAD (Bahia), julgue as afirmativas (V ou F): ( ) As testemunhas são intimadas com 48h de antecedência mínima. ( ) O acusado pode arrolar no PAD até 8 testemunhas. ( ) Na Sindicância Acusatória, o limite é de 3 testemunhas por indiciado. Sequência:", options: ["A) V, V, V", "B) V, F, V", "C) F, F, F", "D) F, V, F", "E) V, V, F"], correct: 0, explanation: "Afirmativas baseadas na doutrina e aplicação subsidiária do processo na BA. PAD admite até 8 testemunhas; Sindicância admite rito sumário com até 3 testemunhas." },
+            { id: 73, topic: "Decreto 12830/11 - Relatório Final", text: "A comissão do PAD, após analisar a defesa, elaborará um relatório minucioso. Sobre o relatório, é INCORRETO afirmar:", options: ["A) Deve ser conclusivo quanto à inocência ou responsabilidade do servidor.", "B) Pode sugerir a absolvição ou arquivamento do feito.", "C) Vincula obrigatoriamente a decisão final da autoridade julgadora.", "D) Deve indicar o dispositivo legal que tipificou a infração, caso proponha punição.", "E) Resumirá as peças principais dos autos."], correct: 2, explanation: "O relatório da comissão opina, sugere, mas NÃO VINCULA o julgamento. A autoridade pode julgar de forma contrária ao relatório, desde que motive sua decisão." },
+            { id: 74, topic: "Decreto 12830/11 - Julgamento", text: "Após o recebimento do processo com o Relatório Final da Comissão, a autoridade julgadora terá um prazo para proferir sua decisão. Esse prazo é de:", options: ["A) 10 dias.", "B) 15 dias.", "C) 20 dias.", "D) 30 dias.", "E) 60 dias."], correct: 2, explanation: "Recebido o processo, a autoridade competente proferirá a sua decisão no prazo de 20 (vinte) dias." },
+            { id: 75, topic: "Decreto 12830/11 - Revisão do PAD", text: "Sobre o instituto da Revisão do Processo Administrativo Disciplinar (PAD), assinale a correta:", options: ["A) Pode ser requerida a qualquer tempo, desde que surjam fatos novos ou circunstâncias suscetíveis de provar a inocência do punido.", "B) O prazo máximo para pedir a revisão é de 5 anos após a punição.", "C) Da revisão pode resultar agravamento da pena (reformatio in pejus).", "D) Só pode ser pedida pelo próprio punido, sendo vedado à família após falecimento.", "E) Tem efeito suspensivo automático sobre a pena já aplicada."], correct: 0, explanation: "A revisão pode ocorrer A QUALQUER TEMPO se houver fatos novos. Não pode resultar agravamento da pena (proibição de reformatio in pejus). O efeito suspensivo NÃO é automático." },
+            { id: 76, topic: "Decreto 12830/11 - Fases do PAD", text: "O Processo Administrativo Disciplinar (PAD) desenvolve-se através de fases rigorosamente estruturadas. Assinale a alternativa que elenca corretamente e na ordem as três fases principais do PAD:", options: ["A) Inquérito, Instauração e Defesa.", "B) Instauração, Inquérito Disciplinar (instrução, defesa e relatório) e Julgamento.", "C) Acusação, Instrução Probatória e Condenação.", "D) Sindicância, PAD e Revisão.", "E) Instauração, Instrução Contraditória e Recurso Administrativo."], correct: 1, explanation: "Nos termos da legislação disciplinar aplicável na Bahia, o PAD desenvolve-se nas fases de: I - instauração; II - inquérito disciplinar (que compreende instrução, defesa e relatório); III - julgamento." },
+            { id: 77, topic: "Decreto 12830/11 - Sanidade Mental", text: "Quando houver dúvida fundada sobre a sanidade mental do indiciado no decorrer do PAD, a Comissão Processante deverá:", options: ["A) Suspender imediatamente o PAD e aplicar pena de advertência.", "B) Propor à autoridade instauradora que ele seja submetido a exame por junta médica oficial, em incidente processado em auto apartado.", "C) Concluir o processo com base nos depoimentos das chefias e sugerir a demissão.", "D) Exigir que o próprio servidor custeie e apresente um laudo psiquiátrico em 5 dias.", "E) Arquivar o PAD, pois o Estado não pode punir servidores doentes."], correct: 1, explanation: "Havendo dúvida sobre a sanidade, o presidente da comissão proporá à autoridade instauradora a submissão do indiciado a exame por junta médica, sendo o incidente processado em apenso." },
+            { id: 78, topic: "Decreto 12830/11 - Interrogatório", text: "Em relação à ordem das oitivas na fase de instrução probatória do PAD, é correto afirmar que o interrogatório do indiciado:", options: ["A) Ocorre no início da instrução probatória, antes de qualquer testemunha.", "B) Ocorre obrigatoriamente junto com a oitiva da testemunha de acusação (acareação obrigatória).", "C) Ocorre após a oitiva das testemunhas (de acusação e de defesa), garantindo o pleno contraditório.", "D) É uma etapa facultativa que depende da autorização exclusiva do Secretário de Estado.", "E) Só ocorrerá se o indiciado não apresentar advogado constituído."], correct: 2, explanation: "Para garantir o contraditório e a ampla defesa, o indiciado é a última pessoa a ser ouvida (interrogatório), momento em que já conhece todas as provas e depoimentos das testemunhas arroladas." },
+            { id: 79, topic: "Decreto 12830/11 - Acareação", text: "Julgue as afirmativas sobre a Acareação (V ou F): ( ) Poderá ocorrer sempre que os depoimentos de testemunhas ou indiciados divergirem sobre fatos ou circunstâncias essenciais. ( ) A acareação é proibida entre o indiciado e a testemunha de acusação. ( ) A recusa da testemunha ou do indiciado em participar da acareação implica confissão automática.", options: ["A) V, F, F", "B) V, V, V", "C) F, F, F", "D) V, F, V", "E) F, V, F"], correct: 0, explanation: "A 1ª é Verdadeira (acareação serve para dirimir divergências). A 2ª é Falsa (não é proibida, é exatamente para isso que serve). A 3ª é Falsa (ninguém é obrigado a produzir prova contra si ou será punido com confissão por não acarear, julga-se com o que há nos autos)." },
+            { id: 80, topic: "Decreto 12830/11 - Provas e Diligências", text: "No âmbito do inquérito disciplinar, o presidente da comissão processante poderá indeferir pedidos de provas (como oitivas, perícias ou acareações) formulados pelo indiciado, quando:", options: ["A) Em nenhuma hipótese, sob pena de nulidade absoluta do processo.", "B) Tratar-se de prova pericial, que é exclusividade da acusação.", "C) O indiciado já possuir mais de uma advertência no currículo.", "D) Considerá-los impertinentes, meramente protelatórios, ou de nenhum interesse para o esclarecimento dos fatos.", "E) A defesa for realizada por advogado público e não particular."], correct: 3, explanation: "Com fulcro no princípio da razoável duração do processo, a comissão não está obrigada a deferir todas as provas, podendo indeferir motivadamente aquelas que sejam impertinentes ou protelatórias." },
+            { id: 81, topic: "Decreto 12830/11 - Julgamento Contrário", text: "O Relatório Final da Comissão conclui pela inocência do servidor. A autoridade julgadora competente, ao receber os autos, constata que as provas apontam claramente para uma infração grave. Neste caso, a autoridade:", options: ["A) Está vinculada ao relatório e deve absolver o servidor obrigatoriamente.", "B) Deve instaurar um novo PAD do zero, com uma nova comissão.", "C) Pode julgar contrariamente às conclusões da comissão (inclusive agravando a pena ou aplicando punição), desde que motive sua decisão nas provas dos autos.", "D) Só pode julgar contrariamente se tiver autorização prévia do Tribunal de Justiça.", "E) Deve encaminhar os autos ao Ministério Público, eximindo-se de julgar."], correct: 2, explanation: "A autoridade julgadora não está estritamente vinculada ao relatório da comissão. Pode discordar, agravar a pena, atenuar ou isentar, desde que a decisão seja devidamente fundamentada e baseada nas provas do processo." },
+            { id: 82, topic: "Decreto 12830/11 - Sigilo", text: "No tocante à publicidade dos atos, o Decreto 12.830/11 e regras correlatas determinam que:", options: ["A) O PAD deve ser integralmente publicado em Diário Oficial, desde a instauração até aos depoimentos.", "B) As reuniões e as audiências das comissões (Sindicância e PAD) terão caráter reservado.", "C) A imprensa deve ter acesso livre às audiências para garantir a transparência do Estado.", "D) O servidor tem o direito de realizar o seu interrogatório em praça pública, se assim o desejar.", "E) O sigilo é eterno, não podendo ser quebrado nem após o julgamento definitivo."], correct: 1, explanation: "Art. 14 do Decreto 12.830/11: 'As reuniões e as audiências das comissões terão caráter reservado'. O sigilo protege a intimidade do acusado e o sucesso das investigações probatórias." },
+            { id: 83, topic: "Decreto 12830/11 - Interrupção da Prescrição", text: "A ocorrência de infração disciplinar sujeita-se à prescrição. Qual dos seguintes atos interrompe o curso do prazo prescricional?", options: ["A) O simples conhecimento do fato pela chefia imediata, mesmo sem comunicação formal.", "B) O pedido de licença-prémio do servidor.", "C) A instauração de Sindicância ou a instauração de Processo Administrativo Disciplinar (PAD).", "D) A aposentadoria voluntária do servidor indiciado.", "E) A confissão informal aos colegas de trabalho."], correct: 2, explanation: "A abertura de Sindicância ou a instauração de PAD interrompe a prescrição, até a decisão final proferida por autoridade competente (com limite legal de tempo para não ser eterna)." },
+            { id: 84, topic: "Decreto 12830/11 - Independência das Instâncias", text: "O servidor cometeu um ato que configura infração disciplinar e crime. Foi absolvido no processo penal. A absolvição criminal afastará a responsabilidade administrativa APENAS quando:", options: ["A) A absolvição penal ocorrer por insuficiência de provas.", "B) A absolvição penal basear-se na inexistência do fato ou na negativa formal de autoria.", "C) Ocorrer prescrição no processo penal.", "D) O juiz penal conceder perdão judicial.", "E) O servidor pagar a fiança estipulada no processo criminal."], correct: 1, explanation: "As instâncias são independentes. A absolvição criminal só repercute no PAD (vinculando a Administração) se o juiz criminal disser categoricamente que 'o fato não existiu' ou que 'o servidor não foi o autor'." },
+            { id: 85, topic: "Decreto 12830/11 - Atuação da Defesa", text: "Sobre o direito à defesa e à presença do advogado no PAD, é correto afirmar consoante o entendimento pacificado nos tribunais (Súmula Vinculante nº 5 do STF):", options: ["A) A ausência de advogado constituído durante o PAD gera a nulidade absoluta do processo.", "B) A falta de defesa técnica por advogado no processo administrativo disciplinar não ofende a Constituição.", "C) O Estado é obrigado a pagar um advogado particular para o servidor que não puder arcar com as custas.", "D) É proibido ao servidor ser assistido por advogado na Sindicância, reservando-se este direito apenas para o PAD.", "E) O advogado do servidor tem o poder de presidir a Comissão Processante se assim requerer."], correct: 1, explanation: "Súmula Vinculante nº 5 do Supremo Tribunal Federal (cobrida frequentemente pela IBFC): A presença de advogado no PAD é facultativa, e a sua ausência não gera inconstitucionalidade nem nulidade, desde que garantida a ampla defesa pessoal ou por defensor dativo." },
+            { id: 86, topic: "Decreto 12830/11 - O Secretário da Comissão", text: "A Comissão Processante exige organização e registo formal dos atos. A função de secretário da comissão recairá sobre:", options: ["A) Um servidor do Tribunal de Justiça cedido ao Executivo.", "B) Um estagiário de Direito remunerado pelo Estado.", "C) Um dos membros da comissão, ou servidor designado pelo presidente para esse fim.", "D) O membro mais novo (menos tempo de serviço) da comissão, obrigatoriamente.", "E) O chefe do departamento de Recursos Humanos do órgão."], correct: 2, explanation: "O Presidente da Comissão designará um servidor para secretariar os trabalhos, podendo a escolha recair sobre um dos próprios membros da comissão processante." },
+            { id: 87, topic: "Decreto 12830/11 - Competência Julgadora", text: "O PAD foi concluído com a sugestão de pena de demissão do servidor estável. No âmbito do Executivo Estadual (BA), a aplicação das penalidades de demissão e de cassação de aposentadoria é de competência privativa do(a):", options: ["A) Secretário da Educação, no caso de servidor lotado na SEC.", "B) Governador do Estado.", "C) Corregedor Geral do Estado.", "D) Diretor Geral da Escola onde o servidor atua.", "E) Presidente da Assembleia Legislativa."], correct: 1, explanation: "De acordo com o Estatuto dos Servidores (Lei 6677), a penalidade máxima (demissão, cassação de aposentadoria ou disponibilidade) é de competência do Governador do Estado." },
+            { id: 88, topic: "Decreto 12830/11 - Nulidades", text: "Julgue (V ou F): ( ) A nulidade de um ato processual não prejudica os atos subsequentes que dele não dependam diretamente. ( ) Declarada a nulidade absoluta de todo o processo, a prescrição é considerada consumada a favor do indiciado. ( ) Vigora no PAD o princípio 'pas de nullité sans grief' (não há nulidade sem prejuízo).", options: ["A) V, F, V", "B) V, V, V", "C) F, V, F", "D) V, F, F", "E) F, F, V"], correct: 0, explanation: "A 1ª e a 3ª estão corretas (só se anula o que está viciado e apenas se houver prejuízo à defesa). A 2ª está Falsa, porque se o PAD for anulado por vício de forma, a autoridade julgará nulo, MAS a instauração do novo PAD reabre a contagem sem consolidar a prescrição automaticamente." },
+            { id: 89, topic: "Decreto 12830/11 - Revelia e Citação", text: "No caso de citação por edital para servidor em local incerto, o prazo para apresentação de defesa (15 dias) começará a correr:", options: ["A) Da data de elaboração do edital pela Comissão.", "B) Da última publicação do edital no Diário Oficial.", "C) Da data em que o fato se tornou conhecido da Administração.", "D) Quinze dias após a primeira publicação.", "E) Da data de instauração da Portaria do PAD."], correct: 1, explanation: "Quando citado por edital, o prazo para defesa do servidor tem a sua contagem iniciada a partir da última publicação oficial do chamamento." },
+            { id: 90, topic: "Decreto 12830/11 - Prescrição das Penas", text: "O direito de a Administração Pública Estadual aplicar penas disciplinares prescreve em prazos específicos. Qual a alternativa que correlaciona corretamente a pena com o seu prazo prescricional?", options: ["A) Advertência - 180 dias; Suspensão - 2 anos; Demissão - 5 anos.", "B) Advertência - 1 ano; Suspensão - 3 anos; Demissão - 10 anos.", "C) Advertência - 30 dias; Suspensão - 180 dias; Demissão - 2 anos.", "D) Advertência - 5 anos; Suspensão - 5 anos; Demissão - 5 anos.", "E) Não existe prescrição para infrações disciplinares na Bahia."], correct: 0, explanation: "Lei 6.677/94 (Regime Jurídico da BA): 180 dias para penas de advertência; 2 anos para suspensão; e 5 anos para demissão, cassação de aposentadoria/disponibilidade e destituição de cargo em comissão." },
+            {id: 91, topic: "Lei Maria da Penha - Diretrizes Educacionais", text: "Como o foco do seu concurso é a Secretaria da Educação, a banca IBFC exigirá o conhecimento do Artigo 8º da Lei Maria da Penha. A política pública que visa coibir a violência doméstica inclui o destaque, nos currículos escolares de todos os níveis de ensino, para os conteúdos relativos aos direitos humanos. Segundo a lei, a promoção desses conteúdos deve ser pautada na:", options: ["Equidade de gênero e de raça ou etnia, extinguindo disciplinas tradicionais exatas.", "Inclusão de disciplina específica e isolada sobre direitos das mulheres apenas no Ensino Médio.", "Equidade de gênero e de raça ou etnia e no problema das violências doméstica e familiar contra a mulher.", "Obrigatoriedade de professores do sexo feminino para ministrar tais conteúdos no ensino fundamental.", "Criação de delegacias especializadas dentro do ambiente escolar, com foco repressivo."], answer: 2, explanation: "Art. 8º, inciso IX: O destaque nos currículos escolares deve abordar os conteúdos relativos aos direitos humanos, à equidade de gênero e de raça ou etnia e ao problema das violências doméstica e familiar contra a mulher. Não há criação de disciplina isolada, mas sim a transversalidade do tema."},
+            {id: 92, topic: "Lei Maria da Penha - Formas de Violência", text: "A IBFC costuma testar se o candidato confunde os tipos de violência. Julgue as afirmativas abaixo com base no Art. 7º:\n\nI. A conduta que limite ou anule o exercício dos direitos reprodutivos da mulher configura Violência Sexual.\nII. A conduta de constranger a mulher a presenciar, manter ou a participar de relação sexual não desejada, mediante intimidação, configura Violência Psicológica.\nIII. A conduta que configure calúnia, difamação ou injúria caracteriza Violência Moral.\n\nAssinale a alternativa que apresenta a(s) afirmativa(s) CORRETA(S):", options: ["Apenas a I.", "Apenas a III.", "Apenas I e II.", "Apenas I e III.", "I, II e III."], answer: 3, explanation: "A afirmativa II está INCORRETA. Constranger a presenciar ou participar de relação sexual não desejada é, por definição expressa do Art. 7º, III, caracterizado como VIOLÊNCIA SEXUAL, e não psicológica. As afirmativas I (Sexual) e III (Moral) estão corretas."},
+            {id: 93, topic: "Direitos da Mulher - Proteção Trabalhista", text: "Para preservar a integridade física e psicológica da mulher, o juiz assegurará à ofendida a manutenção do vínculo trabalhista, quando necessário o afastamento do local de trabalho. De acordo com a Lei nº 11.340/2006, qual é o limite de tempo estipulado para essa manutenção?", options: ["Até 3 (três) meses.", "Até 6 (seis) meses.", "Até 12 (doze) meses.", "Por prazo indeterminado, até o trânsito em julgado.", "No máximo 30 (trinta) dias úteis."], answer: 1, explanation: "Art. 9º, § 2º, inciso II: manutenção do vínculo trabalhista, quando necessário o afastamento do local de trabalho, por até seis meses. Essa é uma 'pegadinha numérica' clássica e muito recorrente na IBFC para cargos administrativos."},
+            {id: 94, topic: "Lei Maria da Penha - Prisão Preventiva", text: "Em relação à restrição de liberdade do agressor, a prisão preventiva tem regras próprias no contexto da violência doméstica. Assinale a alternativa em estrita concordância com o Artigo 20 da Lei Maria da Penha:", options: ["Caberá prisão preventiva apenas após o trânsito em julgado de sentença penal condenatória.", "O juiz poderá decretá-la de ofício, a requerimento do Ministério Público ou mediante representação da autoridade policial, em qualquer fase do inquérito policial ou da instrução criminal.", "A prisão preventiva só pode ser decretada se o agressor for reincidente em crimes com emprego de violência.", "O Delegado de Polícia possui competência supletiva para decretar a prisão preventiva caso não haja juiz na comarca.", "O juiz não pode revogar a prisão preventiva de ofício; deve aguardar requerimento exclusivo da ofendida."], answer: 1, explanation: "Art. 20. Em qualquer fase do inquérito policial ou da instrução criminal, caberá a prisão preventiva do agressor, decretada pelo juiz, de ofício, a requerimento do MP ou representação da autoridade policial. Importante: Delegado NUNCA decreta prisão preventiva (ele pode fazer prisão em flagrante ou afastar do lar - Art. 12-C)."},
+            {id: 95, topic: "Lei Maria da Penha - Medidas à Ofendida (Assistência)", text: "Dentre as garantias da mulher em situação de violência, a lei prevê o acesso a serviços específicos de saúde. Quando a mulher sofrer violência sexual, qual das providências abaixo é expressamente garantida pela Lei Maria da Penha (Art. 9º, § 3º)?", options: ["Acesso imediato a cirurgias plásticas reparadoras exclusivas na rede privada.", "Isenção total de impostos estaduais sobre medicamentos de uso contínuo.", "Acesso aos serviços de contracepção de emergência e profilaxia das Doenças Sexualmente Transmissíveis (DST) e da Síndrome da Imunodeficiência Adquirida (AIDS).", "Internação psiquiátrica compulsória por 15 dias para avaliação de traumas.", "Realização de exame de DNA gratuito para todos os familiares da vítima, independente do contexto."], answer: 2, explanation: "Art. 9º, § 3º: A assistência à mulher compreenderá o acesso aos serviços de contracepção de emergência, a profilaxia das DSTs e AIDS, entre outros procedimentos médicos necessários. É o acolhimento emergencial na rede SUS para vítimas de violência sexual."},
+            {id: 96, topic: "Direitos da Mulher - Remoção de Servidora", text: "A banca IBFC gosta de questões voltadas para o serviço público. A Lei Maria da Penha determina que o juiz assegurará à ofendida, para preservar sua integridade, o acesso prioritário à remoção. Essa garantia aplica-se a:", options: ["Trabalhadoras da iniciativa privada que possuam mais de 5 anos de carteira assinada.", "Mulheres em situação de rua alocadas em abrigos municipais temporários.", "Servidoras públicas civis apenas da esfera federal, não se aplicando a estados e municípios.", "Servidora pública, integrante da administração direta ou indireta.", "Profissionais autônomas que desejam alterar a sede de seu CNPJ com isenção de taxas."], answer: 3, explanation: "Art. 9º, § 2º, inciso I: O juiz assegurará acesso prioritário à remoção quando a ofendida for servidora pública, integrante da administração direta ou indireta. Como você fará concurso para Técnico Administrativo do Estado (SEC/BA), este inciso é leitura obrigatória!"},
+            {id: 97, topic: "Lei Maria da Penha - Medidas que obrigam o Agressor", text: "O juiz poderá aplicar ao agressor medidas protetivas de urgência, de imediato ou em conjunto com outras. Julgue as medidas abaixo:\n\nI. Suspensão da posse ou restrição do porte de armas, com comunicação ao órgão competente.\nII. Afastamento do lar, domicílio ou local de convivência com a ofendida.\nIII. Restrição ou suspensão de visitas aos dependentes menores, independentemente de oitiva da equipe multidisciplinar.\n\nEstão corretas, no rigor da lei, as afirmativas:", options: ["I e II, apenas.", "II e III, apenas.", "I e III, apenas.", "Apenas a II.", "I, II e III."], answer: 0, explanation: "A afirmativa III está INCORRETA pois o Art. 22, inciso IV exige expressamente que a restrição de visitas aos menores ocorra 'ouvida a equipe de atendimento multidisciplinar ou serviço similar'. As afirmativas I (Art. 22, I) e II (Art. 22, II) estão literais e corretas."},
+            {id: 98, topic: "Lei Maria da Penha - Direito a Acompanhante", text: "Durante o atendimento policial e pericial, a Lei Maria da Penha (com alterações recentes) assegurou uma garantia fundamental para não isolar a vítima. Assinale a alternativa correta sobre esse direito (Art. 10-A, § 2º):", options: ["A ofendida tem o dever de ser acompanhada exclusivamente por um advogado constituído ou Defensor Público.", "É assegurado à mulher em situação de violência doméstica o direito de ser acompanhada por profissional de saúde do CAPS.", "É garantido a ela o direito de estar acompanhada por pessoa de sua indicação, durante o atendimento policial e pericial.", "A autoridade policial pode vetar o acompanhante se entender que este não possui grau de parentesco comprovado.", "A mulher só poderá ter acompanhante se for menor de 18 anos ou possuir deficiência cognitiva."], answer: 2, explanation: "Art. 10-A, § 2º (Incluído pela Lei 14.321/2022): 'À mulher em situação de violência doméstica e familiar é assegurado o direito de ser acompanhada por pessoa de sua indicação, durante o atendimento policial ou pericial'. Uma novidade legislativa fortíssima para concursos."},
+            {id: 99, topic: "Lei Maria da Penha - Intimação da Vítima", text: "Para resguardar a vida da ofendida, o legislador criou mecanismos de aviso prévio sobre os passos processuais do agressor. Segundo o Art. 21, a ofendida deverá ser notificada dos atos processuais, especialmente sobre:", options: ["O ingresso e a saída do agressor da prisão, sendo tal intimação feita preferencialmente pelo próprio agressor.", "O ingresso e a saída do agressor da prisão, devendo tal notificação ser realizada pessoalmente ou por intermédio de seu advogado.", "O valor dos honorários do advogado do agressor, para garantir a paridade de armas.", "O horário exato em que o agressor fará suas refeições na unidade prisional.", "A transferência do agressor apenas se este for enviado para outro Estado da Federação."], answer: 1, explanation: "Art. 21: A ofendida deverá ser notificada dos atos processuais (...), especialmente do ingresso e da saída do agressor da prisão, sem prejuízo da intimação do advogado constituído ou do defensor público."},
+            {id: 100, topic: "Direitos da Mulher - Matrícula Escolar", text: "Questão essencial para a SEC/BA. Uma mãe, vítima de violência doméstica, foge de seu domicílio para proteger sua vida e a de seus filhos de 8 e 10 anos. O que a Lei Maria da Penha (Art. 9º, § 2º, III) garante a esta mulher em relação à educação dos filhos?", options: ["Isenção de taxas em escolas particulares da região para onde ela fugiu.", "Garante a matrícula dos dependentes em instituição de educação básica mais próxima de seu domicílio, ou a transferência deles, independentemente da existência de vaga.", "Concede o direito de ensino domiciliar (homeschooling) aprovado temporariamente pelo Conselho Tutelar.", "A matrícula apenas se a mulher apresentar boletim de ocorrência e aguardar a fila de espera do município.", "Passe livre escolar gratuito, mas sem garantia de vaga imediata na escola próxima."], answer: 1, explanation: "Art. 9º, § 2º, inciso III (Incluído pela Lei nº 13.882/2019): É garantida 'a matrícula dos dependentes da ofendida em instituição de educação básica mais próxima de seu domicílio, ou a transferência deles para essa instituição, independentemente da existência de vaga'. IBFC ama esse 'independentemente da existência de vaga'."},
+            {id: 101, topic: "Lei Maria da Penha - Atendimento Policial Especializado", text: "Conforme dispõe a Lei nº 11.340/2006, ao ser vitimada por violência doméstica, o atendimento prestado à mulher no âmbito policial possui regras estritas de humanização. Sobre a oitiva da ofendida (Art. 10-A), é CORRETO afirmar que:", options: ["A inquirição deve ser feita por um painel de delegados, garantindo a publicidade do ato.", "A inquirição da mulher deverá ser realizada, obrigatoriamente, por juiz de direito na própria delegacia.", "Sempre que possível, o atendimento e a inquirição serão realizados por servidor policial do sexo feminino, preferencialmente com capacitação prévia.", "A vítima será acareada com o agressor para evitar denúncias caluniosas logo no primeiro atendimento.", "Perguntas sobre a vida sexual pregressa da vítima são obrigatórias para contextualizar o ciúme do agressor."], answer: 2, explanation: "Art. 10-A. É direito da mulher (...). § 1º: A inquirição (...) obedecerá às seguintes diretrizes: I - salvaguarda da integridade; II - não revitimização; III - 'sempre que possível, o atendimento será realizado por policial do sexo feminino, preferencialmente com capacitação'."},
+            {id: 102, topic: "Lei Maria da Penha - Auxílio-Aluguel", text: "A Lei Maria da Penha tem sofrido inovações para conferir maior autonomia financeira à mulher para que consiga romper o ciclo da violência. Dentre as medidas protetivas de urgência elencadas no Art. 23 (que protegem a ofendida), o juiz poderá determinar a concessão de:", options: ["Auxílio-desemprego em dobro pago pelo agressor.", "Bolsa Família com valor acrescido em 50%, independentemente da renda.", "Concessão de auxílio-aluguel, com valor fixado em função de sua situação de vulnerabilidade social e econômica, por período não superior a 6 (seis) meses.", "Aposentadoria por invalidez psicológica temporária de até 2 anos.", "Fornecimento de cestas básicas custeadas exclusivamente pela empresa onde o agressor trabalha."], answer: 2, explanation: "Art. 23, inciso VI (Incluído pela Lei nº 14.674/2023 - Lei novíssima!): Concessão de auxílio-aluguel, com valor fixado em função de sua situação de vulnerabilidade social e econômica, por período não superior a 6 (seis) meses. Atenção aos 6 meses!"},
+            {id: 103, topic: "Lei Maria da Penha - Comparecimento a Programas", text: "Como medida para evitar a reincidência e mudar o padrão comportamental do ofensor, o juiz poderá determinar (Art. 22) como medida protetiva de urgência que obriga o agressor:", options: ["A prestação de serviços à comunidade por 5 anos ininterruptos.", "O comparecimento do agressor a programas de recuperação e reeducação.", "A doação compulsória de sangue e medula óssea, como forma de reparação social.", "O banimento do agressor da cidade onde o crime ocorreu por tempo indeterminado.", "A participação do agressor em cultos religiosos indicados pela vítima."], answer: 1, explanation: "Art. 22, inciso VI: O juiz pode obrigar o agressor ao comparecimento a programas de recuperação e reeducação. Essa inclusão visa a ressocialização cognitiva do agressor e é amplamente cobrada."},
+            {id: 104, topic: "Lei Maria da Penha - Formas de Violência", text: "Analise a conduta descrita: 'O cônjuge que acessa as redes sociais de sua esposa sem autorização, apaga e-mails de propostas de emprego e esconde seu diploma universitário para que ela não consiga ingressar no mercado de trabalho'. Segundo os preceitos da Lei nº 11.340/2006, tal conduta ilustra a configuração simultânea, precipuamente, de quais tipos de violência?", options: ["Moral e Institucional.", "Física e Moral.", "Psicológica e Patrimonial.", "Sexual e Física.", "Institucional e Patrimonial."], answer: 2, explanation: "Apagar provas de emprego (dano emocional/controle comportamental) é Violência Psicológica (Art. 7, II). Esconder o diploma/documentos que a impede de trabalhar/exercer direitos é Violência Patrimonial (Art. 7, IV). IBFC gosta dessas 'situações-problema' em provas de nível médio/superior."},
+            {id: 105, topic: "Direitos da Mulher - Representação Criminal", text: "Célia foi vítima do crime de Ameaça (Art. 147 do Código Penal) perpetrado por seu ex-namorado. A ação penal para este crime, mesmo no âmbito da Lei Maria da Penha, é pública condicionada à representação. Caso Célia decida renunciar à representação (retirar a queixa), o procedimento formal exigido pela lei (Art. 16) prevê que isso só será admitido:", options: ["Na delegacia, mediante lavratura de termo próprio assinado pelo Delegado e 2 testemunhas.", "No Ministério Público, em audiência secreta presidida pelo promotor de justiça.", "Perante o juiz, em audiência especialmente designada com tal finalidade, antes do recebimento da denúncia e ouvido o Ministério Público.", "Perante o juiz, a qualquer momento do processo, até o trânsito em julgado da sentença condenatória.", "Por documento registrado em cartório e entregue via Correios à Vara Criminal."], answer: 2, explanation: "Art. 16. Só será admitida a renúncia à representação perante o juiz, em audiência especialmente designada com tal finalidade, ANTES DO RECEBIMENTO da denúncia e ouvido o Ministério Público. Lembre-se: Lesão corporal não aceita retratação; Ameaça, sim, mediante esta formalidade extrema."},
+            {id: 106, topic: "Lei Maria da Penha - Atribuições da Autoridade Policial", text: "A banca IBFC tenta confundir as obrigações da autoridade policial e do juiz. O Artigo 11 elenca as providências de emergência impostas à autoridade policial (Delegado). Qual das alternativas NÃO é uma competência emergencial atribuída diretamente ao delegado?", options: ["Fornecer transporte para a ofendida e seus dependentes para abrigo ou local seguro, quando houver risco de vida.", "Encaminhar a ofendida ao hospital ou posto de saúde e ao Instituto Médico Legal.", "Determinar a restituição imediata de bens subtraídos indevidamente da mulher pelo agressor.", "Acompanhar a ofendida para assegurar a retirada de seus pertences do local da ocorrência ou do domicílio familiar.", "Informar à ofendida os direitos a ela conferidos e os serviços disponíveis, inclusive assistência judiciária."], answer: 2, explanation: "Restituição de bens, bloqueio de contas, afastamento temporário de posses são MEDIDAS PROTETIVAS DE URGÊNCIA DE COMPETÊNCIA DO JUIZ (Art. 23 e Art. 24). O delegado adota medidas práticas de socorro e proteção física inicial (transporte, IML, retirar roupas de casa)."},
+            {id: 107, topic: "Lei Maria da Penha - Aplicação e Parentesco", text: "Julgue os itens quanto ao âmbito de proteção da LMP (Art. 5º):\n\nI. A aplicação da Lei Maria da Penha restringe-se às mulheres casadas ou em união estável registrada em cartório.\nII. As relações de violência abrangidas pela Lei independem de orientação sexual, garantindo proteção às mulheres em relacionamentos homoafetivos.\nIII. Empregada doméstica vítima de agressão pelo patrão no âmbito da residência pode estar amparada pela LMP, por figurar violência na unidade doméstica.\n\nEstão de acordo com a lei e a jurisprudência dominante as afirmativas:", options: ["I e II, apenas.", "II e III, apenas.", "I e III, apenas.", "Apenas a III.", "I, II e III."], answer: 1, explanation: "A afirmativa I está errada, pois a lei abrange relações de afeto esporádicas e não exige coabitação, muito menos casamento formal ou registro (Art. 5º, III). As afirmativas II (Art. 5º, P.U.) e III (violência no espaço de convívio doméstico, Art. 5º, I) estão corretas."},
+            {id: 108, topic: "Direitos da Mulher - Educação e Sigilo", text: "Outro ponto vital para os concursos de Secretarias de Educação: como forma de preservar os dependentes da ofendida, a legislação trouxe uma regra de segurança e sigilo escolar (Art. 9º, § 7º). Qual é essa determinação?", options: ["Transferência imediata dos filhos menores para abrigos do Estado para desvincular a guarda.", "Expulsão sumária do agressor caso seja professor na mesma rede de ensino.", "Obrigatoriedade do ensino a distância (EaD) compulsório para as crianças ameaçadas.", "As escolas deverão fornecer cópia do boletim de frequência apenas para o agressor.", "Averbação na ficha escolar das crianças sob sigilo para que apenas o juiz, promotor e Conselho Tutelar saibam do contexto de violência, garantindo o acesso da ofendida."], answer: 4, explanation: "Art. 9º, § 7º: A mulher tem o direito de ter acesso às informações sobre os dependentes matriculados na escola. O juiz deverá determinar, para preservar a segurança, o sigilo dos dados da ofendida e de seus dependentes no sistema educacional, para evitar que o agressor descubra o endereço da escola."},
+            {id: 109, topic: "Lei Maria da Penha - Cesta Básica e Multas", text: "Uma marca da política punitiva da Lei Maria da Penha é proibir que a violência contra a mulher seja tratada como infração de 'menor potencial' punida apenas com reparações brandas. Para esse fim, a Lei (Art. 17) PROÍBE expressamente aos agressores:", options: ["O trabalho forçado nas dependências da Delegacia da Mulher.", "O monitoramento eletrônico (tornozeleira).", "O pagamento de indenização por danos morais fixado na sentença penal condenatória.", "A aplicação de penas de cesta básica ou outras de prestação pecuniária, bem como o pagamento isolado de multa.", "A suspensão da Carteira Nacional de Habilitação do agressor."], answer: 3, explanation: "A letra do Art. 17 é taxativa: 'É vedada a aplicação... de penas de cesta básica ou outras de prestação pecuniária, bem como a substituição de pena que implique o pagamento isolado de multa'. A banca adora colocar que o pagamento de danos morais é proibido, mas na verdade a indenização à VÍTIMA é permitida e obrigatória (Art. 387, IV do CPP), o que é proibido é a 'pena' paga ao Estado/Instituições."},
+            {id: 110, topic: "Lei Maria da Penha - Condição Cível e Partilha", text: "Ao estruturar a competência dos Juizados de Violência Doméstica, a LMP autoriza que a ofendida interponha ações cíveis conectadas à violência diretamente no juizado criminal. Assinale a ação expressamente EXCLUÍDA da competência deste Juizado Especial (Art. 14-A, § 1º):", options: ["Ação de anulação de casamento.", "Ação de separação de corpos.", "Ação de dissolução de união estável.", "Ação de divórcio.", "Ação que tenha por objeto a pretensão relacionada à partilha de bens."], answer: 4, explanation: "Art. 14-A, § 1º: 'Exclui-se da competência dos Juizados de Violência Doméstica e Familiar contra a Mulher a pretensão relacionada à partilha de bens'. A partilha deve correr na Vara de Família comum, pois exige análise aprofundada de patrimônio, fugindo do caráter de urgência do Juizado da Mulher."},
+            {id: 111, topic: "Lei Maria da Penha - Afastamento pelo Delegado/Policial", text: "A IBFC cobra frequentemente as exceções da lei. Regra geral, quem afasta o agressor do lar é o Juiz. Contudo, verificada a existência de risco à vida ou à integridade física da mulher, o agressor será imediatamente afastado do lar, por determinação do Delegado de Polícia, QUANDO:", options: ["O crime ocorrer no período noturno ou aos finais de semana.", "O juiz da comarca demorar mais de 48 horas para proferir uma decisão.", "O município não for sede de comarca.", "A vítima solicitar o afastamento por escrito, com firma reconhecida.", "O agressor for reincidente em crimes contra a vida."], answer: 2, explanation: "Art. 12-C, inciso II. O agressor será afastado imediatamente pelo delegado de polícia quando o MUNICÍPIO NÃO FOR SEDE DE COMARCA. E ainda, pelo policial (inciso III), se o município não for sede de comarca e não houver delegado disponível no momento da denúncia."},
+            {id: 112, topic: "Lei Maria da Penha - Prazos do Juiz", text: "Recebido o expediente com o pedido da ofendida, caberá ao juiz, no prazo estrito determinado pela Lei nº 11.340/2006:", options: ["No prazo de 24 (vinte e quatro) horas, conhecer do expediente e do pedido e decidir sobre as medidas protetivas de urgência.", "No prazo de 48 (quarenta e oito) horas, conhecer do expediente e do pedido e decidir sobre as medidas protetivas de urgência.", "No prazo de 5 (cinco) dias úteis, intimar o Ministério Público para decidir sobre as medidas.", "Imediatamente, prender o agressor preventivamente, sem necessidade de oitiva.", "No prazo de 72 (setenta e duas) horas, encaminhar a ofendida para exame de corpo de delito antes de qualquer decisão."], answer: 1, explanation: "Art. 18, inciso I: Recebido o expediente com o pedido da ofendida, caberá ao juiz, NO PRAZO DE 48 (QUARENTA E OITO) HORAS, conhecer do pedido e decidir sobre as medidas protetivas. O prazo de 48h é o 'número mágico' da LMP para decisões do juiz e despachos do delegado."},
+            {id: 113, topic: "Lei Maria da Penha - Ação Penal na Lesão Corporal", text: "Tema sumulado pelo STJ e queridinho das bancas: Joana sofreu lesão corporal leve praticada por seu marido. A polícia instaurou inquérito. Uma semana depois, Joana perdoou o marido e deseja 'retirar a queixa'. Neste caso específico de lesão corporal no âmbito da violência doméstica:", options: ["A ação penal é pública condicionada à representação; Joana pode retirar a queixa em audiência especial perante o juiz.", "A ação penal é privada, cabendo a Joana prosseguir ou não com o processo.", "A ação penal é pública incondicionada; o Ministério Público prosseguirá com a ação penal independentemente da vontade de Joana.", "A ação penal será extinta se o casal comprovar que voltou a coabitar pacificamente.", "Joana poderá retirar a queixa apenas no momento da audiência de instrução e julgamento."], answer: 2, explanation: "Súmula 542 do STJ e jurisprudência do STF (ADI 4424): Nos crimes de LESÃO CORPORAL (mesmo leve ou culposa) praticados contra a mulher no âmbito doméstico, a ação penal é PÚBLICA INCONDICIONADA. A regra da audiência de retratação (Art. 16) aplica-se à Ameaça, não à lesão física."},
+            {id: 114, topic: "Lei Maria da Penha - O Único Crime da Lei", text: "A Lei Maria da Penha não criou crimes de homicídio ou lesão (estes estão no Código Penal), com UMA única exceção inserida posteriormente (Art. 24-A). Assinale a alternativa que indica corretamente o único crime tipificado diretamente dentro da Lei Maria da Penha:", options: ["Feminicídio tentado ou consumado.", "Descumprir decisão judicial que defere medidas protetivas de urgência.", "Tortura psicológica no âmbito familiar.", "Ocultação de bens no curso da separação judicial.", "Estupro marital (praticado pelo marido contra a esposa)."], answer: 1, explanation: "Art. 24-A: Descumprir decisão judicial que defere medidas protetivas de urgência. Pena – detenção, de 3 meses a 2 anos. É o único crime tipificado textualmente dentro da Lei 11.340/06."},
+            {id: 115, topic: "Lei Maria da Penha - Fiança Policial", text: "Em relação ao crime de descumprimento de medidas protetivas de urgência (Art. 24-A), existe uma regra específica e muito rigorosa sobre o pagamento de fiança. Assinale a correta:", options: ["A fiança pode ser arbitrada pelo Delegado de Polícia, desde que o agressor seja réu primário.", "Apenas a autoridade judicial poderá conceder fiança neste crime.", "Não cabe fiança em nenhuma hipótese, sendo crime inafiançável e imprescritível.", "A fiança é permitida na delegacia, limitada ao valor máximo de 1 salário mínimo.", "A vítima deve concordar formalmente com o arbitramento da fiança na delegacia."], answer: 1, explanation: "Art. 24-A, § 2º: Na hipótese de prisão em flagrante por este crime, APENAS A AUTORIDADE JUDICIAL (o juiz) poderá conceder fiança. O Delegado (autoridade policial) fica expressamente proibido de arbitrar fiança nesse caso específico!"},
+            {id: 116, topic: "Direitos da Mulher - Cirurgia Plástica Reparadora", text: "Ancorada nas garantias de reparação integral à mulher vítima de violência, a legislação prevê a obrigatoriedade da cirurgia plástica reparadora. Onde esse procedimento deve ser realizado de forma gratuita, de acordo com a lei?", options: ["Exclusivamente em clínicas particulares conveniadas com o Ministério da Justiça.", "Na rede de unidades integrantes do Sistema Único de Saúde (SUS).", "Em hospitais universitários federais apenas.", "Na rede privada, com custos ressarcidos obrigatoriamente pelo agressor.", "Apenas nos postos do Instituto Médico Legal (IML)."], answer: 1, explanation: "Lei 13.239/2015 e Art. 9º, § 4º da LMP: É assegurado à mulher vítima de violência que sofra dano estético ou deformidade a realização de cirurgia plástica reparadora na rede de unidades integrantes do Sistema Único de Saúde (SUS)."},
+            {id: 117, topic: "Lei Maria da Penha - Vedação aos Juizados Especiais", text: "O Art. 41 da Lei Maria da Penha estabelece uma restrição fundamental que mudou a história do combate à violência doméstica no Brasil. Aos crimes praticados com violência doméstica e familiar contra a mulher:", options: ["Não se aplica a Lei nº 9.099/1995 (Juizados Especiais Criminais), independentemente da pena prevista.", "Aplica-se a Lei dos Juizados Especiais apenas para os crimes com pena máxima de até 1 ano.", "Aplica-se a suspensão condicional do processo, desde que o agressor aceite aconselhamento.", "Aplica-se o rito sumaríssimo se a vítima não requerer medida protetiva.", "A vedação recai apenas sobre os crimes contra a vida, aplicando-se a Lei 9.099/95 às injúrias e ameaças."], answer: 0, explanation: "Art. 41: Aos crimes praticados com violência doméstica e familiar contra a mulher, INDEPENDENTEMENTE da pena prevista, NÃO SE APLICA a Lei no 9.099/1995. Isso impede as famosas 'penas de cesta básica', conciliações forçadas e ritos brandos."},
+            {id: 118, topic: "Lei Maria da Penha - Prioridade Processual", text: "Julgue os itens relativos à tramitação prioritária nos processos judiciais (Art. 104-A), foco constante em provas para tribunais e áreas administrativas:\n\nI. A mulher em situação de violência doméstica tem prioridade de tramitação em processos de separação ou divórcio.\nII. A prioridade de tramitação não abrange as ações de guarda e pensão alimentícia.\nIII. A prioridade na tramitação processual dependerá sempre de requerimento da ofendida, não podendo ser dada de ofício pelo juiz.\n\nEstá(ão) CORRETA(S):", options: ["Apenas I.", "Apenas I e II.", "Apenas III.", "Apenas I e III.", "I, II e III."], answer: 0, explanation: "Apenas I está correta. A II está errada porque a prioridade abrange QUALQUER processo cível ou criminal da vítima (divórcio, alimentos, guarda). A III está errada pois a prioridade DEVE ser concedida de ofício pelo juiz ao constatar o contexto de violência (Art. 104-A, § 1º)."},
+            {id: 119, topic: "Lei Maria da Penha - Medidas de Prevenção (Mídia)", text: "Dentre as diretrizes das políticas públicas (Art. 8º), a Lei impõe obrigações também aos meios de comunicação social. Destaca-se como responsabilidade da mídia na prevenção da violência doméstica:", options: ["Expor o rosto e os dados do agressor imediatamente após a prisão em flagrante, para alertar a sociedade.", "Coibir os papéis estereotipados que legitimem ou exacerbem a violência doméstica e familiar.", "Dedicar 10% da programação diária, compulsoriamente, a campanhas feministas.", "Ignorar casos de menor potencial para não gerar pânico social.", "Ocultar dados estatísticos sobre feminicídio em horários nobres para preservar as famílias."], answer: 1, explanation: "Art. 8º, inciso III: As políticas públicas devem observar o respeito aos meios de comunicação social, coibindo os papéis estereotipados que legitimem ou exacerbem a violência doméstica e familiar, de acordo com as diretrizes legais."},
+            {id: 120, topic: "Lei Maria da Penha - Ações Cíveis (Divórcio/Partilha)", text: "Joana, vítima de violência, ingressou com pedido de medida protetiva no Juizado de Violência Doméstica. Ela deseja aproveitar e entrar com o pedido de Divórcio e também realizar a Partilha dos Bens do casal na mesma Vara, por celeridade. Segundo a LMP (Art. 14-A):", options: ["O Juizado da Violência Doméstica é competente para ambas as ações cíveis, sem restrições.", "O Juizado da Violência Doméstica é competente para o divórcio, mas a pretensão relacionada à partilha de bens está excluída dessa competência.", "O Juizado não tem competência cível, Joana deve procurar a Vara de Família para ambas as ações.", "A partilha de bens será julgada pelo Juizado, mas o divórcio, por envolver estado civil, vai para a Vara de Família.", "Apenas o Ministério Público poderá ajuizar o divórcio no Juizado Especial, atuando como substituto processual."], answer: 1, explanation: "Art. 14-A: A ofendida tem a opção de propor ação de divórcio ou dissolução de união estável no Juizado de Violência Doméstica. PORÉM, o § 1º exclui expressamente a competência para a PARTILHA DE BENS, que exige dilação probatória incompatível com a urgência do Juizado da Mulher."},
+            {id: 121, topic: "Lei Maria da Penha - Apreensão de Armas", text: "Ao receber o expediente do delegado com o registro da ocorrência de violência doméstica, constatando que o agressor possui posse de arma de fogo, o juiz deverá, no prazo de 48 horas:", options: ["Notificar o Exército Brasileiro para intervir na residência.", "Determinar a apreensão imediata de arma de fogo sob a posse do agressor.", "Solicitar ao agressor que entregue a arma voluntariamente em até 10 dias úteis.", "Suspender o porte de arma apenas se o agressor for civil, preservando os militares.", "Suspender a posse, desde que a arma tenha sido utilizada para ameaçar a vítima no momento do crime."], answer: 1, explanation: "Art. 18, inciso IV: Recebido o expediente, o juiz, no prazo de 48 horas, determinará a APREENSÃO IMEDIATA de arma de fogo sob a posse do agressor. Não é convite voluntário, é apreensão imediata!"},
+            {id: 122, topic: "Lei Maria da Penha - Medidas que Obrigam o Agressor (Alimentos)", text: "Além do afastamento do lar, a LMP preocupa-se com a subsistência da mulher e dos filhos. Para garantir isso rapidamente, o Art. 22 autoriza que o juiz imponha ao agressor, como medida protetiva:", options: ["A prestação de alimentos provisionais ou provisórios.", "O repasse imediato de 50% de seu patrimônio bruto.", "A proibição de ser promovido no emprego até a sentença final.", "A antecipação compulsória da herança familiar aos filhos.", "A quitação de todas as dívidas bancárias da ofendida em até 72 horas."], answer: 0, explanation: "Art. 22, inciso V: O juiz poderá aplicar ao agressor a prestação de ALIMENTOS PROVISIONAIS OU PROVISÓRIOS. Essa medida impede que o agressor use o dinheiro como forma de violência patrimonial e coerção."},
+            {id: 123, topic: "Lei Maria da Penha - Restituição de Bens à Ofendida", text: "No que concerne à proteção do patrimônio da mulher (Art. 24), o juiz poderá determinar medidas protetivas de urgência. Qual das opções abaixo é expressamente prevista como medida protetiva para a ofendida visando seus bens?", options: ["Transferência imediata do imóvel financiado para o nome da mulher.", "A alienação compulsória do veículo do casal em leilão judicial.", "Restituição de bens indevidamente subtraídos pelo agressor à ofendida.", "Destruição dos bens que foram utilizados pelo agressor para ameaçar a vítima.", "Obrigatoriedade do agressor de custear 100% dos impostos da residência por 5 anos."], answer: 2, explanation: "Art. 24, inciso I: Para a proteção patrimonial, o juiz poderá determinar a RESTITUIÇÃO DE BENS indevidamente subtraídos pelo agressor à ofendida. Outras medidas incluem a proibição de venda e o depósito judicial."},
+            {id: 124, topic: "Lei Maria da Penha - Atendimento Multidisciplinar", text: "Segundo o Art. 29 da Lei nº 11.340/2006, os Juizados de Violência Doméstica e Familiar contra a Mulher devem contar com equipe de atendimento multidisciplinar. Essa equipe será composta, obrigatoriamente, por profissionais atuantes nas áreas de:", options: ["Direito Civil, Direito Penal e Medicina Legal.", "Psicologia, Serviço Social e Saúde.", "Segurança Pública, Criminologia e Mediação de Conflitos.", "Pedagogia, Orientação Educacional e Segurança.", "Medicina Forense, Genética e Assistência Social."], answer: 1, explanation: "Art. 29: Os Juizados (...) contarão com equipe de atendimento multidisciplinar, a ser integrada por profissionais especializados nas áreas psicossocial, jurídica e de saúde. A IBFC foca nas áreas centrais: Psicologia, Serviço Social (assistência) e Saúde."},
+            {id: 125, topic: "Lei Maria da Penha - Tipos de Violência (Subjugação)", text: "Margarida tem sido alvo constante de zombarias por parte de seu marido, que na presença dos filhos a chama de 'burra, incapaz e louca', rebaixando sua autoestima. No que tange às formas de violência da LMP, essa conduta tipifica-se precipuamente como:", options: ["Violência Institucional.", "Violência Física.", "Violência Psicológica.", "Violência Moral.", "Violência Patrimonial."], answer: 2, explanation: "Art. 7º, II: Violência Psicológica. É a conduta que causa dano emocional, diminuição da autoestima, constrangimento, humilhação ou ridicularização. Cuidado para não confundir com Moral (calúnia, injúria e difamação - crimes contra a honra), embora a injúria se misture, a 'diminuição de autoestima/humilhação' contínua é a definição clássica de dano psicológico na LMP."},
+            {id: 126, topic: "Lei Maria da Penha - Citação e Intimação do Agressor", text: "A banca IBFC ama as exceções operacionais. Como regra do processo penal, as citações são pessoais. No âmbito da Lei Maria da Penha, caso o agressor não seja encontrado para intimação das medidas protetivas ou para os atos do processo, como procederá a citação?", options: ["Será feita por edital, com prazo mínimo de 30 dias.", "Será feita por aplicativo de mensagens instantâneas (WhatsApp).", "A intimação far-se-á pela via editalícia imediatamente, sem outras buscas.", "Será feita por hora certa ou edital, conforme regras estritas do Código de Processo Penal/Civil.", "O processo será suspenso por 5 anos, não fluindo o prazo prescricional."], answer: 3, explanation: "Nas lacunas da LMP, aplica-se o Código de Processo Penal e Civil. Se o réu se oculta, caberá citação por hora certa. Se estiver em local incerto e não sabido, citação por edital. Não há previsão de citação via WhatsApp como regra geral primária na lei seca, embora aceita na jurisprudência mitigada."},
+            {id: 127, topic: "Lei Maria da Penha - Condutas Preventivas e Educacionais", text: "Como Técnica Administrativa da Educação, você deve conhecer o Art. 8º. É diretriz de política pública preventiva o fomento à realização de campanhas educativas direcionadas ao público escolar e à sociedade em geral, que devem focar:", options: ["Exclusivamente nas mulheres, para que aprendam defesa pessoal.", "Apenas nos agressores condenados no sistema prisional.", "No incentivo ao porte de arma por mulheres chefes de família.", "Na difusão da Lei Maria da Penha e de outras leis de proteção à mulher.", "No ensino religioso obrigatório como forma de manter a união conjugal."], answer: 3, explanation: "Art. 8º, V: A promoção de campanhas educativas e de prevenção, voltadas ao público escolar e à sociedade em geral, e a difusão da Lei e dos instrumentos de proteção aos direitos humanos das mulheres."},
+            {id: 128, topic: "Direitos da Mulher - Contracepção de Emergência", text: "Após ser vítima de estupro praticado por seu ex-companheiro, Helena busca a rede pública. A Lei nº 11.340 (atualizada por leis extravagantes de proteção) e normas conexas do SUS garantem a ela, nas primeiras 72 horas:", options: ["Obrigação de registrar Boletim de Ocorrência ANTES de receber a pílula do dia seguinte.", "Acesso imediato à contracepção de emergência (pílula do dia seguinte) sem necessidade de BO prévio.", "Procedimento cirúrgico de esterilização imediata (laqueadura) se ela assim desejar.", "Realização de aborto provocado, desde que autorizado pelo juiz de plantão.", "Tratamento psicológico com o agressor para mediação de conflitos."], answer: 1, explanation: "O acolhimento na rede SUS garante o acesso aos serviços de contracepção de emergência (Art. 9º, § 3º) de forma IMEDIATA, humanizada, independentemente da formalização prévia de boletim de ocorrência (conforme Lei do Minuto Seguinte - Lei 12.845/2013)."},
+            {id: 129, topic: "Lei Maria da Penha - Disposições Transitórias", text: "A União, o Distrito Federal, os Estados e os Municípios poderão criar e promover, no limite das respectivas competências (Art. 35):", options: ["Juizados Especiais de Pequenas Causas Familiares com poder de absolvição sumária.", "Penitenciárias exclusivas para crimes da Lei Maria da Penha financiadas pelo Banco Mundial.", "Centros de atendimento integral e multidisciplinar para mulheres e seus dependentes em situação de violência.", "Milícias privadas estatais formadas por mulheres para proteção dos abrigos.", "Bolsas de estudo internacionais exclusivas para vítimas."], answer: 2, explanation: "Art. 35, inciso I. Os entes federados poderão criar Centros de atendimento integral e multidisciplinar para mulheres e respectivos dependentes em situação de violência doméstica e familiar. (Ex: Centros de Referência de Atendimento à Mulher - CRAMs)."},
+            {id: 130, topic: "Lei Maria da Penha - Conceito Central", text: "Fechando nosso simulado com a base teórica da IBFC. Para a incidência da Lei Maria da Penha, a violência doméstica deve ser baseada no gênero. Isso significa que:", options: ["Qualquer crime cometido dentro de uma casa será enquadrado na lei, como um furto cometido por um pedreiro.", "A violência deve ocorrer pelo fato de a vítima ser mulher e numa relação de vulnerabilidade estrutural de gênero.", "A vítima deve obrigatoriamente ser do sexo feminino biológico, estando excluídas mulheres trans, segundo o STJ.", "Apenas o marido ou ex-marido pode figurar como agressor (sujeito ativo).", "A lei protege, de forma paritária, o homem agredido pela mulher no ambiente doméstico."], answer: 1, explanation: "A Lei Maria da Penha não pune 'briga de família', ela pune a violência baseada no GÊNERO, configurando vulnerabilidade/subjugação pelo fato de ser mulher (Art. 5º). O sujeito ativo (quem bate) pode ser homem ou MULHER. E o STJ já pacificou que Mulheres Transgênero TAMBÉM estão protegidas pela LMP (HC 503.463/STJ)."}
+            // IMPORTANTE: Insira as novas questões (61 a 90) abaixo usando o bloco Canvas auxiliar.
+        ];
+
+        /**
+         * ==========================================
+         * 2. CONTROLE DE ESTADO (STATE LAYER)
+         * ==========================================
+         * Armazena dados do ciclo atual e histórico.
+         */
+        const AppState = {
+            currentSession: { questions: [], currentIndex: 0, totalAnswered: 0, totalCorrect: 0 },
+            userHistory: { sessions: [], topicStats: {}, correctQuestions: [] }
+        };
+
+        /**
+         * ==========================================
+         * 3. INICIALIZAÇÃO E UI (VIEW LAYER)
+         * ==========================================
+         */
+        const AppUI = {
+            init: () => {
+                if (!AppState.userHistory.correctQuestions) AppState.userHistory.correctQuestions = [];
+                ChartsController.init();
+                AppUI.updateDashboard();
+                AppUI.switchTab('dashboard');
+            },
+
+            switchTab: (tabId) => {
+                const targetTab = document.getElementById(tabId);
+                const targetBtn = document.getElementById(`btn-${tabId}`);
+                if (!targetTab || !targetBtn) return; 
+
+                // Resolve conflito: Gere abas escondendo/mostrando com classe utility 'hidden' em vez de display customizado.
+                document.querySelectorAll('.tab-content').forEach(el => {
+                    el.classList.add('hidden');
+                    el.classList.remove('active');
+                });
+                
+                document.querySelectorAll('.tab-btn').forEach(el => {
+                    el.classList.remove('border-yellow-400', 'text-yellow-400');
+                    el.classList.add('border-transparent', 'text-slate-400');
+                });
+
+                targetTab.classList.remove('hidden');
+                targetTab.classList.add('active');
+                
+                targetBtn.classList.remove('border-transparent', 'text-slate-400');
+                targetBtn.classList.add('border-yellow-400', 'text-yellow-400');
+            },
+
+            updateDashboard: () => {
+                const available = questionBank.length - (AppState.userHistory.correctQuestions?.length || 0);
+                document.getElementById("start-summary").innerHTML = `Você possui <span class="font-bold text-blue-600">${available}</span> questões não dominadas.`;
+                document.getElementById("dash-bank-mastery").innerText = `${AppState.userHistory.correctQuestions?.length || 0} de ${questionBank.length} questões dominadas (Banco)`;
+                AnalyticsController.updateSWOT();
+            },
+
+            showModal: (id) => document.getElementById(id).classList.remove("hidden"),
+            closeModal: (id) => document.getElementById(id).classList.add("hidden")
+        };
+
+        /**
+         * ==========================================
+         * 4. LÓGICA DO SIMULADO (BUSINESS LAYER)
+         * ==========================================
+         */
+        const QuizController = {
+            requestNewSimulation: () => {
+                const availableQuestions = questionBank.filter(q => !AppState.userHistory.correctQuestions.includes(q.id));
+                if (availableQuestions.length === 0) {
+                    AppUI.showModal("reset-modal");
+                } else {
+                    QuizController.start(availableQuestions);
+                }
+            },
+
+            confirmReset: () => {
+                AppState.userHistory.correctQuestions = []; // Limpa o tracking de aprendizado
+                AppUI.closeModal("reset-modal");
+                AppUI.updateDashboard();
+                QuizController.requestNewSimulation();
+            },
+
+            start: (availableQuestions) => {
+                AppUI.switchTab('simulado');
+                document.getElementById("start-screen").classList.add("hidden");
+                document.getElementById("quiz-container").classList.remove("hidden");
+                document.getElementById("progress-container").classList.remove("hidden");
+
+                // Embaralhamento seguro e económico de array
+                const shuffled = availableQuestions.sort(() => 0.5 - Math.random());
+                AppState.currentSession = {
+                    questions: shuffled.slice(0, Math.min(30, shuffled.length)),
+                    currentIndex: 0,
+                    totalAnswered: 0,
+                    totalCorrect: 0
+                };
+                
+                QuizController.renderQuestion();
+                QuizController.updateProgress();
+            },
+
+            renderQuestion: () => {
+                const qData = AppState.currentSession.questions[AppState.currentSession.currentIndex];
+                document.getElementById("question-counter").innerText = `${AppState.currentSession.currentIndex + 1}/${AppState.currentSession.questions.length}`;
+                document.getElementById("q-id").innerText = String(qData.id).padStart(3, '0');
+                document.getElementById("topic-badge").innerText = qData.topic;
+                document.getElementById("question-text").innerText = qData.text;
+
+                const optsEl = document.getElementById("options-container");
+                optsEl.innerHTML = "";
+                qData.options.forEach((opt, i) => {
+                    optsEl.innerHTML += `
+                        <div class="relative">
+                            <input type="radio" name="option" id="opt-${i}" value="${i}" class="option-input hidden peer">
+                            <label for="opt-${i}" class="option-label block w-full p-4 bg-slate-50 border border-slate-200 rounded-lg hover:bg-blue-50 text-slate-700 font-medium peer-checked:ring-2 peer-checked:ring-blue-500 peer-checked:border-blue-500">${opt}</label>
+                        </div>`;
+                });
+
+                document.getElementById("btn-confirm").classList.remove("hidden");
+                document.getElementById("btn-next").classList.add("hidden");
+                document.getElementById("feedback-area").classList.add("hidden");
+                
+                const btnConfirm = document.getElementById("btn-confirm");
+                btnConfirm.disabled = true;
+                btnConfirm.className = "bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold shadow opacity-50 cursor-not-allowed w-full md:w-auto";
+                
+                document.querySelectorAll('input[name="option"]').forEach(input => {
+                    input.addEventListener('change', () => {
+                        btnConfirm.disabled = false;
+                        btnConfirm.className = "bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold shadow transition-transform active:scale-95 w-full md:w-auto";
+                    });
+                });
+            },
+
+            checkAnswer: () => {
+                const selected = document.querySelector('input[name="option"]:checked');
+                if (!selected) return;
+
+                const answerIndex = parseInt(selected.value);
+                const currentQ = AppState.currentSession.questions[AppState.currentSession.currentIndex];
+                const isCorrect = (answerIndex === currentQ.correct);
+
+                const labels = document.querySelectorAll('.option-label');
+                labels[answerIndex].classList.remove('bg-slate-50', 'border-slate-200');
+                
+                if (isCorrect) {
+                    labels[answerIndex].classList.add('correct-answer');
+                    AppState.currentSession.totalCorrect++;
+                    if (!AppState.userHistory.correctQuestions.includes(currentQ.id)) {
+                        AppState.userHistory.correctQuestions.push(currentQ.id);
+                    }
+                } else {
+                    labels[answerIndex].classList.add('wrong-answer');
+                    labels[currentQ.correct].classList.add('correct-answer');
+                }
+
+                document.querySelectorAll('input[name="option"]').forEach(el => el.disabled = true);
+                
+                // Mostrar Feedback
+                const feedbackArea = document.getElementById("feedback-area");
+                feedbackArea.classList.remove("hidden");
+                feedbackArea.className = isCorrect ? "mb-6 p-4 rounded-lg border-l-4 bg-green-50 border-green-500" : "mb-6 p-4 rounded-lg border-l-4 bg-red-50 border-red-500";
+                document.getElementById("feedback-icon").className = isCorrect ? "fa-solid fa-circle-check mt-1 text-lg text-green-600" : "fa-solid fa-circle-xmark mt-1 text-lg text-red-600";
+                document.getElementById("feedback-title").innerText = isCorrect ? "Parabéns! Você acertou." : "Atenção! Você errou.";
+                document.getElementById("feedback-title").className = isCorrect ? "font-bold text-sm mb-1 text-green-800" : "font-bold text-sm mb-1 text-red-800";
+                document.getElementById("feedback-text").innerHTML = `<strong>Gabarito Comentado:</strong> ${currentQ.explanation}`;
+
+                AppState.currentSession.totalAnswered++;
+                AnalyticsController.trackTopic(currentQ.topic, isCorrect);
+                ChartsController.updateCurrentSession();
+                AppUI.updateDashboard();
+
+                document.getElementById("btn-confirm").classList.add("hidden");
+                document.getElementById("btn-next").classList.remove("hidden");
+                QuizController.updateProgress();
+            },
+
+            nextQuestion: () => {
+                if (AppState.currentSession.currentIndex < AppState.currentSession.questions.length - 1) {
+                    AppState.currentSession.currentIndex++;
+                    QuizController.renderQuestion();
+                } else {
+                    alert(`Simulado Finalizado! Acertos: ${AppState.currentSession.totalCorrect}/${AppState.currentSession.questions.length}`);
+                    StorageController.saveSessionLocally();
+                    document.getElementById("quiz-container").classList.add("hidden");
+                    document.getElementById("progress-container").classList.add("hidden");
+                    document.getElementById("start-screen").classList.remove("hidden");
+                    AppUI.updateDashboard();
+                    AppUI.switchTab('dashboard');
+                }
+            },
+
+            updateProgress: () => {
+                const pct = (AppState.currentSession.currentIndex / AppState.currentSession.questions.length) * 100;
+                document.getElementById("progress-bar").style.width = `${pct}%`;
+            }
+        };
+
+        /**
+         * ==========================================
+         * 5. ANALYTICS & GRÁFICOS (METRICS LAYER)
+         * ==========================================
+         */
+        const AnalyticsController = {
+            trackTopic: (topic, isCorrect) => {
+                if (!AppState.userHistory.topicStats[topic]) AppState.userHistory.topicStats[topic] = { correct: 0, total: 0 };
+                AppState.userHistory.topicStats[topic].total++;
+                if (isCorrect) AppState.userHistory.topicStats[topic].correct++;
+            },
+
+            updateSWOT: () => {
+                const st = document.getElementById("swot-strengths");
+                const wk = document.getElementById("swot-weaknesses");
+                st.innerHTML = ""; wk.innerHTML = "";
+                let hasS = false, hasW = false;
+
+                Object.entries(AppState.userHistory.topicStats).forEach(([topic, stats]) => {
+                    if (stats.total < 1) return;
+                    const pct = (stats.correct / stats.total) * 100;
+                    const li = `<li><b>${topic}</b>: ${pct.toFixed(0)}% (${stats.correct}/${stats.total})</li>`;
+                    if (pct >= 80) { st.innerHTML += li; hasS = true; } 
+                    else if (pct < 60) { wk.innerHTML += li; hasW = true; }
+                });
+
+                if (!hasS) st.innerHTML = '<li class="italic text-slate-400">Nenhum tópico > 80% ainda.</li>';
+                if (!hasW) wk.innerHTML = '<li class="italic text-slate-400">Nenhum tópico < 60% ainda.</li>';
+            }
+        };
+
+        const ChartsController = {
+            cSession: null, cHistory: null,
+            init: () => {
+                ChartsController.cSession = new Chart(document.getElementById('currentSessionChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Acertos', 'Erros'], datasets: [{ data: [0, 0], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+                ChartsController.cHistory = new Chart(document.getElementById('historyChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ label: 'Aproveitamento (%)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } } });
+                ChartsController.updateHistoryChart();
+            },
+            updateCurrentSession: () => {
+                const c = AppState.currentSession.totalCorrect, w = AppState.currentSession.totalAnswered - c;
+                document.getElementById("dash-total").innerText = AppState.currentSession.totalAnswered;
+                document.getElementById("dash-correct").innerText = c;
+                document.getElementById("dash-wrong").innerText = w;
+                if (ChartsController.cSession) { ChartsController.cSession.data.datasets[0].data = [c, w]; ChartsController.cSession.update(); }
+            },
+            updateHistoryChart: () => {
+                if (!ChartsController.cHistory) return;
+                ChartsController.cHistory.data.labels = AppState.userHistory.sessions.map((_, i) => `Simulado ${i+1}`);
+                ChartsController.cHistory.data.datasets[0].data = AppState.userHistory.sessions.map(s => (s.score / s.total) * 100);
+                ChartsController.cHistory.update();
+            }
+        };
+
+        /**
+         * ==========================================
+         * 6. PERSISTÊNCIA MANUAL (STORAGE LAYER)
+         * ==========================================
+         */
+        const StorageController = {
+            saveSessionLocally: () => {
+                AppState.userHistory.sessions.push({ date: new Date().toLocaleDateString('pt-BR'), score: AppState.currentSession.totalCorrect, total: AppState.currentSession.questions.length });
+                ChartsController.updateHistoryChart();
+            },
+            exportData: () => {
+                const encoded = btoa(JSON.stringify(AppState.userHistory));
+                const txt = document.getElementById("export-area");
+                txt.value = encoded; txt.select(); document.execCommand('copy');
+                alert("Código copiado! Guarde-o para restaurar seu progresso amanhã.");
+            },
+            importData: () => {
+                const input = document.getElementById("import-area").value.trim();
+                const msg = document.getElementById("import-msg");
+                if (!input) return;
+                try {
+                    const parsed = JSON.parse(atob(input));
+                    if (!parsed.sessions || !parsed.topicStats) throw new Error("Inválido");
+                    if (!parsed.correctQuestions) parsed.correctQuestions = [];
+                    AppState.userHistory = parsed;
+                    msg.className = "text-xs mt-2 text-center h-4 font-bold text-green-600"; msg.innerText = "Dados carregados com sucesso!";
+                    ChartsController.updateHistoryChart(); AnalyticsController.updateSWOT(); AppUI.updateDashboard();
+                } catch (e) {
+                    msg.className = "text-xs mt-2 text-center h-4 font-bold text-red-600"; msg.innerText = "Erro: Código inválido.";
+                }
+            }
+        };
+
+        // BOOTSTRAP DA APLICAÇÃO
+        window.onload = AppUI.init;
+    </script>
+</body>
+</html>
