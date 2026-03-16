@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Adaptativo IBFC - SEC/BA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Arquitetura CSS: Variáveis e Utilitários para reaproveitamento */
+        :root { --primary: #3b82f6; --success: #22c55e; --danger: #ef4444; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .btn-option { transition: all 0.2s ease-in-out; }
+        .btn-option:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .btn-option.selected { border-color: var(--primary); background-color: #eff6ff; }
+        .btn-option.correct { border-color: var(--success); background-color: #f0fdf4; color: #166534; }
+        .btn-option.incorrect { border-color: var(--danger); background-color: #fef2f2; color: #991b1b; }
+        .hide { display: none !important; }
+        /* Animações e gradientes de IA */
+        .ai-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+        .ai-text-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .spin-slow { animation: spin 2s linear infinite; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <!-- Barra de Navegação Superior -->
+    <nav class="bg-blue-900 text-white p-4 shadow-md shrink-0">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="graduation-cap" class="w-8 h-8"></i>
+                <div>
+                    <h1 class="font-bold text-xl leading-tight"><a href="../index.html" style="text-decoration: none;">Simulador SEC/BA</a></h1>
+                    <p class="text-xs text-blue-200">Banca IBFC - Modo Avançado</p>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="app.showView('home')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="home" class="w-4 h-4"></i> Início</button>
+                <button onclick="app.showView('dashboard')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Dashboard</button>
+                <button onclick="app.showView('data')" class="hover:text-blue-300 transition flex items-center gap-1 text-sm"><i data-lucide="save" class="w-4 h-4"></i> Dados</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Modal Customizado para Reiniciar Banco (Substitui o window.confirm) -->
+    <div id="modal-restart" class="hide fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
+                <i data-lucide="alert-circle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Banco Esgotado</h3>
+            <p class="text-slate-600 mb-6 text-sm">Você já acertou quase todas as questões deste banco. Não há questões não-respondidas ou erradas suficientes para uma nova sessão (10 questões). Deseja reiniciar seu histórico de acertos para gerar um novo simulado?</p>
+            <div class="flex gap-3 justify-end">
+                <button onclick="app.closeModal()" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-medium transition">Cancelar</button>
+                <button onclick="app.resetBankAndStart()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition shadow-md">Reiniciar Banco</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área Principal de Conteúdo -->
+    <main class="flex-grow overflow-auto p-4 md:p-8">
+        <div class="max-w-6xl mx-auto">
+
+            <!-- TELA 1: HOME -->
+            <div id="view-home" class="glass-panel rounded-2xl p-8 text-center max-w-2xl mx-auto mt-4 md:mt-10">
+                <div class="bg-blue-100 text-blue-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="brain-circuit" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Treinamento IBFC</h2>
+                <p class="text-slate-600 mb-6 text-sm">Filtro inteligente: O sistema foca nas suas dificuldades, trazendo apenas questões novas ou que você errou anteriormente.</p>
+                
+                <!-- Status das Questões do Banco -->
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+                        <i data-lucide="help-circle" class="w-5 h-5 text-slate-400 mb-1"></i>
+                        <p class="text-[10px] uppercase font-bold text-slate-500">Inéditas</p>
+                        <p class="text-xl font-black text-slate-700" id="stat-unanswered">0</p>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-xl border border-red-100 shadow-sm flex flex-col items-center">
+                        <i data-lucide="x-circle" class="w-5 h-5 text-red-400 mb-1"></i>
+                        <p class="text-[10px] uppercase font-bold text-red-600">Para Revisar</p>
+                        <p class="text-xl font-black text-red-700" id="stat-incorrect">0</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100 shadow-sm flex flex-col items-center">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-400 mb-1"></i>
+                        <p class="text-[10px] uppercase font-bold text-green-600">Dominadas</p>
+                        <p class="text-xl font-black text-green-700" id="stat-correct">0</p>
+                    </div>
+                </div>
+
+                <!-- Resumo Global do Histórico Linear -->
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-8 text-center shadow-sm">
+                    <div class="flex items-center justify-between mb-3 border-b border-indigo-200 pb-2">
+                        <h3 class="font-bold text-indigo-800 text-sm flex items-center gap-2"><i data-lucide="pie-chart" class="w-4 h-4"></i> Desempenho Global</h3>
+                        <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">Domínio: <span id="home-mastery">0%</span></span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white p-2 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] text-indigo-600 font-bold uppercase">Resolvidas</p>
+                            <p class="text-lg font-black text-indigo-900" id="home-total-answered">0</p>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] text-green-600 font-bold uppercase">Acertos</p>
+                            <p class="text-lg font-black text-green-600" id="home-total-correct">0</p>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-indigo-50">
+                            <p class="text-[10px] text-red-600 font-bold uppercase">Erros</p>
+                            <p class="text-lg font-black text-red-600" id="home-total-incorrect">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button onclick="app.startSession()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition flex justify-center items-center gap-2 shadow-lg">
+                        <i data-lucide="play" class="w-5 h-5"></i> Iniciar Simulado (10 Questões)
+                    </button>
+                    <button onclick="aiFeatures.generateDynamicQuestion()" id="btn-generate-ai" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-8 rounded-xl transition flex justify-center items-center gap-2 border border-indigo-200">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i> Gerar Questão com IA
+                    </button>
+                </div>
+            </div>
+
+            <!-- TELA 2: QUIZ -->
+            <div id="view-quiz" class="hide max-w-3xl mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1" id="quiz-topic">Tópico</span>
+                    <span class="text-slate-500 text-sm font-medium">Questão <span id="quiz-current-num">1</span> de <span id="quiz-total-num">10</span></span>
+                </div>
+                
+                <div class="glass-panel rounded-2xl p-6 md:p-8 mb-6 relative">
+                    <div id="ai-badge" class="hide absolute -top-3 -right-3 bg-purple-100 border border-purple-300 text-purple-800 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">IA</div>
+                    <p class="text-base md:text-lg font-medium leading-relaxed mb-6 text-slate-800 whitespace-pre-line" id="quiz-question-text"></p>
+                    <div class="flex flex-col gap-2" id="quiz-options"></div>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <button id="btn-confirm" onclick="app.confirmAnswer()" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition shadow-md">Confirmar Resposta</button>
+                </div>
+            </div>
+
+            <!-- TELA 3: FEEDBACK (GABARITO) -->
+            <div id="view-feedback" class="hide max-w-3xl mx-auto">
+                <div id="feedback-header" class="rounded-t-2xl p-5 text-white font-bold flex items-center gap-3"></div>
+                <div class="glass-panel rounded-b-2xl p-6 md:p-8 mb-6 border-t-0 shadow-lg">
+                    <h3 class="font-bold text-slate-800 mb-2 border-b pb-2">Gabarito Comentado (Estilo IBFC)</h3>
+                    <p class="text-slate-700 text-sm leading-relaxed mb-6 whitespace-pre-line" id="feedback-explanation"></p>
+                    
+                    <!-- Prof. IA (Tira-Dúvidas) -->
+                    <div class="border border-purple-200 rounded-xl bg-purple-50/30 p-4 mt-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-sm text-purple-700 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> Prof. IA</h4>
+                            <button onclick="aiFeatures.explainWithAI()" id="btn-ask-ai" class="text-xs bg-white text-purple-600 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-50 transition font-medium">Explicar com Mnemônico</button>
+                        </div>
+                        <div id="ai-explanation-content" class="text-sm text-slate-600 hide"></div>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="app.nextQuestion()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl transition shadow-md flex items-center gap-2">Próxima <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+
+            <!-- TELA 4: DASHBOARD (MÉTRICAS) -->
+            <div id="view-dashboard" class="hide">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800">Seu Desempenho</h2>
+                    <button onclick="app.showView('home')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 px-4 rounded-lg font-medium transition text-sm">Voltar</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Gráfico: Sessão Atual -->
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-slate-700 mb-4 text-center text-sm">Sessão Atual</h3>
+                        <div class="relative w-40 h-40"><canvas id="currentSessionChart"></canvas></div>
+                        <p class="mt-4 text-xs font-bold text-slate-500" id="current-session-stats">0 Acertos | 0 Erros</p>
+                    </div>
+
+                    <!-- Gráfico: Histórico Global -->
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center">
+                        <h3 class="font-bold text-slate-700 mb-4 text-center text-sm">Acumulado Global</h3>
+                        <div class="relative w-40 h-40"><canvas id="globalSessionChart"></canvas></div>
+                        <p class="mt-4 text-xs font-bold text-slate-500" id="global-session-stats">0 Acertos | 0 Erros</p>
+                    </div>
+
+                    <!-- Análise SWOT (Dinâmica) -->
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col lg:col-span-1 md:col-span-2">
+                        <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm"><i data-lucide="target" class="w-4 h-4 text-blue-600"></i> Análise de Tópicos</h3>
+                        <div class="flex flex-col gap-3 flex-grow overflow-y-auto max-h-48 pr-2">
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                                <h4 class="font-bold text-green-800 text-xs flex items-center gap-1 mb-1"><i data-lucide="trending-up" class="w-3 h-3"></i> Dominados (>80%)</h4>
+                                <ul id="swot-strengths" class="text-[11px] text-green-700 space-y-1 list-disc pl-4"></ul>
+                            </div>
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <h4 class="font-bold text-red-800 text-xs flex items-center gap-1 mb-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i> Vulneráveis (<60%)</h4>
+                                <ul id="swot-weaknesses" class="text-[11px] text-red-700 space-y-1 list-disc pl-4"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Barras -->
+                <div class="glass-panel rounded-2xl p-6">
+                    <h3 class="font-bold text-slate-700 mb-4 text-sm">Percentual de Acerto por Tópico</h3>
+                    <div class="w-full h-56"><canvas id="historyChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- TELA 5: GESTÃO DE DADOS (PERSISTÊNCIA) -->
+            <div id="view-data" class="hide max-w-2xl mx-auto mt-4 md:mt-10">
+                <div class="glass-panel rounded-2xl p-6 md:p-8">
+                    <h2 class="text-xl font-bold text-slate-800 mb-2 flex items-center gap-2"><i data-lucide="database" class="w-5 h-5 text-blue-600"></i> Sincronização de Progresso</h2>
+                    <p class="text-slate-600 mb-4 text-xs leading-relaxed">Como o ambiente não possui banco de dados em nuvem nativo, gere seu código de progresso e guarde-o para continuar de onde parou na próxima sessão.</p>
+                    <textarea id="data-json" class="w-full h-32 p-3 border border-slate-300 rounded-xl font-mono text-xs mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Cole seu JSON de backup aqui..."></textarea>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button onclick="app.exportData()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition flex justify-center items-center gap-2 text-sm"><i data-lucide="copy" class="w-4 h-4"></i> Copiar Backup</button>
+                        <button onclick="app.importData()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl transition flex justify-center items-center gap-2 text-sm"><i data-lucide="download" class="w-4 h-4"></i> Restaurar Dados</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // =====================================================================
+        // 1. BANCO DE QUESTÕES (PARTE 1 - Refatorado Padrão IBFC)
+        // Formatado em linha única para economizar espaço visual no código.
+        // =====================================================================
+        const questionBank = [
+            { id: 1, topic: "CF88 - Princípios", text: "A Constituição de 1988 estabelece uma distinção doutrinária e normativa entre Fundamentos e Objetivos. Analise as afirmativas:\nI. A construção de uma sociedade livre, justa e solidária constitui um fundamento da República.\nII. A dignidade da pessoa humana e os valores sociais do trabalho são objetivos fundamentais.\nIII. O pluralismo político é um fundamento expresso da República Federativa do Brasil.\nAssinale a alternativa que apresenta a análise correta:", options: { a: "Apenas a I está correta.", b: "Apenas a III está correta.", c: "I e II estão corretas.", d: "II e III estão corretas.", e: "Todas são falsas." }, correct: "b", explanation: "IBFC adora inverter fundamentos e objetivos. MACETE: Fundamentos = So-Ci-Di-Va-Plu (Soberania, Cidadania, Dignidade, Valores, Pluralismo). Objetivos = Verbos no infinitivo (Construir, Erradicar, Garantir, Promover). Logo, I e II estão incorretas pois invertem as naturezas. A III está correta (Art. 1º, V)." },
+            { id: 2, topic: "CF88 - Direitos", text: "Acerca da inviolabilidade domiciliar (Art. 5º, XI, CF/88), assinale a alternativa inteiramente de acordo com a jurisprudência e o texto constitucional:", options: { a: "O ingresso na residência sem o consentimento do morador pode ocorrer a qualquer hora, desde que amparado por determinação judicial.", b: "A expressão 'casa' abrange exclusivamente a residência familiar fixa, não se aplicando a quartos de hotel ou escritórios profissionais.", c: "O ingresso sem consentimento para prestar socorro ou em caso de desastre só é permitido durante o dia.", d: "O cumprimento de mandado judicial de busca e apreensão só pode ocorrer durante o dia.", e: "É permitido o ingresso forçado durante a noite para fins de averiguação fiscal mediante ordem do delegado." }, correct: "d", explanation: "A exceção para entrar SEM consentimento POR DETERMINAÇÃO JUDICIAL só se aplica DURANTE O DIA. A qualquer hora (dia/noite) apenas para: flagrante, desastre ou socorro. A alternativa D está corretíssima. A 'B' está errada porque o STF entende que 'casa' é conceito amplo (inclui quarto de hotel ocupado, escritório, etc)." },
+            { id: 3, topic: "CF88 - Relações Internacionais", text: "No que se refere aos princípios que regem a República Federativa do Brasil em suas relações internacionais (Art. 4º), assinale (V) para Verdadeiro e (F) para Falso:\n( ) Concessão de asilo político.\n( ) Garantia do desenvolvimento nacional.\n( ) Defesa da paz e solução pacífica dos conflitos.\n( ) Repúdio ao terrorismo e ao racismo.\nA sequência correta é:", options: { a: "V - V - V - F", b: "F - V - F - V", c: "V - F - V - V", d: "V - F - F - V", e: "F - F - V - V" }, correct: "c", explanation: "1) Asilo político é princípio internacional (V). 2) Garantir o desenvolvimento nacional é OBJETIVO fundamental (art 3º), não princípio internacional (F). 3) Solução pacífica é princípio (V). 4) Repúdio ao terrorismo e racismo é princípio (V)." },
+            { id: 4, topic: "Lei 9.784 - Disposições", text: "De acordo com o princípio do informalismo ou formalismo moderado que orienta a Lei nº 9.784/99, é correto afirmar que os atos do processo administrativo:", options: { a: "Exigem a assistência de advogado obrigatoriamente, sob pena de nulidade.", b: "Não dependem de forma determinada senão quando a lei expressamente a exigir.", c: "Devem sempre possuir reconhecimento de firma do requerente, para fins de segurança jurídica.", d: "São regidos pelo princípio da inércia, sendo vedado o impulso oficial pelo órgão.", e: "Exigem a mesma padronização rítmica e de nulidades do Código de Processo Civil." }, correct: "b", explanation: "Art. 22: 'Os atos do processo administrativo não dependem de forma determinada senão quando a lei expressamente a exigir'. É o coração do informalismo moderado." },
+            { id: 5, topic: "Lei 9.784 - Competência", text: "A competência administrativa é irrenunciável. Sobre a delegação de competência (Art. 12 e 13 da Lei 9.784/99), julgue os itens e assinale a opção correta:\nI. A delegação de competência exige sempre a existência de subordinação hierárquica entre delegante e delegado.\nII. É vedada a delegação para a edição de atos de caráter normativo.\nIII. A decisão de recursos administrativos pode ser delegada caso a autoridade julgue conveniente por sobrecarga de trabalho.", options: { a: "Apenas I e II estão corretas.", b: "Apenas a II está correta.", c: "Apenas II e III estão corretas.", d: "I, II e III estão corretas.", e: "Nenhuma está correta." }, correct: "b", explanation: "A I está FALSA: o art 12 diz que pode delegar para órgãos que NÃO lhe sejam subordinados (delegação horizontal). A III está FALSA: Macete CENoRA (Competência Exclusiva, Normativo, Recurso Administrativo) são INDELEGÁVEIS. Logo, apenas a II está correta." },
+            { id: 6, topic: "CF88 - Remédios Constitucionais", text: "João, servidor estadual, teve negado administrativamente seu pedido de acesso a informações de caráter pessoal, constantes em um registro de banco de dados do Governo do Estado. O remédio constitucional adequado para garantir o acesso a essas informações é:", options: { a: "Mandado de Segurança, pois há violação de direito líquido e certo.", b: "Ação Popular, uma vez que envolve banco de dados da Administração.", c: "Habeas Data.", d: "Mandado de Injunção.", e: "Habeas Corpus preventivo." }, correct: "c", explanation: "Art. 5º, LXXII: concede-se HABEAS DATA para assegurar o conhecimento de informações relativas à pessoa do impetrante, constantes de registros ou bancos de dados de entidades governamentais ou de caráter público." },
+            { id: 7, topic: "Lei 9.784 - Impedimento", text: "A autoridade encarregada de julgar um processo administrativo descobre que a parte interessada é sócia de seu cônjuge em uma empresa privada. Nos exatos termos da Lei nº 9.784/99, este fato:", options: { a: "Gera suspeição, podendo a autoridade continuar se declarar imparcial.", b: "É irrelevante, visto que não há parentesco consanguíneo direto.", c: "Gera impedimento legal (interesse indireto), devendo a autoridade abster-se de atuar sob pena de cometer falta grave.", d: "Não gera afastamento a menos que o Ministério Público seja acionado.", e: "Gera apenas a obrigatoriedade de julgamento em colegiado." }, correct: "c", explanation: "Art. 18. Há impedimento (situação objetiva incontestável) quando o servidor tem interesse direto ou indireto na matéria, ou tem relação de sociedade com as partes. A omissão em declarar impedimento é FALTA GRAVE (art. 19)." },
+            { id: 8, topic: "CF88 - Direitos", text: "Analise a frase: 'Ninguém será privado de direitos por motivo de crença religiosa ou de convicção filosófica ou política, SALVO SE as invocar para eximir-se de obrigação legal a todos imposta E recusar-se a cumprir prestação alternativa, fixada em lei'. Esse dispositivo constitucional retrata o instituto da:", options: { a: "Imunidade material absoluta.", b: "Escusa de consciência (imperativo de consciência).", c: "Liberdade de associação mitigada.", d: "Laicidade de resultados.", e: "Objeção de inconstitucionalidade." }, correct: "b", explanation: "Esta é a definição exata e literal da Escusa de Consciência (ou Objeção de Consciência), prevista no Art. 5º, VIII da CF/88. Note que a perda de direitos só ocorre se houver a dupla recusa (recusar a obrigação E a prestação alternativa)." },
+            { id: 9, topic: "Lei 9.784 - Prazos", text: "Nos processos administrativos federais regidos pela Lei 9.784/99, na contagem de prazos em dias contados a partir da cientificação oficial:", options: { a: "Conta-se apenas os dias úteis, excluindo-se os finais de semana.", b: "Inclui-se o dia do começo e exclui-se o do vencimento, fluindo de forma contínua.", c: "Exclui-se o dia do começo e inclui-se o do vencimento, sendo os prazos contados de modo contínuo.", d: "O prazo mínimo legal é sempre de 15 dias, sob pena de cerceamento de defesa.", e: "Suspendem-se os prazos durante as férias do servidor responsável." }, correct: "c", explanation: "Art. 66 da Lei 9.784. Diferente do novo CPC, na lei administrativa os prazos fluem de forma CONTÍNUA (corridos). A regra de contagem é excluir o início e incluir o fim." },
+            { id: 10, topic: "Lei 9.784 - Anulação/Revogação", text: "A Administração Pública concedeu licença para o exercício de uma atividade, mas anos depois verificou que não há mais conveniência em manter a atividade por questões de reorganização urbana. Trata-se de ato lícito desde o nascimento. A ação adequada da Administração é:", options: { a: "Anular o ato, com efeitos ex tunc.", b: "Revogar o ato, por motivo de conveniência e oportunidade, com efeitos ex nunc.", c: "Convalidar o ato e pagar indenização.", d: "Declarar a caducidade do ato com efeitos retroativos absolutos.", e: "Suspender o ato provisoriamente sem prazo definido." }, correct: "b", explanation: "Ato lícito, mas que perdeu o interesse público (conveniência/oportunidade) é alvo de REVOGAÇÃO. Os efeitos são Ex Nunc (não retroagem, respeitando o que já ocorreu). Base: Art. 53 e Súmula 473 STF." },
+            { id: 11, topic: "CF88 - Penas", text: "A Constituição impõe limites ao poder de punir do Estado (Art. 5º, XLVII). Assinale a alternativa que contém EXCLUSIVAMENTE penas admitidas (permitidas) no Brasil:", options: { a: "Privação ou restrição da liberdade, perda de bens, e caráter perpétuo limitadas a 30 anos.", b: "Trabalhos forçados, prestação social alternativa e multa.", c: "Perda de bens, multa, prestação social alternativa e suspensão/interdição de direitos.", d: "Privação da liberdade, banimento para crimes hediondos e multa.", e: "Morte (em qualquer circunstância militar), penas cruéis e perda de bens." }, correct: "c", explanation: "O Art. 5º, XLVI elenca as penas permitidas (as da opção C). A CF veda: Morte (salvo guerra), caráter perpétuo, banimento, trabalhos forçados e cruéis." },
+            { id: 12, topic: "Lei 9.784 - Recursos", text: "No julgamento de um recurso administrativo na SEC/BA, a autoridade de 2ª instância entende que a penalidade aplicada inicialmente foi branda demais e deseja agravá-la (aplicar reformatio in pejus). Pela Lei 9.784/99, tal ação:", options: { a: "É absolutamente proibida em qualquer hipótese processual administrativa.", b: "É permitida de forma imediata e surpresa, prevalecendo a supremacia do interesse público.", c: "É permitida, mas o recorrente deverá ser cientificado previamente para que formule alegações antes da nova decisão.", d: "Só é permitida se solicitada pelo Ministério Público.", e: "Pode ser feita, mas não produz efeitos até aprovação judicial." }, correct: "c", explanation: "A 'reformatio in pejus' É PERMITIDA na via administrativa (art. 64, parágrafo único). No entanto, exige garantia de defesa (contraditório prévio) antes de piorar a situação do cidadão." },
+            { id: 13, topic: "CF88 - Direitos", text: "Sobre o direito de propriedade (Art. 5º), caso uma enchente avassaladora assole o município e a Defesa Civil necessite usar os veículos particulares dos moradores para resgate (iminente perigo público), a CF/88 prevê que:", options: { a: "Os veículos podem ser requisitados, mediante prévia e justa indenização em dinheiro obrigatória.", b: "A autoridade pode usar a propriedade, assegurada ao proprietário indenização ulterior (posterior), apenas se houver dano.", c: "A requisição configura expropriação, transferindo-se a propriedade ao Estado de forma imediata.", d: "Não é possível usar propriedade privada sem o consentimento dos donos nem em desastres.", e: "A indenização deverá ser paga em títulos da dívida pública, independentemente de dano." }, correct: "b", explanation: "Trata-se da Requisição Administrativa (Art. 5º, XXV). Diferente da Desapropriação (que é prévia e em dinheiro), na requisição por perigo iminente a indenização é ULTERIOR (depois) e SÓ SE HOUVER DANO." },
+            { id: 14, topic: "Lei 9.784 - Instrução", text: "Ao instruir um processo que discute direitos difusos de impacto regional, a autoridade julgadora deseja coletar manifestações de terceiros de forma oral. Segundo o Art. 32 da Lei 9.784/99, isso poderá ser feito por meio de:", options: { a: "Inquérito policial subsidiário.", b: "Mandado de segurança preventivo coletivo.", c: "Audiência pública, aberta antes da decisão, cuja manifestação não confere por si só a condição de interessado no processo.", d: "Sindicância de portas fechadas para preservar a ordem pública.", e: "Oitiva obrigatória do governador do Estado." }, correct: "c", explanation: "Art. 32 prevê a realização de AUDIÊNCIA PÚBLICA para debates orais em casos de relevância. O comparecimento não transforma a pessoa automaticamente em parte do processo." },
+            { id: 15, topic: "Lei 9.784 - Intimação", text: "Caso um administrado não atenda a uma intimação oficial para comparecer a determinado ato do processo administrativo (desatendimento da intimação):", options: { a: "Haverá a presunção de veracidade (confissão) dos fatos alegados pela Administração.", b: "O processo será extinto sem julgamento do mérito.", c: "Isso importará no reconhecimento automático do direito em favor do Estado e revelia processual.", d: "Não importa no reconhecimento da verdade dos fatos, tampouco na renúncia a direito pelo administrado.", e: "O cidadão será conduzido coercitivamente por autoridade policial administrativa." }, correct: "d", explanation: "Atenção: não existe revelia punitiva com presunção de verdade no processo administrativo (busca-se a verdade material). Art. 27 da 9784." },
+            { id: 16, topic: "CF88 - Reunião/Associação", text: "Analise as afirmações sobre liberdades constitucionais (Art. 5º):\nI. O direito de reunião depende de autorização da autoridade competente, para evitar frustração de reuniões anteriores.\nII. As associações só poderão ser suspensas em suas atividades por decisão judicial transitada em julgado.\nIII. Ninguém poderá ser compelido a associar-se ou a permanecer associado.\nÉ correto o que se afirma em:", options: { a: "Apenas III.", b: "Apenas I e II.", c: "Apenas II e III.", d: "I, II e III.", e: "Apenas I e III." }, correct: "a", explanation: "I é Falsa: Reunião INDEPENDE de autorização (exige só AVISO prévio). II é Falsa: Para SUSPENDER, basta decisão judicial (mesmo sem trânsito em julgado); para DISSOLVER compulsóriamente é que exige o trânsito em julgado. III é Verdadeira." },
+            { id: 17, topic: "Lei 9.784 - Decisão", text: "No processo administrativo, a MOTIVAÇÃO (exposição dos fatos e fundamentos) é regra para os atos administrativos processuais. O art. 50 indica que a motivação DEVE estar presente quando o ato, EXCETO:", options: { a: "Negue, limite ou afete direitos ou interesses.", b: "Trate de mero encaminhamento de expediente interno (despacho ordinário).", c: "Deixe de aplicar jurisprudência firmada sobre a questão.", d: "Dispense ou declare a inexigibilidade de processo licitatório.", e: "Importe anulação, revogação, suspensão ou convalidação de ato administrativo." }, correct: "b", explanation: "Atos de mero expediente (encaminhar o processo para a mesa ao lado) prescindem de motivação complexa, diferentemente das decisões que afetam direitos, revogam, aplicam sanções ou ignoram jurisprudência (que exigem motivação exaustiva)." },
+            { id: 18, topic: "Lei 9.784 - Pareceres", text: "O art. 42 da lei versa sobre a necessidade legal de laudos ou pareceres. Quando um parecer for OBRIGATÓRIO, porém NÃO VINCULANTE (opinativo), e deixar de ser emitido no prazo de 15 dias, a autoridade que aguarda o documento:", options: { a: "Deve suspender o processo indefinidamente até a entrega.", b: "Pode dar prosseguimento e decidir o processo com a dispensa do parecer, sem prejuízo de responsabilizar quem se omitiu.", c: "Deverá extinguir o processo e arquivar os autos.", d: "Fica impedida de contrariar o que for favorável ao interessado.", e: "Manda abrir processo criminal contra o perito em até 24h." }, correct: "b", explanation: "Art. 42, § 2º: Se não for vinculante, para não paralisar o Estado, o processo pode prosseguir sem ele, punindo-se o relapso. Se FOSSE vinculante, o processo travaria." },
+            { id: 19, topic: "CF88 - Princípios e Direitos", text: "A Constituição estabelece garantias ao contraditório e ampla defesa. Nesse cenário, julgue: 'A lei penal não retroagirá, salvo para beneficiar o réu, o que não se aplica, todavia, a crimes hediondos e terrorismo, cujas leis maléficas retroagem por força de tratado internacional'. A assertiva é:", options: { a: "Totalmente verdadeira.", b: "Verdadeira, pois hediondos prescindem de garantia de irretroatividade.", c: "Falsa, pois a lei penal SÓ retroage para beneficiar, sendo essa garantia aplicável a qualquer tipo de crime, inclusive hediondos.", d: "Verdadeira apenas se o réu for estrangeiro não residente.", e: "Falsa, a lei penal retroage independentemente de beneficiar ou não, por ordem do STF." }, correct: "c", explanation: "A irretroatividade da lex gravior (lei penal mais grave não retroage) é um direito fundamental pétreo (art 5º, XL) aplicável absolutamente a TODOS os crimes no Brasil, sem exceções de hediondez." },
+            { id: 20, topic: "Lei 9.784 - Revisão", text: "Em um PAD (Processo Disciplinar), a servidora Ana foi punida com suspensão. Um ano depois, surgem testemunhas oculares e vídeos (fatos novos) que provam sua total inocência. Ela entra com pedido de REVISÃO (Art. 65). O chefe atual percebe que, além da inocência naquele fato, Ana ofendeu o chefe antigo, e usa a revisão para demiti-la. A luz da Lei 9.784/99:", options: { a: "A conduta do chefe é válida pois vige a verdade material e a possibilidade de reformatio in pejus na via administrativa em geral.", b: "A conduta é ilícita, pois da REVISÃO do processo não poderá resultar agravamento da sanção original (vedada reformatio in pejus na revisão).", c: "É válida, desde que Ana tenha direito de ampla defesa sobre a nova ofensa.", d: "É ilícita pois a revisão tem prazo decadencial de 30 dias.", e: "É ilícita pois fatos novos exigem reabertura por inquérito policial." }, correct: "b", explanation: "Atenção máxima: No recurso (recurso ordinário) PODE agravar a pena (com defesa). Mas na REVISÃO (pedido excepcional com base em fato novo para rever pena transitada), é EXPRESSAMENTE VEDADO o agravamento da sanção (Art. 65, Parágrafo Único)." },
+            { id: 21, topic: "CF88 - Direitos", text: "Acerca do instituto da extradição previsto no Art. 5º da Constituição Federal, analise as afirmativas:\nI. O brasileiro nato não será extraditado em nenhuma hipótese.\nII. O brasileiro naturalizado pode ser extraditado por crime comum praticado a qualquer tempo.\nIII. O estrangeiro não será extraditado por crime político ou de opinião.\nEstá(ão) correta(s):", options: { a: "I e II.", b: "I e III.", c: "Apenas a II.", d: "Apenas a III.", e: "I, II e III." }, correct: "b", explanation: "I está correta (o nato NUNCA é extraditado). II está FALSA (o naturalizado só pode ser extraditado por crime comum ANTES da naturalização, ou tráfico ilícito a qualquer tempo). III está correta (vedação expressa no art. 5º, LII)." },
+            { id: 22, topic: "CF88 - Remédios Constitucionais", text: "Qual remédio constitucional deve ser impetrado quando a falta de norma regulamentadora torne inviável o exercício dos direitos e liberdades constitucionais e das prerrogativas inerentes à nacionalidade, à soberania e à cidadania?", options: { a: "Mandado de Segurança Coletivo.", b: "Habeas Data.", c: "Mandado de Injunção.", d: "Ação de Inconstitucionalidade por Omissão.", e: "Ação Popular." }, correct: "c", explanation: "Art. 5º, LXXI da CF/88. A falta de norma regulamentadora que inviabilize o exercício de um direito constitucional é remediada por Mandado de Injunção." },
+            { id: 23, topic: "Lei 9.784 - Comunicação", text: "A intimação do interessado para ciência de decisão ou a efetivação de diligências, conforme a Lei nº 9.784/99, observará a antecedência mínima de:", options: { a: "10 (dez) dias corridos.", b: "5 (cinco) dias úteis.", c: "3 (três) dias úteis.", d: "48 horas.", e: "15 (quinze) dias corridos." }, correct: "c", explanation: "Art. 26, §2º. A intimação observará a antecedência mínima de TRÊS DIAS ÚTEIS quanto à data de comparecimento. Tema muito cobrado pela IBFC em provas literais." },
+            { id: 24, topic: "Lei 9.784 - Competência", text: "De acordo com as regras de competência da Lei do Processo Administrativo Federal, inexistindo competência legal específica para o caso, o processo deverá ser iniciado perante a autoridade de:", options: { a: "Maior grau hierárquico do órgão para garantir o avoco de funções.", b: "Menor grau hierárquico para decidir.", c: "Qualquer grau, havendo distribuição por sorteio.", d: "Exclusiva alçada do Ministro de Estado.", e: "Competência mista do Legislativo." }, correct: "b", explanation: "Art. 17. Inexistindo competência legal específica, o processo administrativo deverá ser iniciado perante a autoridade de MENOR grau hierárquico para decidir, visando respeitar o duplo grau de jurisdição administrativa." },
+            { id: 25, topic: "Lei 9.784 - Prazos", text: "Encerrada a instrução probatória no processo administrativo, o interessado terá o direito de se manifestar (oferecer alegações finais) no prazo de:", options: { a: "Até 30 dias.", b: "Até 5 dias.", c: "Até 15 dias.", d: "No máximo 10 dias.", e: "Prazo impreterível de 48 horas." }, correct: "d", explanation: "Art. 44. Encerrada a instrução, o interessado terá o direito de manifestar-se no prazo de NO MÁXIMO 10 (dez) dias." },
+            { id: 26, topic: "Lei 9.784 - Decisão", text: "Uma vez concluída a instrução processual administrativa, qual é o prazo legal para a Administração proferir a decisão do processo?", options: { a: "Até 10 dias, sem prorrogação.", b: "Até 15 dias, prorrogáveis por igual período.", c: "Até 30 dias, salvo prorrogação por igual período expressamente motivada.", d: "Até 60 dias, prorrogáveis apenas mediante autorização judicial.", e: "Sem prazo fixado em lei, aplicando-se o princípio da razoabilidade." }, correct: "c", explanation: "Art. 49. Concluída a instrução, a Administração tem o prazo de ATÉ 30 dias para decidir, admitindo-se uma prorrogação por igual período (ou seja, mais 30), desde que motivada." },
+            { id: 27, topic: "CF88 - Direitos", text: "Julgue a afirmativa sob a ótica da CF/88: 'Qualquer pessoa física, nacional ou estrangeira, é parte legítima para propor ação popular visando anular ato lesivo ao patrimônio público, ficando o autor sempre isento de custas judiciais e ônus da sucumbência'. A afirmativa está:", options: { a: "Correta na sua totalidade.", b: "Falsa, pois apenas o cidadão (eleitor) é parte legítima, e a isenção de custas não abarca casos de comprovada má-fé.", c: "Falsa, pois a ação popular é de exclusividade do Ministério Público.", d: "Falsa, pois só defende o meio ambiente, e não o patrimônio público.", e: "Correta, pois a gratuidade da justiça independe de má-fé do autor." }, correct: "b", explanation: "Ação popular (Art. 5º, LXXIII) é exclusiva de CIDADÃO (quem possui direitos políticos, título de eleitor regular, logo estrangeiro sem direitos não pode). E a isenção de custas/sucumbência CAI se for comprovada a MÁ-FÉ." },
+            { id: 28, topic: "Lei 9.784 - Recursos", text: "Sobre o número de instâncias na fase recursal administrativa, a Lei 9.784/99 estabelece que o recurso tramitará, no máximo, por:", options: { a: "Duas instâncias administrativas, salvo disposição legal diversa.", b: "Três instâncias administrativas, salvo disposição legal diversa.", c: "Quatro instâncias administrativas obrigatórias.", d: "Única instância, sendo o restante resolvido judicialmente.", e: "Quantas instâncias couberem até o Chefe do Executivo." }, correct: "b", explanation: "Art. 57. O recurso administrativo tramitará no máximo por 3 (três) instâncias administrativas, salvo disposição legal diversa. Regra clássica de pegadinha da IBFC." },
+            { id: 29, topic: "Lei 9.784 - Recursos", text: "De acordo com as regras de interposição de recurso da Lei nº 9.784/99, salvo disposição legal específica, qual é o prazo para interposição de recurso administrativo após a ciência da decisão?", options: { a: "5 (cinco) dias.", b: "10 (dez) dias.", c: "15 (quinze) dias.", d: "20 (vinte) dias.", e: "30 (trinta) dias." }, correct: "b", explanation: "Art. 59. Salvo disposição legal específica, é de DEZ (10) dias o prazo para interposição de recurso administrativo." },
+            { id: 30, topic: "Lei 9.784 - Recursos", text: "O recurso administrativo deve ser dirigido à autoridade que proferiu a decisão. Caso essa autoridade não reconsidere a sua decisão (juízo de retratação), ela deverá encaminhar o recurso à autoridade superior. Qual é o prazo para que ela possa reconsiderar?", options: { a: "Em 3 dias.", b: "Em 5 dias.", c: "Em 10 dias.", d: "Em 15 dias.", e: "A autoridade prolatora não pode reconsiderar na via administrativa." }, correct: "b", explanation: "Art. 56, §1º. O recurso será dirigido à autoridade que proferiu a decisão, a qual, se não a reconsiderar no prazo de 5 (cinco) dias, o encaminhará à autoridade superior." },
+            { id: 31, topic: "CF88 - Princípios Internacionais", text: "A Constituição Federal arrola, em seu art. 4º, os princípios aplicáveis às relações internacionais do Brasil. É considerado um desses princípios expresso na CF/88:", options: { a: "A promoção do bem de todos, sem preconceitos.", b: "O pluralismo político.", c: "A prevalência dos direitos humanos.", d: "A erradicação da pobreza.", e: "A livre iniciativa." }, correct: "c", explanation: "A 'Prevalência dos direitos humanos' é um princípio de relações internacionais (Art. 4º, II). Pluralismo Político e Livre Iniciativa são Fundamentos (Art. 1º). Promover o bem de todos e erradicar a pobreza são Objetivos (Art. 3º)." },
+            { id: 32, topic: "Lei 9.784 - Suspeição", text: "Em um procedimento, o interessado argui a suspeição do servidor responsável pela instrução. A chefia imediata julga e indefere (rejeita) o pedido de suspeição. Nos termos da Lei 9.784/99, contra esse indeferimento:", options: { a: "Cabe recurso, com efeito suspensivo imediato da decisão principal.", b: "Não caberá recurso administrativo, apenas ação judicial.", c: "Caberá pedido de reconsideração exclusivo ao Governador.", d: "Poderá ser objeto de recurso, sem efeito suspensivo.", e: "Acarreta o trancamento e arquivamento dos autos." }, correct: "d", explanation: "Art. 21. O indeferimento de alegação de suspeição poderá ser objeto de recurso, SEM efeito suspensivo. A IBFC costuma alterar para 'com efeito suspensivo' para confundir o candidato." },
+            { id: 33, topic: "Lei 9.784 - Forma", text: "No que se refere à forma dos atos administrativos e à autenticação de documentos, a Lei 9.784/99 determina que:", options: { a: "O reconhecimento de firma é obrigatório em toda e qualquer petição.", b: "A autenticação de cópia de documento só pode ser feita por tabelião de notas extrajudicial.", c: "O reconhecimento de firma somente será exigido quando houver dúvida de autenticidade ou previsão legal.", d: "Não se admite documentação eletrônica sem certificação ICP-Brasil do padrão A3.", e: "Apenas advogados podem autenticar documentos no processo federal." }, correct: "c", explanation: "Art. 22, §2º. O reconhecimento de firma somente será exigido quando houver dúvida de autenticidade. Além disso, o §3º permite que a própria repartição autentique cópias mediante apresentação do original." },
+            { id: 34, topic: "CF88 - Remédios Constitucionais", text: "Um cidadão encontra-se ameaçado de sofrer violência ou coação em sua liberdade de locomoção, por ilegalidade ou abuso de poder. O instrumento constitucional gratuito previsto para a proteção desse direito é:", options: { a: "Mandado de Injunção preventivo.", b: "Ação Civil Pública.", c: "Habeas Corpus.", d: "Mandado de Segurança.", e: "Habeas Data." }, correct: "c", explanation: "Art. 5º, LXVIII. Conceder-se-á Habeas Corpus sempre que alguém sofrer ou se achar ameaçado de sofrer violência ou coação em sua liberdade de locomoção, por ilegalidade ou abuso de poder. É uma ação constitucional isenta de custas (Art. 5º, LXXVII)." },
+            { id: 35, topic: "Lei 9.784 - Anulação/Revogação", text: "Conforme disposto na Lei 9.784/99, o direito da Administração de anular os atos administrativos de que decorram efeitos favoráveis para os destinatários decai em:", options: { a: "3 (três) anos contados de quando a autoridade tomou conhecimento, em qualquer caso.", b: "5 (cinco) anos contados da data em que foram praticados, salvo comprovada má-fé.", c: "10 (dez) anos contados da data em que foram praticados, salvo comprovada má-fé.", d: "5 (cinco) anos, inclusive em casos de comprovada má-fé do administrado.", e: "A qualquer tempo, pois o que é nulo não se convalida pelo tempo." }, correct: "b", explanation: "Art. 54. Prazo decadencial (para proteção da confiança legítima) é de 5 anos, contados da prática do ato. A exceção absoluta que afasta a decadência (ou seja, pode anular a qualquer tempo) é a comprovada MÁ-FÉ." },
+            { id: 36, topic: "Lei 9.784 - Convalidação", text: "Sobre o instituto da Convalidação de atos administrativos (Art. 55), é imperativo legal que o ato apresente defeito sanável e que da decisão:", options: { a: "Se evidencie não acarretar lesão ao interesse público nem prejuízo a terceiros.", b: "Se configure a revogação sumária do ato posterior.", c: "Não haja manifestação do Ministério Público de Contas por 30 dias.", d: "Não exista qualquer tipo de vício, sob pena de responsabilização civil.", e: "Atenda exclusivamente a direitos líquidos e certos do recorrente." }, correct: "a", explanation: "Art. 55. 'Em decisão na qual se evidencie não acarretarem lesão ao interesse público nem prejuízo a terceiros, os atos que apresentarem defeitos sanáveis poderão ser convalidados pela própria Administração'." },
+            { id: 37, topic: "CF88 - Direitos", text: "A Constituição Federal assegura aos autores de inventos industriais (Art. 5º, XXIX):", options: { a: "Privilégio permanente para sua utilização, em prol do desenvolvimento nacional.", b: "Privilégio temporário para sua utilização, bem como proteção às criações industriais e à propriedade das marcas, tendo em vista o interesse social.", c: "Direito exclusivo sem limite temporal aplicável apenas a medicamentos.", d: "Isenção tributária integral e vitalícia para as patentes aprovadas no Brasil.", e: "A transferência obrigatória ao Estado após 10 anos de exploração comercial." }, correct: "b", explanation: "O privilégio para inventos industriais (patentes) é TEMPORÁRIO (diferente de direitos autorais sobre obras de arte, que são exclusivos aos autores em vida e transferíveis aos herdeiros por um tempo). A 'a' erra ao dizer permanente." },
+            { id: 38, topic: "Lei 9.784 - Instrução", text: "Sobre a produção probatória no processo administrativo (Art. 37), os fatos que sejam notórios (de conhecimento geral público e inquestionável):", options: { a: "Devem ser provados documentalmente para evitar preclusão lógica.", b: "Dependem de confissão expressa do interessado para serem aceitos.", c: "Independem de prova.", d: "Só são aceitos se atestados por 3 testemunhas isentas.", e: "Exigem emissão de certidão por órgão do judiciário." }, correct: "c", explanation: "Art. 37, parágrafo único. 'Os fatos que sejam notórios independem de prova'. Regra clássica de economia e racionalidade processual." },
+            { id: 39, topic: "Lei 9.784 - Extinção", text: "Se em um processo administrativo com pluralidade de interessados (mais de um indivíduo demandando a mesma coisa) apenas um deles apresentar pedido formal de desistência (Art. 51):", options: { a: "O processo será extinto por inteiro (sem julgamento do mérito) para todos.", b: "A desistência ou renúncia atinge somente quem a tenha formulado, prosseguindo-se o processo para os demais.", c: "O processo ficará suspenso até que os demais confirmem se desejam continuar.", d: "A autoridade deve aplicar multa ao desistente e seguir julgando.", e: "O pedido é indeferido, pois processos coletivos não comportam desistência." }, correct: "b", explanation: "Art. 51, §1º. A desistência/renúncia atinge SOMENTE QUEM A FORMULOU, não prejudicando os outros interessados do mesmo processo." },
+            { id: 40, topic: "Lei 9.784 - Prioridades", text: "A Lei 9.784 prevê trâmite prioritário (Art. 69-A) para processos administrativos em que figure como parte ou interessado pessoa nas seguintes condições, EXCETO:", options: { a: "Pessoa com idade igual ou superior a 60 (sessenta) anos.", b: "Pessoa portadora de deficiência física ou mental.", c: "Pessoa portadora de tuberculose ativa, esclerose múltipla ou neoplasia maligna.", d: "Mulher gestante, do primeiro ao nono mês ininterruptamente.", e: "Pessoa com doença de Parkinson ou cardiopatia grave." }, correct: "d", explanation: "O Art. 69-A da Lei 9.784/99 (diferente de leis de atendimento em filas) NÃO lista 'mulheres gestantes' nas hipóteses formais de prioridade na tramitação de processos federais. A prioridade explícita é para idosos (60+), pessoas com deficiência e portadores de doenças graves elencadas." },
+            { id: 41, topic: "CF88 - Direitos", text: "Dentre as garantias fundamentais do art. 5º da CF/88, dois tipos de crimes recebem um tratamento de maior rigor, sendo classificados expressamente como inafiançáveis E imprescritíveis. São eles:", options: { a: "Racismo e Tortura.", b: "Tráfico ilícito de entorpecentes e Terrorismo.", c: "Ação de grupos armados (contra a ordem constitucional) e Racismo.", d: "Crimes Hediondos e Racismo.", e: "Terrorismo e Ação de grupos armados." }, correct: "c", explanation: "Macete Supremo IBFC: IMPRESCRITÍVEL = R.AÇÃO (Racismo + Ação de grupos armados). Os famosos 3TH (Tortura, Tráfico, Terrorismo e Hediondos) são inafiançáveis e insuscetíveis de graça/anistia, mas ELES PRESCREVEM!" },
+            { id: 42, topic: "Lei 9.784 - Disposições Gerais", text: "A Lei de Processo Administrativo Federal (Lei 9.784/99) se aplica aos Poderes Legislativo e Judiciário?", options: { a: "Não, aplica-se unicamente ao Poder Executivo para resguardar a separação dos poderes.", b: "Sim, aplica-se a todos os Poderes, mas unicamente nas suas funções jurisdicionais.", c: "Sim, os preceitos da Lei aplicam-se também aos órgãos dos Poderes Legislativo e Judiciário da União, quando no desempenho de função administrativa.", d: "Aplica-se apenas ao Legislativo quando em fiscalização no TCU.", e: "Aplica-se de modo optativo e consultivo aos demais Poderes." }, correct: "c", explanation: "Art. 1º, §1º: Os preceitos desta Lei também se aplicam aos órgãos dos Poderes Legislativo e Judiciário da União, quando no desempenho de função administrativa (função atípica administrativa do juiz e do parlamentar)." },
+            { id: 43, topic: "Lei 9.784 - Direitos", text: "São DIREITOS do administrado no processo administrativo (Art. 3º), EXCETO:", options: { a: "Ser tratado com respeito pelas autoridades e servidores.", b: "Ter ciência da tramitação dos processos em que tenha a condição de interessado, ter vista dos autos e obter cópias.", c: "Formular alegações e apresentar documentos antes da decisão.", d: "Fazer-se assistir, obrigatoriamente, por advogado particular em qualquer fase processual.", e: "Fazer-se assistir, facultativamente, por advogado, salvo quando obrigatória a representação por força de lei." }, correct: "d", explanation: "Art. 3º, IV. É um direito fazer-se assistir FACULTATIVAMENTE por advogado. A obrigatoriedade ('D') está falsa (reforçado pela Súmula Vinculante 5 do STF que diz que a falta de defesa técnica no PAD não ofende a CF)." },
+            { id: 44, topic: "Lei 9.784 - Deveres", text: "Em consonância com o Art. 4º da Lei 9.784/99, é um DEVER (e não um direito) do administrado perante a Administração:", options: { a: "Fazer-se representar por associação civil de classe.", b: "Proceder com lealdade, urbanidade e boa-fé.", c: "Recorrer a até três instâncias da estrutura pública.", d: "Ter ciência irrestrita dos votos de órgãos colegiados antes da publicação oficial.", e: "Impetrar Mandado de Segurança antes da fase decisória." }, correct: "b", explanation: "Art. 4º arrola os deveres: I- expor os fatos conforme a verdade; II- proceder com lealdade, urbanidade e boa-fé; III- não agir de modo temerário; IV- prestar informações solicitadas." },
+            { id: 45, topic: "CF88 - Associação", text: "A Constituição Federal estabelece as balizas para a criação e funcionamento de associações e cooperativas. Nos termos da CF/88, é correto afirmar que:", options: { a: "A criação de associações depende de autorização do ente estatal encarregado da segurança pública.", b: "As associações podem ter caráter paramilitar para atuar como força de reserva auxiliar.", c: "A criação de associações e, na forma da lei, a de cooperativas independem de autorização, sendo vedada a interferência estatal em seu funcionamento.", d: "Qualquer pessoa pode ser compelida a associar-se, se a associação proteger direitos de classe obrigatórios.", e: "Associações podem ser suspensas liminarmente mediante simples portaria de delegado de polícia civil." }, correct: "c", explanation: "Art. 5º, XVIII: A criação de associações independe de autorização do Estado e este não pode interferir (Vedação à interferência estatal). Caráter paramilitar é VEDADO (inc. XVII). Ninguém é obrigado a se associar (inc. XX)." },
+            { id: 46, topic: "Lei 9.784 - Prazos", text: "Se em um trâmite administrativo houver a omissão ou silêncio da lei específica sobre o prazo para que um servidor elabore um documento interno (inexistindo disposição específica), esse prazo legal subsidiário será de:", options: { a: "3 (três) dias.", b: "5 (cinco) dias, salvo motivo de força maior.", c: "10 (dez) dias úteis.", d: "15 (quinze) dias improrrogáveis.", e: "30 (trinta) dias de modo contínuo." }, correct: "b", explanation: "Art. 24 da Lei 9.784. O prazo geral para prática de atos, no silêncio da lei aplicável àquele caso, é de 5 dias (podendo ser dilatado ao dobro mediante justificativa)." },
+            { id: 47, topic: "Lei 9.784 - Delegação", text: "Para ter validade plena e conhecimento de todos, a Lei 9.784 (Art. 14) determina que o ato que formaliza uma delegação de competência administrativa, bem como a sua revogação, deverão ser:", options: { a: "Comunicados estritamente ao servidor delegado, em caráter reservado.", b: "Enviados por memorando circular a todos os Ministérios.", c: "Publicados no meio oficial.", d: "Registrados no cartório de notas e protestos da comarca local.", e: "Referendados por Decreto assinado pelo Presidente da República." }, correct: "c", explanation: "Art. 14: 'O ato de delegação e sua revogação deverão ser publicados no meio oficial'. A publicidade dos atos administrativos é essencial para sua eficácia legal externa." },
+            { id: 48, topic: "Lei 9.784 - Instrução", text: "A respeito do ônus da prova e do dever de instrução previstos no processo administrativo (Art. 36):", options: { a: "Cabe ao interessado a prova dos fatos que tenha alegado, sem prejuízo do dever atribuído ao órgão competente para a instrução (impulso oficial).", b: "Cabe integralmente e exclusivamente ao Estado (Administração) investigar qualquer fato alegado pelo cidadão.", c: "Aquele que alegar um fato perde o direito de utilizar testemunhas documentais caso não pague as taxas probatórias.", d: "A prova técnica pericial e laudos complexos jamais poderão ser fornecidos pelo interessado.", e: "O ônus recai sobre o Ministério Público em todos os processos punitivos com mais de um recorrente." }, correct: "a", explanation: "Art. 36: 'Cabe ao interessado a prova dos fatos que tenha alegado, SEM PREJUÍZO do dever atribuído ao órgão competente para a instrução'. Ou seja, o interessado prova o que fala, mas a Administração tem o dever (oficialidade) de buscar a verdade por conta própria também." },
+            { id: 49, topic: "CF88 - Princípios e Objetivos", text: "Construir uma sociedade livre, justa e solidária, bem como erradicar a pobreza e a marginalização e reduzir as desigualdades sociais e regionais, são, à luz da Constituição Federal de 1988:", options: { a: "Princípios das Relações Internacionais.", b: "Fundamentos da República.", c: "Objetivos Fundamentais da República Federativa do Brasil.", d: "Garantias Fundamentais de 2ª geração de eficácia limitada.", e: "Tratados constitucionais supranacionais do Mercosul." }, correct: "c", explanation: "Art. 3º. Todos que começam com verbo no infinitivo (Construir, Garantir, Erradicar, Promover) formam os OBJETIVOS fundamentais do Estado brasileiro." },
+            { id: 50, topic: "Lei 9.784 - Recursos", text: "O recurso interposto perante a Administração não será conhecido (isto é, a autoridade não adentrará ao mérito do que foi pedido) se (Art. 63), EXCETO:", options: { a: "For interposto fora do prazo (intempestivo).", b: "For interposto perante órgão incompetente.", c: "For interposto por quem não seja legitimado.", d: "For interposto contendo mais de três laudos probatórios inéditos na fase recursal.", e: "For interposto após exaurida a esfera administrativa máxima prevista em lei." }, correct: "d", explanation: "Art. 63 lista exaustivamente os 4 motivos para o não conhecimento: prazo esgotado, órgão incompetente, pessoa sem legitimidade e instâncias esgotadas. Juntar documentos e laudos inéditos não impede o conhecimento do recurso (pelo contrário, a busca pela verdade material permite juntada de novas provas)." },
+            { id: 51, topic: "CF88 - Direitos", text: "Sobre a desapropriação e o direito de propriedade, a CF/88 estabelece que a lei estabelecerá o procedimento para desapropriação por necessidade ou utilidade pública, ou por interesse social. Como regra geral, a indenização deverá ser:", options: { a: "Prévia e justa, em títulos da dívida pública.", b: "Prévia, justa e em dinheiro, ressalvados os casos previstos na Constituição.", c: "Ulterior, justa e em dinheiro.", d: "Prévia e em dinheiro, sem qualquer exceção constitucional.", e: "Apenas mediante precatórios judiciais." }, correct: "b", explanation: "Art. 5º, XXIV. A regra para desapropriação é indenização PRÉVIA, JUSTA e EM DINHEIRO. As exceções (títulos da dívida agrária ou pública) aplicam-se a imóveis que não cumprem a função social." },
+            { id: 52, topic: "Lei 9.784 - Anulação/Revogação", text: "Assinale a alternativa que indica um ato administrativo que NÃO pode ser objeto de revogação pela Administração Pública:", options: { a: "Atos discricionários em geral.", b: "Atos precários.", c: "Atos que já exauriram seus efeitos (consumados).", d: "Atos de autorização de uso de bem público.", e: "Atos inoportunos." }, correct: "c", explanation: "Não se pode revogar: atos consumados (exauriram seus efeitos), atos vinculados, atos que geraram direitos adquiridos, atos que integram um procedimento e meros atos administrativos (certidões, atestados)." },
+            { id: 53, topic: "Lei 9.784 - Competência", text: "Considere as seguintes assertivas sobre avocação e delegação de competência (Lei 9.784/99):\nI. A delegação exige relação de hierarquia, enquanto a avocação pode ser feita a órgão não subordinado.\nII. A avocação é medida excepcional e temporária, exigindo subordinação hierárquica.\nIII. O ato de delegação é irrevogável por 5 anos.\nÉ correto o que se afirma em:", options: { a: "Apenas II.", b: "I e II.", c: "II e III.", d: "Apenas I.", e: "I, II e III." }, correct: "a", explanation: "A I está invertida (delegação NÃO exige hierarquia; avocação EXIGE). A III está falsa (o ato de delegação é revogável a QUALQUER TEMPO). Apenas a II está correta." },
+            { id: 54, topic: "CF88 - Remédios Constitucionais", text: "Um sindicato legalmente constituído e em funcionamento há 3 anos deseja impetrar Mandado de Segurança Coletivo em defesa dos interesses de seus membros. Segundo a CF/88, o sindicato:", options: { a: "Não tem legitimidade, pois o MS Coletivo é exclusivo de partidos políticos.", b: "Pode impetrar, mas exige-se autorização expressa e individual de todos os sindicalizados.", c: "Tem legitimidade para impetrar o MS Coletivo em defesa dos interesses de seus membros ou associados.", d: "Só pode impetrar Habeas Corpus Coletivo.", e: "Precisa de pelo menos 5 anos de constituição para ter legitimidade." }, correct: "c", explanation: "Art. 5º, LXX, 'b'. Organização sindical, entidade de classe ou associação legalmente constituída e em funcionamento há pelo menos 1 ANO pode impetrar MS Coletivo. Não precisa de autorização expressa dos membros." },
+            { id: 55, topic: "Lei 9.784 - Prazos e Intimação", text: "Sobre os prazos previstos na Lei 9.784/99, é INCORRETO afirmar que:", options: { a: "Os atos do processo devem se realizar preferencialmente em dias úteis, no horário normal de funcionamento da repartição.", b: "O prazo para a autoridade julgadora emitir a decisão final é de 30 dias improrrogáveis.", c: "A intimação para o comparecimento do administrado observará a antecedência mínima de 3 dias úteis.", d: "Os prazos contam-se de modo contínuo, excluindo o dia do começo e incluindo o do vencimento.", e: "Salvo disposição específica, os atos devem ser praticados no prazo de 5 dias." }, correct: "b", explanation: "A afirmativa 'B' está INCORRETA. O prazo para decisão é de ATÉ 30 dias, mas é PRORROGÁVEL por igual período mediante motivação expressa (Art. 49)." },
+            { id: 56, topic: "CF88 - Tribunal do Júri", text: "Dentre as instituições reconhecidas no rol de direitos fundamentais, encontra-se o Tribunal do Júri. Assinale a garantia que NÃO pertence ao Júri segundo a CF/88:", options: { a: "A plenitude de defesa.", b: "O sigilo das votações.", c: "A soberania dos veredictos.", d: "A competência para o julgamento dos crimes dolosos e culposos contra a vida.", e: "A competência exclusiva para crimes dolosos contra a vida." }, correct: "d", explanation: "Atenção máxima: o Júri julga os crimes DOLOSOS contra a vida (homicídio, infanticídio, aborto, induzimento ao suicídio). Crimes CULPOSOS (sem intenção) não vão a júri popular." },
+            { id: 57, topic: "Lei 9.784 - Direitos e Deveres", text: "Durante um processo administrativo, o interessado, deliberadamente, age de modo temerário, atrasando o trâmite e faltando com a verdade. Neste cenário, o administrado feriu expressamente o dever legal de:", options: { a: "Assistência técnica presuntiva.", b: "Boa-fé objetiva processual (Art. 4º).", c: "Impulso oficial.", d: "Hierarquia funcional mitigada.", e: "Segurança jurídica ex tunc." }, correct: "b", explanation: "O Art. 4º da Lei 9.784 elenca como DEVER do administrado proceder com lealdade, urbanidade e boa-fé, bem como não agir de modo temerário." },
+            { id: 58, topic: "Lei 9.784 - Instrução Probatória", text: "A respeito das provas no processo administrativo, assinale a alternativa inteiramente de acordo com a Lei 9.784/99:", options: { a: "São admissíveis todas as provas legais, inclusive as obtidas por meios ilícitos, se beneficiarem o erário.", b: "Somente poderão ser recusadas provas propostas pelos interessados se forem ilícitas, impertinentes, desnecessárias ou protelatórias, mediante decisão fundamentada.", c: "O ônus da prova incumbe exclusivamente à Administração Pública, sendo vedado ao interessado juntar laudos técnicos.", d: "Os fatos notórios dependem de atestado cartorário para comporem a base probatória.", e: "O comparecimento em audiência pública confere, automaticamente, a condição de parte interessada no processo." }, correct: "b", explanation: "Literalidade do art. 38, §2º. Provas ilícitas são inadmissíveis (A). O interessado tem o ônus do que alega (C). Fatos notórios independem de prova (D). Audiência pública não confere condição de interessado (E)." },
+            { id: 59, topic: "CF88 - Direitos Individuais", text: "Analise a seguinte situação hipotética: O Estado decide criar um imposto com nítido caráter de confisco para cobrir déficits do tesouro. A luz do Art. 5º da CF/88, essa prática:", options: { a: "É permitida se aprovada por Medida Provisória.", b: "É vedada, pois a Constituição garante o direito de propriedade e proíbe a utilização de tributo com efeito de confisco (Art. 150, IV, c/c Art. 5º, XXII).", c: "É autorizada em casos de calamidade pública estadual.", d: "É um exemplo de função social da propriedade estrita.", e: "Aplica-se apenas a empresas estrangeiras." }, correct: "b", explanation: "O direito de propriedade (Art. 5º, XXII) é protegido. Aliado a isso, o Sistema Tributário veda expressamente o uso de tributos com efeito de confisco (retirar a propriedade sem a justa indenização camuflada de taxa/imposto)." },
+            { id: 60, topic: "Lei 9.784 - Recursos", text: "O recurso administrativo não será conhecido em diversas situações. Qual das opções abaixo NÃO impede o conhecimento do recurso?", options: { a: "Interposição fora do prazo (intempestivo).", b: "Interposição por quem não tem legitimidade.", c: "Interposição perante órgão incompetente.", d: "Falta de advogado para assinar a peça recursal.", e: "Interposição após o exaurimento da esfera administrativa." }, correct: "d", explanation: "A assistência de advogado é FACULTATIVA no processo administrativo (Art. 3º, IV da Lei 9784 e SV 5 do STF). Portanto, a falta de advogado não gera o 'não conhecimento' do recurso." },
+            { id: 61, topic: "CF88 - Fundamentos vs Objetivos", text: "Construir uma sociedade livre, justa e solidária; Erradicar a pobreza; e Promover o bem de todos, são classificados no texto constitucional como:", options: { a: "Direitos Políticos de primeira geração.", b: "Fundamentos da República Federativa do Brasil.", c: "Objetivos Fundamentais da República Federativa do Brasil.", d: "Princípios nas relações internacionais.", e: "Garantias processuais do cidadão." }, correct: "c", explanation: "Os verbos no infinitivo (Construir, Erradicar, Promover, Garantir) representam as metas do Estado, ou seja, seus OBJETIVOS Fundamentais (Art. 3º)." },
+            { id: 62, topic: "Lei 9.784 - Decisão", text: "A motivação dos atos administrativos é essencial para sua validade. Segundo a Lei 9.784/99, a motivação 'aliunde' ocorre quando:", options: { a: "A autoridade se exime de decidir e repassa o processo ao judiciário.", b: "A autoridade decide com base em declaração de concordância com fundamentos de pareceres anteriores, que passam a integrar o ato.", c: "A motivação é mantida em sigilo de justiça.", d: "O ato é discricionário e prescinde de qualquer explicação.", e: "O cidadão fundamenta seu próprio pedido sem base legal." }, correct: "b", explanation: "Motivação 'Aliunde' (ou per relationem) é a técnica (prevista no art. 50, §1º) onde a autoridade adota o texto de um parecer ou laudo anterior como sua própria fundamentação para o ato." },
+            { id: 63, topic: "CF88 - Direitos", text: "Com base no Art. 5º da CF/88, assinale a afirmativa correta sobre os crimes e suas garantias:", options: { a: "A prática do racismo constitui crime inafiançável e prescritível em 10 anos.", b: "A lei considerará inafiançáveis e insuscetíveis de graça ou anistia a tortura, o tráfico, o terrorismo e os crimes hediondos.", c: "Nenhuma pena passará da pessoa do condenado, não podendo a obrigação de reparar o dano ser estendida aos sucessores em hipótese alguma.", d: "Haverá pena de prisão perpétua para crimes de terrorismo.", e: "O civilmente identificado será sempre submetido a identificação criminal." }, correct: "b", explanation: "A 'B' é o texto exato do Art. 5º, XLIII (os famosos 3TH). A 'A' está errada (racismo é imprescritível). A 'C' está errada (reparação do dano pode passar aos sucessores até o limite da herança). A 'D' está errada (vedada perpétua). A 'E' está errada (civilmente identificado NÃO será criminalmente identificado, salvo exceções legais)." },
+            { id: 64, topic: "Lei 9.784 - Impedimento", text: "Em processo administrativo instaurado no órgão, o servidor designado para emitir o parecer técnico descobre que sua esposa atua como advogada (representante) da parte interessada. O servidor deve:", options: { a: "Aguardar que alguém argua sua suspeição.", b: "Comunicar o fato à autoridade competente, declarando-se impedido, abstendo-se de atuar.", c: "Continuar atuando, visto que ser marido não o torna diretamente interessado.", d: "Delegar verbalmente o processo a um estagiário.", e: "Extinguir o processo sem resolução de mérito." }, correct: "b", explanation: "Art. 18, II da 9.784. É impedido de atuar o servidor que 'tenha participado ou venha a participar como perito, testemunha ou REPRESENTANTE, ou se tais situações ocorrem quanto ao CÔNJUGE, companheiro ou parente até terceiro grau'." },
+            { id: 65, topic: "Lei 9.784 - Prazos e Manifestações", text: "Encerrada a instrução, o interessado terá o direito de manifestar-se. Se houver pluralidade de interessados, e um deles desejar prorrogar esse prazo alegando necessidade de mais provas, o prazo máximo para manifestação nas alegações finais é de:", options: { a: "10 (dez) dias úteis.", b: "No máximo 10 (dez) dias, salvo exceção legal expressa.", c: "15 (quinze) dias corridos.", d: "30 (trinta) dias.", e: "5 (cinco) dias improrrogáveis." }, correct: "b", explanation: "Art. 44. Encerrada a instrução, o interessado terá o direito de manifestar-se no prazo de NO MÁXIMO 10 dias. Cuidado com alternativas que colocam 'dias úteis', pois a contagem da lei 9.784 é em dias corridos." },
+            { id: 66, topic: "CF88 - Direitos de Associação", text: "Uma associação de moradores deseja paralisar suas atividades temporariamente devido à falta de fundos. Um juiz de primeira instância entende que a associação cometeu irregularidades passadas e decide extingui-la. Segundo a CF/88:", options: { a: "A dissolução compulsória exige decisão judicial transitada em julgado, não bastando a decisão de primeira instância sem recurso.", b: "A simples decisão do juiz (ainda que caiba recurso) já tem força para dissolver a entidade.", c: "O Estado pode dissolver por decreto do Executivo.", d: "A suspensão das atividades exige trânsito em julgado.", e: "É vedado ao Estado dissolver associações, cabendo apenas multa." }, correct: "a", explanation: "Art. 5º, XIX. Para SUSPENDER a associação = Decisão judicial (basta a liminar ou 1ª instância). Para DISSOLVER compulsóriamente = Decisão judicial TRANSITADA EM JULGADO (não cabe mais recurso)." },
+            { id: 67, topic: "Lei 9.784 - Suspeição", text: "Qual das hipóteses abaixo é caracterizada como causa legal de SUSPEIÇÃO (Art. 20) na Lei 9.784/99, e não de impedimento?", options: { a: "Ter interesse direto na matéria.", b: "Estar litigando judicialmente contra o cônjuge do interessado.", c: "Ter participado como testemunha no próprio processo.", d: "Amizade íntima ou inimizade notória com algum dos interessados.", e: "Ambas B e D estão corretas." }, correct: "e", explanation: "O Art. 20 elenca como Suspeição: amizade íntima ou inimizade notória; e se estiver litigando judicialmente ou administrativamente com o interessado (ou cônjuge/parente)." },
+            { id: 68, topic: "Lei 9.784 - Desistência", text: "Segundo a Lei 9.784/99, a Administração poderá dar prosseguimento a um processo administrativo, mesmo que o interessado que o provocou apresente declaração escrita de desistência do pedido, SE:", options: { a: "O processo tiver durado mais de 60 dias.", b: "O interessado for reincidente em práticas elisivas.", c: "A Administração considerar que o interesse público exige o andamento do processo.", d: "A autoridade já tiver proferido o despacho saneador.", e: "Jamais poderá prosseguir, vigorando a inércia vinculada." }, correct: "c", explanation: "Art. 51, §2º. A desistência do interessado não prejudica o prosseguimento do processo se a Administração considerar que o interesse público assim o exige (princípio da oficialidade e indisponibilidade do interesse público)." },
+            { id: 69, topic: "CF88 - Princípios Internacionais", text: "A concessão de asilo político, o repúdio ao racismo e a solução pacífica dos conflitos inserem-se na CF/88 como:", options: { a: "Princípios Institucionais do Mercosul.", b: "Objetivos Fundamentais da República.", c: "Princípios pelos quais o Brasil se rege em suas Relações Internacionais.", d: "Fundamentos constitucionais inarredáveis.", e: "Garantias individuais de cidadãos estrangeiros." }, correct: "c", explanation: "Todos estes elementos estão estritamente listados no rol do Art. 4º da CF/88, que trata das Relações Internacionais." },
+            { id: 70, topic: "Lei 9.784 - Extinção do Ato", text: "Analise a Súmula 473 do STF c/c Art. 53 da Lei 9.784/99: 'A Administração pode revogar seus próprios atos por motivo de conveniência ou oportunidade, respeitados os direitos adquiridos, e deles não decorrem efeitos...'", options: { a: "Ex Nunc (prospectivos/para o futuro).", b: "Ex Tunc (retroativos ao nascimento do ato).", c: "Suspensivos plenos.", d: "Restritivos de direitos sociais.", e: "Sancionadores automáticos." }, correct: "a", explanation: "REVOGAÇÃO opera efeitos EX NUNC (daqui pra frente). Não retroage porque o ato era legal e válido enquanto vigorou. Quem retroage (EX TUNC) é a Anulação (porque o ato era ilegal/podre desde a origem)." },
+            { id: 71, topic: "Lei 9.784 - Prazos e Defesa", text: "Caso não haja determinação específica em lei, qual é o prazo mínimo que deve ser garantido entre a intimação e a data do comparecimento do administrado para realização de diligência processual?", options: { a: "5 dias.", b: "3 dias úteis.", c: "10 dias corridos.", d: "24 horas.", e: "48 horas." }, correct: "b", explanation: "Art. 26, §2º: 'A intimação observará a antecedência mínima de três dias úteis quanto à data de comparecimento'. Fundamental para garantir o tempo hábil de defesa." },
+            { id: 72, topic: "Lei 9.784 - Convalidação", text: "Para que um ato administrativo defeituoso seja CONVALIDADO, a Lei 9.784/99 impõe limites. São passíveis de convalidação pela própria Administração:", options: { a: "Os atos nulos com vício de finalidade (desvio de poder).", b: "Apenas atos em que se evidencie não acarretarem lesão ao interesse público nem prejuízo a terceiros, e que apresentem defeitos sanáveis.", c: "Os atos que possuam vícios insanáveis de competência exclusiva material.", d: "Qualquer ato, mesmo ferindo terceiros de boa-fé.", e: "Atos revogados há mais de 5 anos." }, correct: "b", explanation: "Art. 55. A convalidação só é admitida para defeitos sanáveis (geralmente forma não essencial ou competência que não seja exclusiva), desde que não haja lesão ao interesse público e nem a terceiros." },
+            { id: 73, topic: "CF88 - Direitos Individuais", text: "Determinado indivíduo publicou texto contendo ofensas diretas à honra e imagem de outrem utilizando o 'anonimato' em uma rede social. Segundo o Art. 5º da CF:", options: { a: "O anonimato é garantido como forma de livre manifestação do pensamento.", b: "É livre a manifestação do pensamento, sendo vedado o anonimato.", c: "A liberdade de expressão permite o anonimato exclusivamente no jornalismo investigativo.", d: "A CF assegura o anonimato, cabendo porém indenização material posterior.", e: "O ofendido não possui direito de resposta em redes sociais." }, correct: "b", explanation: "Art. 5º, IV. É livre a manifestação do pensamento, sendo VEDADO O ANONIMATO. É uma das regras constitucionais mais repetidas pela IBFC." },
+            { id: 74, topic: "Lei 9.784 - Recursos", text: "A interposição de recurso administrativo na esfera federal exige o pagamento de custas ou garantia (caução)?", options: { a: "Sim, como forma de inibir recursos protelatórios (solve et repete).", b: "Depende da capacidade econômica do recorrente.", c: "O processo administrativo não admite recurso, apenas revisão.", d: "Independe de caução, mas exige taxa de expediente mínima.", e: "Não, pois a lei veda a exigência de depósito prévio ou pagamento de custas para interposição de recurso administrativo." }, correct: "e", explanation: "Súmula Vinculante 21 (STF) + Art. 56 da Lei 9784: É inconstitucional e vedada a exigência de depósito prévio de arrolamento de dinheiro/bens para admissibilidade de recurso administrativo." },
+            { id: 75, topic: "Lei 9.784 - Prioridade Tramitação", text: "O Art. 69-A garante a prioridade na tramitação de processos e procedimentos administrativos para idosos. A partir de qual idade a lei federal de processos considera a garantia dessa prioridade?", options: { a: "Igual ou superior a 65 anos.", b: "Igual ou superior a 70 anos.", c: "Igual ou superior a 60 anos.", d: "Apenas 80 anos (superprioridade obrigatória).", e: "55 anos se for servidor aposentado." }, correct: "c", explanation: "Apesar do Estatuto do Idoso ter sofrido atualizações (superprioridade aos 80), a redação original do Art. 69-A da 9.784 garante a prioridade geral para pessoa com idade IGUAL OU SUPERIOR A 60 ANOS." },
+            { id: 76, topic: "CF88 - Direito à Informação", text: "Todos têm direito a receber dos órgãos públicos informações de seu interesse particular, ou de interesse coletivo ou geral, que serão prestadas no prazo da lei. Qual a única EXCEÇÃO imposta pela própria Constituição (Art. 5º, XXXIII) ao acesso livre à informação pública?", options: { a: "Informações referentes aos salários dos Ministros.", b: "Informações sigilosas cujo sigilo seja imprescindível à segurança da sociedade e do Estado.", c: "Contratos de licitação acima de dez milhões de reais.", d: "O andamento de processos legislativos de emendas constitucionais.", e: "Não há exceções, o acesso é absoluto e irrestrito." }, correct: "b", explanation: "O direito à informação é regra, mas é excepcionado por 'aquelas cujo sigilo seja imprescindível à segurança da sociedade e do Estado'." },
+            { id: 77, topic: "Lei 9.784 - Forma dos Atos", text: "Um servidor, buscando acelerar um processo, decide elaborar todos os relatórios oralmente, gravando a própria voz em aplicativo não oficial de mensagens. Segundo a Lei 9.784/99 (Art. 22):", options: { a: "A prática é totalmente válida, consubstanciando o princípio da celeridade.", b: "A gravação em áudio supre a forma escrita para laudos periciais complexos.", c: "Os atos do processo devem ser preferencialmente por escrito, mas a falta de padrão é aceita.", d: "Os atos do processo devem ser produzidos por ESCRITO, em vernáculo (português), com a data e o local de sua realização e a assinatura da autoridade responsável.", e: "É vedado o uso de meios eletrônicos em qualquer hipótese." }, correct: "d", explanation: "Art. 22, §1º. O formalismo é moderado, mas exige a forma ESCRITA e o VERNÁCULO para a validade e segurança do registro dos atos no processo administrativo." },
+            { id: 78, topic: "Lei 9.784 - Decisão Motivada", text: "A Lei 9.784/99 exige que a decisão administrativa indique expressamente (motivação) os fatos e fundamentos jurídicos quando:", options: { a: "Ocorrer a dispensa ou inexigibilidade de licitação.", b: "For aprovado um requerimento ordinário sem oposição.", c: "For exarado um despacho interlocutório sem cunho decisório.", d: "Um servidor for promovido por antiguidade automática.", e: "Qualquer petição eletrônica for inserida no sistema." }, correct: "a", explanation: "Art. 50, IV. Dispensar ou declarar inexigibilidade de processo licitatório é hipótese legal EXPRESSA que obriga a autoridade a apresentar as motivações de fato e de direito." },
+            { id: 79, topic: "CF88 - Remédios Constitucionais", text: "A Ação Civil Pública (ACP) e a Ação Popular (AP) são instrumentos de defesa do patrimônio e da ordem social. Contudo, elas se diferenciam fortemente pela legitimidade ativa. Assinale a correta:", options: { a: "A Ação Popular só pode ser proposta pelo Ministério Público.", b: "A Ação Popular é proposta por qualquer Cidadão; já a Ação Civil Pública, embora proteja direitos similares (meio ambiente/patrimônio), tem o Ministério Público como um de seus legitimados essenciais (CF, Art. 129).", c: "Qualquer estrangeiro em turismo pode ajuizar Ação Popular.", d: "O Ministério Público não pode ajuizar Ação Civil Pública.", e: "Ambas exigem autorização do Procurador-Geral da República." }, correct: "b", explanation: "Ação popular = CIDADÃO (quem tem título de eleitor). Ação Civil Pública = O Ministério Público é o ator mais proeminente e instituição essencial para propô-la (conforme art. 129, III da CF)." },
+            { id: 80, topic: "Lei 9.784 - Recursos (Instâncias)", text: "Determinado administrado teve seu pedido indeferido pelo setor de base, recorreu à chefia intermediária (1º recurso), que também negou. Em seguida, recorreu ao superintendente (2º recurso), que manteve a negativa, e por fim ao Diretor Geral (3º recurso). Insatisfeito, ele tenta um 4º recurso para o Secretário de Estado. Considerando o silêncio da lei específica daquele órgão, o que ocorrerá na Lei 9.784?", options: { a: "O recurso será apreciado normalmente pelo princípio do duplo grau de jurisdição perene.", b: "O recurso não será conhecido, pois o processo administrativo tramitará no MÁXIMO por 3 instâncias administrativas.", c: "Será remetido diretamente ao Presidente da República.", d: "A interposição do 4º recurso gera multa automática por litigância de má-fé.", e: "O Secretário deverá instaurar revisão avogatória e demitir a diretoria." }, correct: "b", explanation: "Art. 57 c/c Art. 63. O recurso tramita no máximo por TRÊS instâncias. Ao tentar a quarta, exaure-se a esfera administrativa (motivo expresso no art. 63, IV para a autoridade 'não conhecer' do recurso)." }
+    
+];  
+
+        // =====================================================================
+        // 2. ARQUITETURA DE ESTADO (CLEAN CODE)
+        // Separação clara de responsabilidades. O Estado guarda dados imutáveis 
+        // ou serializáveis.
+        // =====================================================================
+        const appState = {
+            currentSession: {
+                questions: [],        // Buffer de questões da sessão atual (máx 10)
+                currentIndex: 0,
+                correctCount: 0,
+                incorrectCount: 0
+            },
+            userData: {
+                // Estrutura de categorização: { idDaQuestão: 'correct' | 'incorrect' }
+                // Se o id não existe aqui, é 'unanswered' (inédita)
+                questionStatus: {},
+                history: [] // { topic, correct, date } para gráficos a longo prazo
+            }
+        };
+
+        // Instanciar ícones Lucide globalmente
+        lucide.createIcons();
+
+        // =====================================================================
+        // 3. CONTROLADOR PRINCIPAL (APP)
+        // =====================================================================
+        const app = {
+            selectedOption: null,
+
+            // Inicialização da aplicação
+            init() {
+                this.updateHomeMetrics();
+            },
+
+            // Roteamento simples (SPA)
+            showView(viewId) {
+                const views = ['home', 'quiz', 'feedback', 'dashboard', 'data'];
+                views.forEach(v => document.getElementById(`view-${v}`).classList.add('hide'));
+                document.getElementById(`view-${viewId}`).classList.remove('hide');
+                if (viewId === 'dashboard') this.renderDashboard();
+            },
+
+            // --- MOTOR DE CATEGORIZAÇÃO & MÉTRICAS ---
+            getCategorizedQuestions() {
+                const statusDict = appState.userData.questionStatus || {};
+                const unanswered = [];
+                const incorrect = [];
+                const correct = [];
+
+                questionBank.forEach(q => {
+                    const status = statusDict[q.id];
+                    if (status === 'correct') correct.push(q);
+                    else if (status === 'incorrect') incorrect.push(q);
+                    else unanswered.push(q);
+                });
+
+                return { unanswered, incorrect, correct };
+            },
+
+            updateHomeMetrics() {
+                const cats = this.getCategorizedQuestions();
+                
+                // Seguranças: Evitar que falhe se os elementos HTML estiverem ausentes
+                const elUnanswered = document.getElementById('stat-unanswered');
+                if (elUnanswered) elUnanswered.innerText = cats.unanswered.length;
+                
+                const elIncorrect = document.getElementById('stat-incorrect');
+                if (elIncorrect) elIncorrect.innerText = cats.incorrect.length;
+                
+                const elCorrect = document.getElementById('stat-correct');
+                if (elCorrect) elCorrect.innerText = cats.correct.length;
+
+                // Percentual de domínio (apenas acertos sobre o total do banco)
+                const mastery = Math.round((cats.correct.length / questionBank.length) * 100) || 0;
+                const elMastery = document.getElementById('home-mastery');
+                if (elMastery) elMastery.innerText = `${mastery}%`;
+
+                // Resumo Global do Histórico Linear
+                let totCorr = 0, totInc = 0;
+                appState.userData.history.forEach(h => h.correct ? totCorr++ : totInc++);
+                
+                const elTotalAns = document.getElementById('home-total-answered');
+                if (elTotalAns) elTotalAns.innerText = totCorr + totInc;
+                
+                const elTotalCorr = document.getElementById('home-total-correct');
+                if (elTotalCorr) elTotalCorr.innerText = totCorr;
+                
+                const elTotalInc = document.getElementById('home-total-incorrect');
+                if (elTotalInc) elTotalInc.innerText = totInc;
+            },
+
+            // --- LÓGICA DE SESSÃO DO SIMULADO ---
+            startSession() {
+                const cats = this.getCategorizedQuestions();
+                // Regra de Negócio: Misturar Inéditas (Unanswered) e Erros para a nova sessão
+                let availableForSession = [...cats.unanswered, ...cats.incorrect];
+                
+                // Validação de Escassez
+                if (availableForSession.length < 10) {
+                    this.showRestartModal();
+                    return;
+                }
+
+                // Embaralhar e separar 10
+                availableForSession = availableForSession.sort(() => Math.random() - 0.5);
+                
+                appState.currentSession.questions = availableForSession.slice(0, 10);
+                appState.currentSession.currentIndex = 0;
+                appState.currentSession.correctCount = 0;
+                appState.currentSession.incorrectCount = 0;
+
+                this.renderQuestion();
+                this.showView('quiz');
+            },
+
+            // UI Modal Handler
+            showRestartModal() {
+                document.getElementById('modal-restart').classList.remove('hide');
+            },
+            closeModal() {
+                document.getElementById('modal-restart').classList.add('hide');
+            },
+            resetBankAndStart() {
+                // Limpa os status, mas mantém o histórico linear pros gráficos (opcional)
+                appState.userData.questionStatus = {};
+                this.closeModal();
+                this.updateHomeMetrics();
+                this.startSession();
+            },
+
+            // Renderiza pergunta atual
+            renderQuestion() {
+                const session = appState.currentSession;
+                const q = session.questions[session.currentIndex];
+                
+                document.getElementById('quiz-topic').innerHTML = q.topic;
+                document.getElementById('quiz-current-num').innerText = session.currentIndex + 1;
+                document.getElementById('quiz-question-text').innerText = q.text;
+
+                // Badge de IA
+                const aiBadge = document.getElementById('ai-badge');
+                if (q.isAI) aiBadge.classList.remove('hide');
+                else aiBadge.classList.add('hide');
+
+                const optsContainer = document.getElementById('quiz-options');
+                optsContainer.innerHTML = '';
+
+                for (const [key, text] of Object.entries(q.options)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-option w-full text-left p-4 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-start gap-3 bg-white text-sm md:text-base';
+                    btn.onclick = () => this.selectOption(key);
+                    btn.id = `opt-${key}`;
+                    btn.innerHTML = `<span class="font-bold text-blue-600 uppercase mt-0.5">${key})</span> <span class="text-slate-700">${text}</span>`;
+                    optsContainer.appendChild(btn);
+                }
+
+                document.getElementById('btn-confirm').disabled = true;
+                this.selectedOption = null;
+                document.getElementById('view-feedback').classList.add('hide');
+                document.getElementById('ai-explanation-content').classList.add('hide');
+                document.getElementById('btn-ask-ai').innerHTML = '✨ Explicar com Mnemônico';
+                document.getElementById('btn-ask-ai').disabled = false;
+            },
+
+            selectOption(key) {
+                this.selectedOption = key;
+                document.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('selected'));
+                document.getElementById(`opt-${key}`).classList.add('selected');
+                document.getElementById('btn-confirm').disabled = false;
+            },
+
+            confirmAnswer() {
+                const session = appState.currentSession;
+                const q = session.questions[session.currentIndex];
+                const isCorrect = this.selectedOption === q.correct;
+
+                document.querySelectorAll('.btn-option').forEach(btn => btn.disabled = true);
+                document.getElementById('btn-confirm').disabled = true;
+
+                document.getElementById(`opt-${q.correct}`).classList.add('correct');
+                if (!isCorrect) document.getElementById(`opt-${this.selectedOption}`).classList.add('incorrect');
+
+                // Atualizar Estado da Sessão
+                if (isCorrect) session.correctCount++;
+                else session.incorrectCount++;
+
+                // Persistência: Atualizar categorização
+                if (!appState.userData.questionStatus) appState.userData.questionStatus = {};
+                appState.userData.questionStatus[q.id] = isCorrect ? 'correct' : 'incorrect';
+
+                // Persistência: Histórico Linear
+                appState.userData.history.push({
+                    topic: q.topic,
+                    correct: isCorrect,
+                    date: new Date().toISOString()
+                });
+
+                this.updateHomeMetrics();
+                this.renderFeedback(isCorrect, q.explanation);
+            },
+
+            renderFeedback(isCorrect, explanation) {
+                const header = document.getElementById('feedback-header');
+                if (isCorrect) {
+                    header.className = 'rounded-t-2xl p-5 text-white font-bold flex items-center gap-2 bg-green-500';
+                    header.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> Acertou! Excelente leitura.';
+                } else {
+                    header.className = 'rounded-t-2xl p-5 text-white font-bold flex items-center gap-2 bg-red-500';
+                    header.innerHTML = '<i data-lucide="alert-octagon" class="w-5 h-5"></i> Errou! Pegadinha ativada.';
+                }
+
+                document.getElementById('feedback-explanation').innerText = explanation;
+                document.getElementById('view-feedback').classList.remove('hide');
+                lucide.createIcons();
+                document.getElementById('view-feedback').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            nextQuestion() {
+                appState.currentSession.currentIndex++;
+                if (appState.currentSession.currentIndex >= appState.currentSession.questions.length) {
+                    this.showView('dashboard');
+                } else {
+                    this.renderQuestion();
+                    window.scrollTo(0,0);
+                }
+            },
+
+            // --- DASHBOARD E GRÁFICOS ---
+            renderDashboard() {
+                const session = appState.currentSession;
+                document.getElementById('current-session-stats').innerText = `${session.correctCount} Acerts | ${session.incorrectCount} Erros`;
+                
+                this.renderDonut('currentSessionChart', session.correctCount, session.incorrectCount);
+                
+                let gCorr = 0, gInc = 0;
+                appState.userData.history.forEach(h => h.correct ? gCorr++ : gInc++);
+                document.getElementById('global-session-stats').innerText = `${gCorr} Acerts | ${gInc} Erros`;
+                this.renderDonut('globalSessionChart', gCorr, gInc);
+                
+                this.renderHistoryChartAndSWOT();
+                lucide.createIcons();
+            },
+
+            renderDonut(canvasId, correct, incorrect) {
+                const ctx = document.getElementById(canvasId);
+                // Utilizando um store customizado no próprio elemento para limpar instancias do chart
+                if (ctx.chart) ctx.chart.destroy();
+                if (correct === 0 && incorrect === 0) return;
+
+                ctx.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Acertos', 'Erros'],
+                        datasets: [{ data: [correct, incorrect], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '75%' }
+                });
+            },
+
+            renderHistoryChartAndSWOT() {
+                const stats = {};
+                appState.userData.history.forEach(h => {
+                    if (!stats[h.topic]) stats[h.topic] = { tot: 0, corr: 0 };
+                    stats[h.topic].tot++;
+                    if (h.correct) stats[h.topic].corr++;
+                });
+
+                const labels = [], data = [], strengths = [], weaknesses = [];
+
+                for (const [topic, s] of Object.entries(stats)) {
+                    const acc = Math.round((s.corr / s.tot) * 100);
+                    labels.push(topic); data.push(acc);
+                    if (acc >= 80) strengths.push(`${topic} (${acc}%)`);
+                    if (acc < 60) weaknesses.push(`${topic} (${acc}%)`);
+                }
+
+                const ctx = document.getElementById('historyChart');
+                if (ctx.chart) ctx.chart.destroy();
+                ctx.chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: '% Acertos', data, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+
+                document.getElementById('swot-strengths').innerHTML = strengths.length ? strengths.map(s=>`<li>${s}</li>`).join('') : '<li>Sem dados consolidados</li>';
+                document.getElementById('swot-weaknesses').innerHTML = weaknesses.length ? weaknesses.map(w=>`<li>${w}</li>`).join('') : '<li>Sem pontos críticos</li>';
+            },
+
+            // --- PERSISTÊNCIA MANUAL JSON ---
+            exportData() {
+                document.getElementById('data-json').value = JSON.stringify(appState.userData);
+                document.getElementById('data-json').select();
+                try { document.execCommand('copy'); alert('Backup Copiado!'); } catch(e) { alert('Copie manualmente.'); }
+            },
+            importData() {
+                try {
+                    const parsed = JSON.parse(document.getElementById('data-json').value);
+                    if (parsed.history) {
+                        // Tratamento de retrocompatibilidade: converte arrays velhos pro novo sistema dicionário
+                        if (parsed.correctlyAnsweredIds && !parsed.questionStatus) {
+                            parsed.questionStatus = {};
+                            parsed.correctlyAnsweredIds.forEach(id => parsed.questionStatus[id] = 'correct');
+                        }
+                        appState.userData = parsed;
+                        this.updateHomeMetrics();
+                        alert('Restaurado!');
+                        this.showView('home');
+                    } else alert('Formato Inválido');
+                } catch(e) { alert('Erro no JSON.'); }
+            }
+        };
+
+        // =====================================================================
+        // 4. MÓDULO DE INTELIGÊNCIA ARTIFICIAL (API GEMINI)
+        // =====================================================================
+        const apiKey = ""; // Chave injetada pelo ambiente
+        const aiFeatures = {
+            async fetchWithRetry(url, options, retries = 3) {
+                const delays = [1000, 3000, 6000];
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const res = await fetch(url, options);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return await res.json();
+                    } catch (err) {
+                        if (i === retries - 1) throw err;
+                        await new Promise(r => setTimeout(r, delays[i]));
+                    }
+                }
+            },
+            async callGemini(prompt, isJson = false, systemContext = "") {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: systemContext || "Você é Professor Sênior." }] }
+                };
+                if (isJson) payload.generationConfig = { responseMimeType: "application/json" };
+                const data = await this.fetchWithRetry(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            },
+            async explainWithAI() {
+                const q = appState.currentSession.questions[appState.currentSession.currentIndex];
+                const btn = document.getElementById('btn-ask-ai');
+                const contentDiv = document.getElementById('ai-explanation-content');
+                
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 spin-slow"></i> Processando...`;
+                btn.disabled = true; lucide.createIcons();
+                contentDiv.classList.remove('hide');
+                contentDiv.innerHTML = `<div class="animate-pulse h-2 bg-purple-300 rounded w-1/2"></div>`;
+
+                const prompt = `Questão: "${q.text}". O aluno escolheu '${app.selectedOption}', sendo a correta '${q.correct}'. 
+                Crie um MNEMÔNICO ou ANALOGIA do dia a dia muito simples para o aluno nunca mais errar isso (1 a 2 parágrafos no máximo).`;
+
+                try {
+                    const res = await this.callGemini(prompt, false, "Você é Professor focado em Macetes para IBFC.");
+                    contentDiv.innerHTML = `<p class="border-l-4 border-purple-400 pl-3 leading-relaxed">${res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`;
+                    btn.innerHTML = `✨ Super Explicado!`;
+                } catch (e) {
+                    contentDiv.innerHTML = `<p class="text-red-500">Erro de conexão.</p>`;
+                    btn.innerHTML = `Tentar de novo`; btn.disabled = false;
+                }
+            },
+            async generateDynamicQuestion() {
+                const btn = document.getElementById('btn-generate-ai');
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 spin-slow"></i> Gerando...`;
+                btn.disabled = true; lucide.createIcons();
+
+                const prompt = `Crie UMA questão de múltipla escolha (A a E) nível difícil estilo IBFC sobre Direito Administrativo (Lei 9784) ou Constitucional.
+                Formato OBRIGATÓRIO em JSON: {"topic":"IA - Tópico", "text":"...", "options":{"a":"..","b":"..","c":"..","d":"..","e":".."}, "correct":"a", "explanation":"..."}`;
+
+                try {
+                    const resStr = await this.callGemini(prompt, true, "Você é Examinador IBFC Sênior.");
+                    const q = JSON.parse(resStr);
+                    q.id = 'ai_' + Date.now(); q.isAI = true;
+                    questionBank.push(q);
+                    
+                    appState.currentSession.questions = [q];
+                    appState.currentSession.currentIndex = 0;
+                    appState.currentSession.correctCount = 0;
+                    appState.currentSession.incorrectCount = 0;
+                    
+                    app.renderQuestion(); app.showView('quiz');
+                } catch (e) {
+                    alert("Falha na IA. Tente novamente.");
+                } finally {
+                    btn.innerHTML = orig; btn.disabled = false; lucide.createIcons();
+                }
+            }
+        };
+
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>
