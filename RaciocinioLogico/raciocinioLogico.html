@@ -398,7 +398,7 @@
             // REGRA DE NEGÓCIO: O ciclo exige 20 questões (ou limite que definirmos).
             // Se o pool for menor que 20 e o DB tiver 20 ou mais, significa que o aluno
             // já acertou a maioria. Precisamos perguntar se ele quer reiniciar.
-            const cycleSize = 5; // Definindo o tamanho do ciclo (pode ser ajustado)
+            const cycleSize = 10; // Definindo o tamanho do ciclo (pode ser ajustado)
             if (pool.length < cycleSize && db.length >= cycleSize) {
                 showModal(
                     "Questões Insuficientes",
